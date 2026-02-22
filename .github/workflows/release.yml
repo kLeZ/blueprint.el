@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'blueprint.el'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      tag_exists: ${{ steps.check_tag.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from blueprint.el
+        id: extract
+        run: |
+          VERSION=$(grep -oP '^;; Version: \K.*' blueprint.el)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ steps.extract.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: check-version
+    if: needs.check-version.outputs.tag_exists == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect .el files and templates for release tarball
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          PKG_DIR="blueprint-${VERSION}"
+          mkdir "$PKG_DIR"
+          cp *.el "$PKG_DIR/"
+          cp -r templates "$PKG_DIR/"
+          cp README.md "$PKG_DIR/" 2>/dev/null || true
+          tar czf "blueprint-${VERSION}.tar.gz" "$PKG_DIR"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Blueprint v${{ needs.check-version.outputs.version }}
+          generate_release_notes: true
+          files: blueprint-*.tar.gz

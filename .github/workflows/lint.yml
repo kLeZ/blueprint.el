@@ -1,0 +1,81 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  byte-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs-version: ['29.1', '29.4', 'snapshot']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs-version }}
+
+      - name: Byte-compile all .el files
+        run: |
+          emacs -Q --batch \
+            --eval "(setq byte-compile-error-on-warn t)" \
+            --eval "(push default-directory load-path)" \
+            -f batch-byte-compile *.el
+
+  package-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: '29.4'
+
+      - name: Install package-lint
+        run: |
+          emacs -Q --batch \
+            --eval "(require 'package)" \
+            --eval "(push '(\"melpa\" . \"https://melpa.org/packages/\") package-archives)" \
+            --eval "(package-initialize)" \
+            --eval "(package-refresh-contents)" \
+            --eval "(package-install 'package-lint)"
+
+      - name: Run package-lint on main entry point
+        run: |
+          emacs -Q --batch \
+            --eval "(require 'package)" \
+            --eval "(push '(\"melpa\" . \"https://melpa.org/packages/\") package-archives)" \
+            --eval "(package-initialize)" \
+            --eval "(require 'package-lint)" \
+            --eval "(push default-directory load-path)" \
+            -f package-lint-batch-and-exit blueprint.el
+
+  checkdoc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: '29.4'
+
+      - name: Run checkdoc on all files
+        run: |
+          EXIT=0
+          for f in *.el; do
+            echo "--- checkdoc: $f ---"
+            emacs -Q --batch \
+              --eval "(require 'checkdoc)" \
+              --eval "(setq checkdoc-force-docstrings-flag nil)" \
+              --eval "(with-current-buffer (find-file-noselect \"$f\")
+                        (let ((warnings (checkdoc-file \"$f\")))
+                          (when warnings
+                            (message \"%s\" warnings)
+                            (kill-emacs 1))))" \
+            || EXIT=1
+          done
+          exit $EXIT

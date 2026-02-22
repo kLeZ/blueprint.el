@@ -177,7 +177,7 @@ Clone the repository and add it to your load path:
 (global-set-key (kbd "C-c b") #'blueprint-menu)
 ```
 
-### use-package
+### use-package (from local clone)
 
 ```elisp
 (use-package blueprint
@@ -185,12 +185,35 @@ Clone the repository and add it to your load path:
   :bind ("C-c b" . blueprint-menu))
 ```
 
-### straight.el
+### use-package + straight.el
+
+```elisp
+(use-package blueprint
+  :straight (:type git :host github :repo "kLeZ/blueprint.el")
+  :bind ("C-c b" . blueprint-menu))
+```
+
+### straight.el (standalone)
 
 ```elisp
 (straight-use-package
  '(blueprint :type git :host github :repo "kLeZ/blueprint.el"))
+(global-set-key (kbd "C-c b") #'blueprint-menu)
 ```
+
+### use-package + elpaca
+
+```elisp
+(use-package blueprint
+  :ensure (:host github :repo "kLeZ/blueprint.el")
+  :bind ("C-c b" . blueprint-menu))
+```
+
+### From release tarball
+
+Download the latest `.tar.gz` from the
+[Releases](https://github.com/kLeZ/blueprint.el/releases) page and
+install with `M-x package-install-file`.
 
 ## Quick start
 
