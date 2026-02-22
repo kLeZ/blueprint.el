@@ -1,0 +1,9 @@
+
+* Component
+#+BLUEPRINT_DEPENDS:
+
+** Responsibility
+
+** Risks
+
+** Questions
