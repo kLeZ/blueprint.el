@@ -1,0 +1,105 @@
+;;; blueprint-graph.el --- Dependency graph for Blueprint  -*- lexical-binding:t; -*-
+
+;; Author: kLeZ
+;; URL: https://github.com/kLeZ/blueprint.el
+
+;;; Commentary:
+
+;; Generates dependency graphs in PlantUML or Graphviz (dot) format,
+;; with nodes colored by component health score.
+
+;;; Code:
+
+(require 'blueprint-core)
+(require 'blueprint-c4)
+(require 'blueprint-health)
+
+(defcustom blueprint-graph-backend 'plantuml
+  "Backend for dependency graph generation.
+Supported values: plantuml, graphviz."
+  :type '(choice (const :tag "PlantUML" plantuml)
+                 (const :tag "Graphviz (dot)" graphviz))
+  :group 'blueprint)
+
+(defun blueprint--graph-deps ()
+  "Return an alist of (COMPONENT . (DEP ...)) for all components."
+  (let ((result '()))
+    (maphash
+     (lambda (id _dir)
+       (let* ((file (blueprint--component-file id))
+              (deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))
+              (deps (when (and deps-str (not (string-blank-p deps-str)))
+                      (split-string deps-str))))
+         (push (cons id deps) result)))
+     (blueprint--components))
+    result))
+
+(defun blueprint--graph-health-color (id)
+  "Return a color string for component ID based on its health markers."
+  (let* ((file (blueprint--component-file id))
+         (metrics (blueprint--cached-metrics
+                   file #'blueprint--component-metrics))
+         (total (apply #'+ metrics)))
+    (cond ((> (nth 2 metrics) 0) "#ff6b6b")   ; has FIXMEs
+          ((> total 3) "#ffd93d")               ; many markers
+          (t "#6bcb77"))))                      ; healthy
+
+(defun blueprint--graph-plantuml (deps root)
+  "Generate a PlantUML dependency diagram from DEPS in ROOT."
+  (let ((outfile (expand-file-name "component-deps.puml" root)))
+    (with-temp-file outfile
+      (insert "@startuml\n")
+      (insert "!include C4_Component.puml\n\n")
+      (dolist (entry deps)
+        (let ((id (car entry)))
+          (insert (format "Component(%s, \"%s\", \"\")\n" id id))))
+      (insert "\n")
+      (dolist (entry deps)
+        (let ((id (car entry)))
+          (dolist (dep (cdr entry))
+            (insert (format "Rel(%s, %s, \"uses\")\n" id dep)))))
+      (insert "\n@enduml\n"))
+    outfile))
+
+(defun blueprint--graph-graphviz (deps root)
+  "Generate a Graphviz dependency diagram from DEPS in ROOT."
+  (let ((dot-file (expand-file-name "component-deps.dot" root))
+        (svg-file (expand-file-name "component-deps.svg" root)))
+    (with-temp-file dot-file
+      (insert "digraph Dependencies {\n")
+      (insert "  rankdir=LR;\n")
+      (insert "  node [shape=box, style=filled, fontname=\"sans-serif\"];\n\n")
+      (dolist (entry deps)
+        (let ((id (car entry))
+              (color (blueprint--graph-health-color (car entry))))
+          (insert (format "  %s [label=\"%s\", fillcolor=\"%s\"];\n"
+                          id id color))))
+      (insert "\n")
+      (dolist (entry deps)
+        (dolist (dep (cdr entry))
+          (insert (format "  %s -> %s;\n" (car entry) dep))))
+      (insert "}\n"))
+    (if (executable-find "dot")
+        (progn
+          (call-process "dot" nil nil nil "-Tsvg" "-o" svg-file dot-file)
+          (delete-file dot-file)
+          svg-file)
+      dot-file)))
+
+;;;###autoload
+(defun blueprint-dependency-graph ()
+  "Generate a dependency graph for the project.
+Uses `blueprint-graph-backend' to select the output format."
+  (interactive)
+  (let* ((root (blueprint--root))
+         (deps (blueprint--graph-deps))
+         (outfile (pcase blueprint-graph-backend
+                    ('plantuml (blueprint--graph-plantuml deps root))
+                    ('graphviz (blueprint--graph-graphviz deps root))
+                    (_ (user-error "Unknown graph backend: %s"
+                                   blueprint-graph-backend)))))
+    (find-file outfile)
+    (message "Generated %s" outfile)))
+
+(provide 'blueprint-graph)
+;;; blueprint-graph.el ends here

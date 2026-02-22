@@ -1,0 +1,9 @@
+#+TITLE: {{NUMBER}} — {{TITLE}}
+#+DATE: {{DATE}}
+#+STATUS: proposed
+
+* Context
+
+* Decision
+
+* Consequences

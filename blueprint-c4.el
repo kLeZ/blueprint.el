@@ -1,34 +1,52 @@
+;;; blueprint-c4.el --- C4 diagram generation for Blueprint  -*- lexical-binding:t; -*-
 
-;;; blueprint-c4.el
+;; Author: kLeZ
+;; URL: https://github.com/kLeZ/blueprint.el
+
+;;; Commentary:
+
+;; Generates PlantUML C4 container diagrams by reading BLUEPRINT_DEPENDS
+;; keywords from each component's arc42.org file.
+
+;;; Code:
+
 (require 'blueprint-core)
 
 (defun blueprint--org-keyword (file key)
-  (with-temp-buffer
-    (insert-file-contents file)
-    (when (re-search-forward (format "#\\+%s: \\(.*\\)" key) nil t)
-      (match-string 1))))
+  "Extract the value of Org keyword KEY from FILE.
+Returns the keyword value as a string, or nil if not found."
+  (when (and file (file-exists-p file))
+    (with-temp-buffer
+      (insert-file-contents file)
+      (when (re-search-forward (format "^#\\+%s:\\s-*\\(.*\\S-\\)" key) nil t)
+        (match-string 1)))))
 
+;;;###autoload
 (defun blueprint-generate-c4 ()
-  "Generate PlantUML C4 diagram using real dependencies."
+  "Generate a PlantUML C4 container diagram from project dependencies.
+Reads BLUEPRINT_DEPENDS keywords from each component's arc42.org file
+and writes the result to c4.puml in the project root."
   (interactive)
   (let ((elements '())
-        (relations '()))
+        (relations '())
+        (root (blueprint--root)))
     (maphash
-     (lambda (id _)
+     (lambda (id _dir)
        (let* ((file (blueprint--component-file id))
               (deps (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
          (push (format "Container(%s, \"%s\", \"component\")" id id) elements)
-         (when deps
+         (when (and deps (not (string-blank-p deps)))
            (dolist (d (split-string deps))
              (push (format "Rel(%s, %s, \"uses\")" id d) relations)))))
      (blueprint--components))
 
-    (with-temp-file "c4.puml"
-      (insert "@startuml\n!include C4_Container.puml\n")
-      (dolist (e elements) (insert e "\n"))
-      (dolist (r relations) (insert r "\n"))
-      (insert "@enduml\n"))
-
-    (message "Generated c4.puml")))
+    (let ((outfile (expand-file-name "c4.puml" root)))
+      (with-temp-file outfile
+        (insert "@startuml\n!include C4_Container.puml\n")
+        (dolist (e elements) (insert e "\n"))
+        (dolist (r relations) (insert r "\n"))
+        (insert "@enduml\n"))
+      (message "Generated %s" outfile))))
 
 (provide 'blueprint-c4)
+;;; blueprint-c4.el ends here
