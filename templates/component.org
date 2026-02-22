@@ -1,9 +1,24 @@
-
-* Component
+#+TITLE: {{NAME}}
 #+BLUEPRINT_DEPENDS:
 
-** Responsibility
+* Introduction
 
-** Risks
+* Context and Scope
 
-** Questions
+* Constraints
+
+* Solution Strategy
+
+* Building Blocks
+
+* Runtime Behavior
+
+* Deployment
+
+* Responsibility
+
+* Risks
+
+* Open Questions
+
+* Diagrams

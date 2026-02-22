@@ -15,6 +15,7 @@ Returns a list (questions tbds fixmes)."
          (count-matches "FIXME" (point-min) (point-max))))
     (list 0 0 0)))
 
+;;;###autoload
 (defun blueprint-health-score ()
   "Calculate aggregate health score for the current Blueprint project.
 Starts at 100 and deducts points for quality markers:
@@ -31,6 +32,7 @@ Returns an integer between 0 and 100."
      (blueprint--components))
     (max 0 score)))
 
+;;;###autoload
 (defun blueprint-health-svg ()
   "Generate a gauge SVG showing the project health score.
 Writes the result to health.svg in the project root."

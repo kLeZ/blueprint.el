@@ -8,11 +8,28 @@
 
 ;;; Commentary:
 
-;; Blueprint Ultra is a text-first architectural assessment toolkit for Emacs.
-;; It provides tools for managing software architecture documentation,
-;; generating C4 diagrams, assessing component health, and managing templates.
+;; Blueprint Ultra is a text-first architectural assessment toolkit for
+;; GNU Emacs.  It grew out of a Python CLI scaffolder and was rewritten
+;; in Emacs Lisp to take full advantage of Org mode, the org-element AST,
+;; and Transient menus.
 ;;
-;; Main entry point is the transient menu bound to `C-c b'.
+;; The package helps software architects manage component-based
+;; documentation following the Arc42 methodology.  Each component lives
+;; in its own directory under `.blueprint/components/' with an `arc42.org'
+;; file that declares dependencies via `#+BLUEPRINT_DEPENDS:' keywords.
+;;
+;; Core capabilities:
+;;   - Project initialization and component management
+;;   - C4 container diagram generation (PlantUML) from declared dependencies
+;;   - Health scoring with SVG gauge visualization
+;;   - Three-tier template system (project > user > system) with diff
+;;     and non-destructive migration
+;;
+;; Usage:
+;;   M-x blueprint-init   to create a new project
+;;   C-c b                to open the Transient command menu
+;;
+;; See the README for full documentation and the design rationale.
 
 ;;; Code:
 
@@ -23,6 +40,7 @@
 
 (require 'transient)
 
+;;;###autoload
 (transient-define-prefix blueprint-menu ()
   "Blueprint Ultra main menu."
   [["Architecture"

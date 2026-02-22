@@ -11,6 +11,7 @@ Returns the keyword value as a string, or nil if not found."
       (when (re-search-forward (format "^#\\+%s:\\s-*\\(.*\\S-\\)" key) nil t)
         (match-string 1)))))
 
+;;;###autoload
 (defun blueprint-generate-c4 ()
   "Generate a PlantUML C4 container diagram from project dependencies.
 Reads BLUEPRINT_DEPENDS keywords from each component's arc42.org file

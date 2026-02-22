@@ -2,6 +2,7 @@
 
 (require 'blueprint-core)
 
+;;;###autoload
 (defun blueprint-template-diff ()
   "Compare project templates against system defaults.
 Displays the diff in a `diff-mode' buffer."
@@ -13,6 +14,7 @@ Displays the diff in a `diff-mode' buffer."
              (shell-quote-argument (blueprint--project-template-dir)))
      'diff-mode)))
 
+;;;###autoload
 (defun blueprint-template-migrate ()
   "Copy missing template files from system defaults to the project.
 Only adds files that do not already exist in the project templates

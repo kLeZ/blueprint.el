@@ -27,6 +27,7 @@ Signals an error if not inside a Blueprint project."
   (or (locate-dominating-file default-directory ".blueprint")
       (user-error "Not in a Blueprint project (no .blueprint directory found)")))
 
+;;;###autoload
 (defun blueprint-init ()
   "Initialize a new Blueprint project in the current directory.
 Creates the .blueprint directory with components and adr subdirectories."
@@ -75,17 +76,22 @@ Returns the first matching path, or nil if not found."
       (insert-file-contents path)
       (buffer-string))))
 
+;;;###autoload
 (defun blueprint-add-component (name)
   "Add a new component NAME to the current Blueprint project.
-Creates the component directory and populates it from the component template."
+Creates the component directory and populates it from the component template.
+Template placeholders ({{NAME}}) are replaced with the component name."
   (interactive "sComponent: ")
   (let* ((dir (expand-file-name name
                                 (expand-file-name ".blueprint/components"
                                                   (blueprint--root))))
-         (file (expand-file-name "arc42.org" dir)))
+         (file (expand-file-name "arc42.org" dir))
+         (content (replace-regexp-in-string
+                   "{{NAME}}" name
+                   (blueprint--template "component.org") t t)))
     (make-directory dir t)
     (with-temp-file file
-      (insert (blueprint--template "component.org")))
+      (insert content))
     (find-file file)))
 
 (provide 'blueprint-core)
