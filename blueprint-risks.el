@@ -73,8 +73,8 @@ Returns a list of plists (:risk :severity :match)."
       ;; Check if anyone depends on this component
       (when id
         (maphash
-         (lambda (_other-id _dir)
-           (let* ((other-file (blueprint--component-file _other-id))
+         (lambda (other-id _dir)
+           (let* ((other-file (blueprint--component-file other-id))
                   (other-deps (when other-file
                                 (with-temp-buffer
                                   (insert-file-contents other-file)

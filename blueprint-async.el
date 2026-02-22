@@ -12,6 +12,8 @@
 
 (require 'blueprint-core)
 
+(defvar blueprint-export-backend)
+
 (defun blueprint--async-run (name func callback)
   "Run FUNC in a background thread named NAME.
 Calls CALLBACK with the result when done."

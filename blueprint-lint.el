@@ -29,9 +29,8 @@
 (defun blueprint--lint-component (id file)
   "Lint component ID at FILE.  Return a list of warning strings."
   (let ((warnings '()))
-    (unless (and file (file-exists-p file))
-      (push (format "%s: arc42.org not found" id) warnings)
-      (cl-return-from blueprint--lint-component (nreverse warnings)))
+    (if (not (and file (file-exists-p file)))
+        (list (format "%s: arc42.org not found" id))
     (with-temp-buffer
       (insert-file-contents file)
       ;; Check for expected headings
@@ -77,7 +76,7 @@
           (unless (gethash dep all-comps)
             (push (format "%s: depends on unknown component \"%s\"" id dep)
                   warnings)))))
-    (nreverse warnings)))
+    (nreverse warnings))))
 
 ;;;###autoload
 (defun blueprint-lint ()

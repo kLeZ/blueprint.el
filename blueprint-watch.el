@@ -13,6 +13,9 @@
 
 (require 'blueprint-core)
 
+(declare-function blueprint-sync "blueprint-sync" ())
+(declare-function blueprint-generate-c4 "blueprint-c4" ())
+
 (defcustom blueprint-watch-auto-sync nil
   "When non-nil, watch mode re-syncs master.org on save."
   :type 'boolean
@@ -53,6 +56,7 @@
   "Minor mode to auto-tangle Blueprint Org files on save."
   :lighter " BpTangle"
   :global t
+  :group 'blueprint
   (if blueprint-auto-tangle-mode
       (add-hook 'after-save-hook #'blueprint--auto-tangle-hook)
     (remove-hook 'after-save-hook #'blueprint--auto-tangle-hook)))
@@ -64,6 +68,7 @@ Invalidates metrics cache, and optionally re-syncs master.org and
 regenerates C4 diagrams."
   :lighter " BpWatch"
   :global t
+  :group 'blueprint
   (if blueprint-watch-mode
       (add-hook 'after-save-hook #'blueprint--watch-hook)
     (remove-hook 'after-save-hook #'blueprint--watch-hook)))

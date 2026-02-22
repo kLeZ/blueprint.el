@@ -13,6 +13,8 @@
 (require 'blueprint-core)
 (require 'ox)
 
+(declare-function org-pandoc-export-to-docx "ox-pandoc" (&optional async subtreep visible-only body-only ext-plist))
+
 (defcustom blueprint-export-backend 'pdf
   "Default export backend for Blueprint.
 Supported values: pdf, html, docx."

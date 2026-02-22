@@ -17,6 +17,8 @@
 (require 'json)
 (require 'url)
 
+(declare-function blueprint-suggest-risks "blueprint-risks" (component))
+
 (defcustom blueprint-ai-model "llama3"
   "Ollama model to use for AI-assisted snippets."
   :type 'string

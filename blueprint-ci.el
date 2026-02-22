@@ -20,6 +20,9 @@
 (require 'blueprint-lint)
 (require 'blueprint-health)
 
+(declare-function blueprint-sync "blueprint-sync" ())
+(declare-function blueprint-export "blueprint-export" ())
+
 ;;;###autoload
 (defun blueprint-ci-lint ()
   "Run Blueprint linting in batch mode.

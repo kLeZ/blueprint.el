@@ -12,6 +12,9 @@
 
 (require 'blueprint-core)
 
+(declare-function blueprint-template-migrate "blueprint-migrate" ())
+(declare-function blueprint-dashboard "blueprint-dashboard" ())
+
 ;;;###autoload
 (defun blueprint-wizard-component ()
   "Interactive wizard to create a component with pre-filled content.
