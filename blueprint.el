@@ -27,7 +27,10 @@
 ;;
 ;; Usage:
 ;;   M-x blueprint-init   to create a new project
-;;   C-c b                to open the Transient command menu
+;;   M-x blueprint-menu   to open the Transient command menu
+;;
+;; Suggested keybinding:
+;;   (global-set-key (kbd "C-c b") #'blueprint-menu)
 ;;
 ;; See the README for full documentation and the design rationale.
 
@@ -54,7 +57,22 @@
     ("I" "init" blueprint-init)
     ("A" "add component" blueprint-add-component)]])
 
-(global-set-key (kbd "C-c b") #'blueprint-menu)
+;;;###autoload
+(defvar blueprint-command-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C") #'blueprint-generate-c4)
+    (define-key map (kbd "H") #'blueprint-health-svg)
+    (define-key map (kbd "D") #'blueprint-template-diff)
+    (define-key map (kbd "M") #'blueprint-template-migrate)
+    (define-key map (kbd "I") #'blueprint-init)
+    (define-key map (kbd "A") #'blueprint-add-component)
+    map)
+  "Keymap for Blueprint commands (non-transient).
+Bind this to a prefix key if you prefer plain keybindings over Transient:
+  (global-set-key (kbd \"C-c b\") blueprint-command-map)")
+
+;; Suggested binding — uncomment or add to your init file:
+;;   (global-set-key (kbd "C-c b") #'blueprint-menu)
 
 (provide 'blueprint)
 ;;; blueprint.el ends here

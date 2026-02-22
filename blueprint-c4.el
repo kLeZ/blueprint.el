@@ -1,5 +1,15 @@
 ;;; blueprint-c4.el --- C4 diagram generation for Blueprint  -*- lexical-binding:t; -*-
 
+;; Author: kLeZ
+;; URL: https://github.com/kLeZ/blueprint.el
+
+;;; Commentary:
+
+;; Generates PlantUML C4 container diagrams by reading BLUEPRINT_DEPENDS
+;; keywords from each component's arc42.org file.
+
+;;; Code:
+
 (require 'blueprint-core)
 
 (defun blueprint--org-keyword (file key)

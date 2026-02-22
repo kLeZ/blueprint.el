@@ -1,5 +1,16 @@
 ;;; blueprint-health.el --- Health scoring for Blueprint  -*- lexical-binding:t; -*-
 
+;; Author: kLeZ
+;; URL: https://github.com/kLeZ/blueprint.el
+
+;;; Commentary:
+
+;; Calculates a quality score (0--100) by scanning component files for
+;; open markers (QUESTION, TBD, FIXME) and renders the result as a
+;; semicircular SVG gauge.
+
+;;; Code:
+
 (require 'blueprint-core)
 
 (defun blueprint--component-metrics (file)
@@ -10,9 +21,9 @@ Returns a list (questions tbds fixmes)."
         (insert-file-contents file)
         (goto-char (point-min))
         (list
-         (count-matches "QUESTION" (point-min) (point-max))
-         (count-matches "TBD" (point-min) (point-max))
-         (count-matches "FIXME" (point-min) (point-max))))
+         (count-matches "\\<QUESTION\\>" (point-min) (point-max))
+         (count-matches "\\<TBD\\>" (point-min) (point-max))
+         (count-matches "\\<FIXME\\>" (point-min) (point-max))))
     (list 0 0 0)))
 
 ;;;###autoload
@@ -39,7 +50,7 @@ Writes the result to health.svg in the project root."
   (interactive)
   (let* ((root (blueprint--root))
          (score (blueprint-health-score))
-         (angle (* 1.8 score))
+         (angle (- 180 (* 1.8 score)))
          (rad (* float-pi (/ angle 180.0)))
          (svg (format "<svg width='300' height='160'>
 <path d='M20 140 A120 120 0 0 1 280 140' stroke='black' fill='none'/>

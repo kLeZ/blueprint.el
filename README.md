@@ -184,6 +184,7 @@ Clone the repository and add it to your load path:
 ```elisp
 (add-to-list 'load-path "/path/to/blueprint.el")
 (require 'blueprint)
+(global-set-key (kbd "C-c b") #'blueprint-menu)
 ```
 
 ### use-package
@@ -247,9 +248,11 @@ Press `C-c b` to open the Blueprint transient menu:
 └── arc42.org     # Component documentation (from template)
 ```
 
-The `arc42.org` template contains sections for **Responsibility**,
-**Risks**, and **Questions**, plus a `#+BLUEPRINT_DEPENDS:` keyword for
-declaring dependencies.
+The `arc42.org` template contains full Arc42 sections (Introduction,
+Context and Scope, Constraints, Solution Strategy, Building Blocks,
+Runtime Behavior, Deployment, Responsibility, Risks, Open Questions,
+Diagrams), plus a `#+BLUEPRINT_DEPENDS:` keyword for declaring
+dependencies.
 
 ### Declaring dependencies
 

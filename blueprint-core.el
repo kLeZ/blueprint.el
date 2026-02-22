@@ -1,5 +1,15 @@
 ;;; blueprint-core.el --- Core utilities for Blueprint  -*- lexical-binding:t; -*-
 
+;; Author: kLeZ
+;; URL: https://github.com/kLeZ/blueprint.el
+
+;;; Commentary:
+
+;; Project root detection, component enumeration, template resolution
+;; (three-tier: project > user > system), and initialization commands.
+
+;;; Code:
+
 (require 'cl-lib)
 (require 'org)
 
