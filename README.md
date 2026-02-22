@@ -1,8 +1,8 @@
-# Blueprint Ultra
+# Blueprint
 
 Text-first architectural assessment toolkit for GNU Emacs.
 
-Blueprint Ultra helps software architects and technical leads document,
+Blueprint helps software architects and technical leads document,
 visualize, and assess software architecture directly from Emacs using
 plain-text Org-mode files. It follows a component-based approach inspired
 by the [Arc42](https://arc42.org/) documentation methodology and produces
@@ -10,7 +10,7 @@ by the [Arc42](https://arc42.org/) documentation methodology and produces
 
 ## Background and rationale
 
-Blueprint Ultra started life as a Python CLI tool (`scaffold.py`) for
+Blueprint started life as a Python CLI tool (`scaffold.py`) for
 generating and managing Arc42-based assessment documents. The Python
 version handled project initialization, component CRUD, glossary
 management, status reporting (tag scanning), master-file synchronization,

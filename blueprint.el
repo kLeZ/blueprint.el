@@ -8,7 +8,7 @@
 
 ;;; Commentary:
 
-;; Blueprint Ultra is a text-first architectural assessment toolkit for
+;; Blueprint is a text-first architectural assessment toolkit for
 ;; GNU Emacs.  It grew out of a Python CLI scaffolder and was rewritten
 ;; in Emacs Lisp to take full advantage of Org mode, the org-element AST,
 ;; and Transient menus.
@@ -45,7 +45,7 @@
 
 ;;;###autoload
 (transient-define-prefix blueprint-menu ()
-  "Blueprint Ultra main menu."
+  "Blueprint main menu."
   [["Architecture"
     ("C" "generate C4" blueprint-generate-c4)]
    ["Quality"
