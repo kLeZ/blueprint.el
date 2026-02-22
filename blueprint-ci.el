@@ -10,9 +10,9 @@
 ;;   0 = success, 1 = warnings, 2 = errors.
 ;;
 ;; Usage:
-;;   emacs -Q --batch -l blueprint.el -f blueprint-ci-lint
-;;   emacs -Q --batch -l blueprint.el -f blueprint-ci-validate
-;;   emacs -Q --batch -l blueprint.el -f blueprint-ci-export
+;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-lint
+;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-validate
+;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-export
 
 ;;; Code:
 

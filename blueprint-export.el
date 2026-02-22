@@ -54,7 +54,7 @@ Supported values: pdf, html, docx."
 Requires the ox-pandoc package to be installed."
   (interactive)
   (unless (require 'ox-pandoc nil t)
-    (user-error "ox-pandoc is required for DOCX export; install it first"))
+    (user-error "Package ox-pandoc is required for DOCX export; install it first"))
   (let ((file (blueprint--master-or-error)))
     (with-current-buffer (find-file-noselect file)
       (org-pandoc-export-to-docx)

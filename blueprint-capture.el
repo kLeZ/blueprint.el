@@ -37,7 +37,7 @@
 
 ;;;###autoload
 (defun blueprint-capture-setup ()
-  "Register Blueprint capture templates with org-capture.
+  "Register Blueprint capture templates with `org-capture'.
 Safe to call multiple times; existing templates are preserved."
   (interactive)
   (let ((templates (blueprint--capture-templates)))
@@ -48,7 +48,7 @@ Safe to call multiple times; existing templates are preserved."
 
 ;;;###autoload
 (defun blueprint-capture ()
-  "Launch org-capture with Blueprint templates pre-loaded."
+  "Launch `org-capture' with Blueprint templates pre-loaded."
   (interactive)
   (blueprint-capture-setup)
   (org-capture))

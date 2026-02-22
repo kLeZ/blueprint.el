@@ -23,7 +23,7 @@
 Adds the .blueprint/components directory to `org-roam-directory' search."
   (interactive)
   (unless (blueprint--roam-available-p)
-    (user-error "org-roam is not installed"))
+    (user-error "Package org-roam is not installed"))
   (let ((comp-dir (expand-file-name ".blueprint/components" (blueprint--root))))
     ;; Ensure components have org-roam IDs
     (maphash
@@ -47,7 +47,7 @@ Adds the .blueprint/components directory to `org-roam-directory' search."
   "Find a Blueprint component using org-roam's node finder."
   (interactive)
   (unless (blueprint--roam-available-p)
-    (user-error "org-roam is not installed"))
+    (user-error "Package org-roam is not installed"))
   (let* ((comps (blueprint--components))
          (names (hash-table-keys comps))
          (name (completing-read "Blueprint component: " names nil t))

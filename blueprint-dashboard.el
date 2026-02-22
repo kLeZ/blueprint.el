@@ -27,7 +27,7 @@
     0))
 
 (defun blueprint--component-status (questions tbds fixmes)
-  "Return a status string based on marker counts."
+  "Return a status string based on QUESTIONS, TBDS, and FIXMES counts."
   (cond
    ((> fixmes 0) "FIXME")
    ((> questions 2) "NEEDS-WORK")
