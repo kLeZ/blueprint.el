@@ -1,44 +1,65 @@
+;;; blueprint-core.el --- Core utilities for Blueprint  -*- lexical-binding:t; -*-
 
-;;; blueprint-core.el -*- lexical-binding:t; -*-
 (require 'cl-lib)
 (require 'org)
 
-(defgroup blueprint nil "" :group 'tools)
+(defgroup blueprint nil
+  "Text-first architectural assessment toolkit."
+  :group 'tools
+  :prefix "blueprint-")
 
 (defcustom blueprint-template-dir
-  (expand-file-name "templates" (file-name-directory load-file-name)) "")
+  (expand-file-name "templates"
+                    (file-name-directory (or load-file-name buffer-file-name)))
+  "Directory containing system-level Blueprint templates."
+  :type 'directory
+  :group 'blueprint)
 
 (defcustom blueprint-user-template-dir
-  (expand-file-name "~/.config/blueprint/templates") "")
+  (expand-file-name "~/.config/blueprint/templates")
+  "Directory containing user-level Blueprint templates."
+  :type 'directory
+  :group 'blueprint)
 
 (defun blueprint--root ()
+  "Return the root directory of the current Blueprint project.
+Signals an error if not inside a Blueprint project."
   (or (locate-dominating-file default-directory ".blueprint")
-      (user-error "Not in blueprint project")))
+      (user-error "Not in a Blueprint project (no .blueprint directory found)")))
 
 (defun blueprint-init ()
+  "Initialize a new Blueprint project in the current directory.
+Creates the .blueprint directory with components and adr subdirectories."
   (interactive)
   (let ((r (expand-file-name ".blueprint" default-directory)))
     (make-directory r t)
     (make-directory (expand-file-name "components" r) t)
     (make-directory (expand-file-name "adr" r) t)
-    (message "Blueprint initialized")))
+    (message "Blueprint initialized in %s" default-directory)))
 
 (defun blueprint--components ()
+  "Return a hash table mapping component names to their directories."
   (let* ((dir (expand-file-name ".blueprint/components" (blueprint--root)))
          (tbl (make-hash-table :test 'equal)))
     (when (file-exists-p dir)
       (dolist (d (directory-files dir t "^[^.]"))
         (when (file-directory-p d)
           (puthash (file-name-nondirectory d) d tbl))))
-    tbl)
+    tbl))
 
 (defun blueprint--component-file (id)
-  (expand-file-name "arc42.org" (gethash id (blueprint--components))))
+  "Return the path to the arc42.org file for component ID."
+  (let ((dir (gethash id (blueprint--components))))
+    (when dir
+      (expand-file-name "arc42.org" dir))))
 
 (defun blueprint--project-template-dir ()
+  "Return the path to the project-level templates directory."
   (expand-file-name ".blueprint/templates" (blueprint--root)))
 
 (defun blueprint--resolve-template (name)
+  "Resolve template NAME by searching project, user, and system directories.
+Returns the first matching path, or nil if not found."
   (cl-loop for d in (list (blueprint--project-template-dir)
                           blueprint-user-template-dir
                           blueprint-template-dir)
@@ -46,11 +67,17 @@
            when (file-exists-p p) return p))
 
 (defun blueprint--template (name)
-  (with-temp-buffer
-    (insert-file-contents (blueprint--resolve-template name))
-    (buffer-string)))
+  "Return the contents of template NAME as a string."
+  (let ((path (blueprint--resolve-template name)))
+    (unless path
+      (user-error "Template %s not found" name))
+    (with-temp-buffer
+      (insert-file-contents path)
+      (buffer-string))))
 
 (defun blueprint-add-component (name)
+  "Add a new component NAME to the current Blueprint project.
+Creates the component directory and populates it from the component template."
   (interactive "sComponent: ")
   (let* ((dir (expand-file-name name
                                 (expand-file-name ".blueprint/components"
@@ -59,6 +86,7 @@
     (make-directory dir t)
     (with-temp-file file
       (insert (blueprint--template "component.org")))
-    (find-file file))
+    (find-file file)))
 
 (provide 'blueprint-core)
+;;; blueprint-core.el ends here

@@ -1,19 +1,22 @@
+;;; blueprint-migrate.el --- Template migration for Blueprint  -*- lexical-binding:t; -*-
 
-;;; blueprint-migrate.el
 (require 'blueprint-core)
 
 (defun blueprint-template-diff ()
-  "Diff project templates vs defaults."
+  "Compare project templates against system defaults.
+Displays the diff in a `diff-mode' buffer."
   (interactive)
   (let ((default-directory (blueprint--root)))
     (compilation-start
      (format "diff -ru %s %s"
-             blueprint-template-dir
-             (blueprint--project-template-dir))
+             (shell-quote-argument blueprint-template-dir)
+             (shell-quote-argument (blueprint--project-template-dir)))
      'diff-mode)))
 
 (defun blueprint-template-migrate ()
-  "Interactive merge helper (copy missing files only)."
+  "Copy missing template files from system defaults to the project.
+Only adds files that do not already exist in the project templates
+directory (non-destructive)."
   (interactive)
   (let ((src blueprint-template-dir)
         (dst (blueprint--project-template-dir)))
@@ -25,3 +28,4 @@
     (message "Templates migrated (non-destructive)")))
 
 (provide 'blueprint-migrate)
+;;; blueprint-migrate.el ends here
