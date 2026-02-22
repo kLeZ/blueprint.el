@@ -1,0 +1,15 @@
+#+TITLE: {{PROJECT}} — Architecture Assessment
+#+AUTHOR:
+#+DATE: {{DATE}}
+
+* Introduction
+
+* Components
+# @@blueprint-sync-start@@
+# @@blueprint-sync-end@@
+
+* Architecture Decision Records
+
+* Glossary
+
+* References

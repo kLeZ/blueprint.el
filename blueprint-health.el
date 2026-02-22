@@ -37,8 +37,9 @@ Returns an integer between 0 and 100."
     (maphash
      (lambda (id _dir)
        (pcase-let ((`(,questions ,tbds ,fixmes)
-                    (blueprint--component-metrics
-                     (blueprint--component-file id))))
+                    (blueprint--cached-metrics
+                     (blueprint--component-file id)
+                     #'blueprint--component-metrics)))
          (cl-decf score (+ (* 3 questions) (* 2 tbds) (* 4 fixmes)))))
      (blueprint--components))
     (max 0 score)))
