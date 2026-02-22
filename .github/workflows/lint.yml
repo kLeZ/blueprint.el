@@ -73,7 +73,7 @@ jobs:
               --eval "(setq checkdoc-force-docstrings-flag nil)" \
               --eval "(with-current-buffer (find-file-noselect \"$f\")
                         (let ((warnings (checkdoc-file \"$f\")))
-                          (when warnings
+                          (when (stringp warnings)
                             (message \"%s\" warnings)
                             (kill-emacs 1))))" \
             || EXIT=1
