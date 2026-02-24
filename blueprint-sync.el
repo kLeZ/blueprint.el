@@ -1,4 +1,5 @@
 ;;; blueprint-sync.el --- Master file synchronization for Blueprint  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; URL: https://github.com/kLeZ/blueprint.el
@@ -6,18 +7,49 @@
 ;;; Commentary:
 
 ;; Synchronizes a master.org document with #+INCLUDE: directives for
-;; every component.  Only the region between sync markers is updated;
+;; every component.  Only the regions between sync markers are updated;
 ;; manually written content is preserved.
+;;
+;; Three sections of master.org are managed automatically:
+;;
+;;   Parte II (architettura per componente) -- arc42.org files
+;;     delimited by: @@blueprint-sync-start@@ / @@blueprint-sync-end@@
+;;
+;;   Parte III (specifiche funzionali) -- functional.org files
+;;     delimited by: @@blueprint-sync-functional-start@@ / @@blueprint-sync-functional-end@@
+;;
+;;   Parte IV (censimento infrastrutturale) -- infrastructure.org files
+;;     delimited by: @@blueprint-sync-infra-start@@ / @@blueprint-sync-infra-end@@
+;;
+;; If a pair of markers is absent from master.org the corresponding
+;; section is left untouched (backward compatible with projects that
+;; use only the original arc42 markers).
 
 ;;; Code:
 
 (require 'blueprint-core)
 
 (defvar blueprint-sync-start-marker "# @@blueprint-sync-start@@"
-  "Marker that begins the auto-generated component include section.")
+  "Marker that begins the auto-generated arc42 include section.")
 
 (defvar blueprint-sync-end-marker "# @@blueprint-sync-end@@"
-  "Marker that ends the auto-generated component include section.")
+  "Marker that ends the auto-generated arc42 include section.")
+
+(defvar blueprint-sync-functional-start-marker
+  "# @@blueprint-sync-functional-start@@"
+  "Marker that begins the auto-generated functional spec include section.")
+
+(defvar blueprint-sync-functional-end-marker
+  "# @@blueprint-sync-functional-end@@"
+  "Marker that ends the auto-generated functional spec include section.")
+
+(defvar blueprint-sync-infra-start-marker
+  "# @@blueprint-sync-infra-start@@"
+  "Marker that begins the auto-generated infrastructure include section.")
+
+(defvar blueprint-sync-infra-end-marker
+  "# @@blueprint-sync-infra-end@@"
+  "Marker that ends the auto-generated infrastructure include section.")
 
 (defun blueprint--master-file ()
   "Return the path to the master.org file."
@@ -32,43 +64,68 @@
                        (directory-file-name (blueprint--root))))
              (date (format-time-string "%Y-%m-%d")))
         (setq content (replace-regexp-in-string "{{PROJECT}}" project content t t))
+        (setq content (replace-regexp-in-string "{{AUTHOR}}" (user-full-name) content t t))
         (setq content (replace-regexp-in-string "{{DATE}}" date content t t))
         (with-temp-file file
           (insert content))))
     file))
 
 (defun blueprint--generate-includes ()
-  "Generate #+INCLUDE: directives for all components, sorted by name."
+  "Generate #+INCLUDE: directives for arc42.org in all components, sorted by name."
+  (blueprint--generate-includes-for "arc42.org"))
+
+(defun blueprint--generate-includes-for (filename)
+  "Generate #+INCLUDE: directives for FILENAME in component directories.
+Only includes components that actually have FILENAME in their directory.
+Components are sorted alphabetically by name.  Returns an empty string
+when no matching files are found."
   (let ((names (sort (hash-table-keys (blueprint--components)) #'string<))
         (lines '()))
     (dolist (name names)
-      (push (format "#+INCLUDE: \".blueprint/components/%s/arc42.org\" :minlevel 2"
-                    name)
-            lines))
+      (let ((dir (gethash name (blueprint--components))))
+        (when (file-exists-p (expand-file-name filename dir))
+          (push (format "#+INCLUDE: \".blueprint/components/%s/%s\" :minlevel 2"
+                        name filename)
+                lines))))
     (mapconcat #'identity (nreverse lines) "\n")))
+
+(defun blueprint--sync-section (start-marker end-marker content)
+  "Replace the text between START-MARKER and END-MARKER with CONTENT.
+Both markers must be present in the current buffer; if either is absent
+the function does nothing (safe to call on older master.org files)."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((start (search-forward start-marker nil t)))
+      (when start
+        (goto-char (point-min))
+        (let ((end (search-forward end-marker nil t)))
+          (when end
+            (delete-region (1+ start) (line-beginning-position))
+            (goto-char (1+ start))
+            (unless (string= "" content)
+              (insert "\n" content "\n"))))))))
 
 ;;;###autoload
 (defun blueprint-sync ()
   "Synchronize the master.org file with current components.
-Updates the region between sync markers with #+INCLUDE: directives.
-Content outside the markers is preserved."
+Updates the three auto-managed sections (arc42, functional, infra)
+between their respective sync markers.  Content outside all markers
+is preserved.  Creates master.org from template if absent."
   (interactive)
   (let ((file (blueprint--ensure-master)))
     (with-current-buffer (find-file-noselect file)
-      (save-excursion
-        (goto-char (point-min))
-        (let ((start (search-forward blueprint-sync-start-marker nil t))
-              (end (progn (goto-char (point-min))
-                          (search-forward blueprint-sync-end-marker nil t))))
-          (if (and start end)
-              (progn
-                (delete-region (1+ start) (line-beginning-position))
-                (goto-char (1+ start))
-                (insert "\n" (blueprint--generate-includes) "\n"))
-            (goto-char (point-max))
-            (insert "\n" blueprint-sync-start-marker "\n"
-                    (blueprint--generate-includes) "\n"
-                    blueprint-sync-end-marker "\n"))))
+      (blueprint--sync-section
+       blueprint-sync-start-marker
+       blueprint-sync-end-marker
+       (blueprint--generate-includes-for "arc42.org"))
+      (blueprint--sync-section
+       blueprint-sync-functional-start-marker
+       blueprint-sync-functional-end-marker
+       (blueprint--generate-includes-for "functional.org"))
+      (blueprint--sync-section
+       blueprint-sync-infra-start-marker
+       blueprint-sync-infra-end-marker
+       (blueprint--generate-includes-for "infrastructure.org"))
       (save-buffer))
     (message "Master file synchronized")))
 

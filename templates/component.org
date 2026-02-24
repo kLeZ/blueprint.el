@@ -1,24 +1,147 @@
-#+TITLE: {{NAME}}
+#+TITLE: {{NAME}} -- Architettura (arc42)
 #+BLUEPRINT_DEPENDS:
+#+BLUEPRINT_OWNER:
+#+BLUEPRINT_TECH:
+#+CREATED: {{DATE}}
+#+STATUS: [DA VALIDARE]
 
 * Introduction
+<<{{ID}}-intro>>
+[DA VALIDARE]
+
+Breve descrizione del componente: cosa fa, a chi serve, qual è il suo
+ruolo nell'architettura di sistema.
 
 * Context and Scope
+<<{{ID}}-context>>
+[DA VALIDARE]
+
+Contesto e perimetro del sistema: utenti, sistemi confinanti, confini
+del componente.
+
+#+begin_src plantuml :file {{ID}}-context.svg
+!include <C4/C4_Context>
+System({{ID}}, "{{NAME}}", "")
+Person(user, "Utente")
+' Aggiungere sistemi esterni con System_Ext(id, "Nome", "Descrizione")
+Rel(user, {{ID}}, "Usa")
+@enduml
+#+end_src
+
+** Utenti e ruoli
+| Ruolo | Descrizione | Tipo (umano/sistema) |
+|-------+-------------+----------------------|
+|       |             |                      |
+
+** Sistemi confinanti
+| Sistema | Direzione | Tipo interazione | Note |
+|---------+-----------+------------------+------|
+|         |           |                  |      |
 
 * Constraints
+<<{{ID}}-constraints>>
+[DA VALIDARE]
+
+Vincoli tecnici, organizzativi, normativi che impattano le scelte
+architetturali.
+
+| Vincolo | Tipo (tecnico/org/normativo) | Impatto | Fonte |
+|---------+------------------------------+---------+-------|
+|         |                              |         |       |
 
 * Solution Strategy
+<<{{ID}}-strategy>>
+[DA VALIDARE]
+
+Principi architetturali principali.  Pattern adottati.  Scelte
+tecnologiche rilevanti con motivazione (se ricostruibile).
 
 * Building Blocks
+<<{{ID}}-static>>
+[DA VALIDARE]
+
+Vista statica dei building block interni al componente.
+
+#+begin_src plantuml :file {{ID}}-containers.svg
+!include <C4/C4_Container>
+System_Boundary({{ID}}, "{{NAME}}") {
+  Container(app, "Applicazione", "Tecnologia", "Descrizione")
+  ContainerDb(db, "Database", "Tecnologia", "Descrizione")
+}
+@enduml
+#+end_src
+
+** Componenti interni principali
+[Aggiungere C4 L3 se la complessità lo richiede]
 
 * Runtime Behavior
+<<{{ID}}-runtime>>
+[DA VALIDARE]
+
+Flussi principali a runtime.  Un diagramma di sequenza per ogni flusso
+rilevante.
+
+** Flusso: [nome flusso]
+#+begin_src plantuml :file {{ID}}-seq-main.svg
+participant "A" as a
+participant "B" as b
+a -> b : messaggio
+b --> a : risposta
+@enduml
+#+end_src
 
 * Deployment
+<<{{ID}}-deployment>>
+[DA VALIDARE]
+
+Vista di deployment: ambienti, host, configurazione.
+
+#+begin_src plantuml :file {{ID}}-deployment.svg
+node "Ambiente: [nome]" {
+  node "Host: [nome]" {
+    artifact "{{NAME}}"
+  }
+  database "DB: [nome]" {
+  }
+}
+@enduml
+#+end_src
+
+Vedere anche: [[file:infrastructure.org][Censimento infrastrutturale -- {{NAME}}]]
 
 * Responsibility
+<<{{ID}}-responsibility>>
+[DA VALIDARE]
+
+Aspetti trasversali: sicurezza, logging, gestione errori,
+transazionalità, autenticazione, autorizzazione.
+
+| Aspetto | Approccio rilevato | Note |
+|---------+--------------------+------|
+| Sicurezza | | |
+| Autenticazione | | |
+| Autorizzazione | | |
+| Logging | | |
+| Gestione errori | | |
+| Transazionalità | | |
 
 * Risks
+<<{{ID}}-risks>>
+[DA VALIDARE]
+
+Rischi tecnici specifici di questo componente.
+Vedere anche: [[file:../../nfr/risks.org][Registro rischi trasversale]]
+
+| Rischio | Probabilità | Impatto | Livello | Mitigazione |
+|---------+-------------+---------+---------+-------------|
+|         |             |         |         |             |
 
 * Open Questions
+<<{{ID}}-questions>>
+
+- [Inserire domande emerse durante l'analisi che richiedono validazione]
 
 * Diagrams
+
+Vedere le sezioni precedenti per i diagrammi PlantUML.
+Aggiungere qui diagrammi aggiuntivi non collocabili nelle sezioni arc42.

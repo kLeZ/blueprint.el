@@ -1,4 +1,5 @@
 ;;; blueprint-ci.el --- CI/headless mode for Blueprint  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; URL: https://github.com/kLeZ/blueprint.el
@@ -78,7 +79,7 @@ Exits with code 0 (pass), 1 (warnings), or 2 (errors)."
                             (insert-file-contents file)
                             (goto-char (point-min))
                             (when (re-search-forward
-                                   "^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)" nil t)
+                                   "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
                               (match-string 1)))))
               (all-comps (blueprint--components)))
          (when deps-str

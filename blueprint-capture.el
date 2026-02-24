@@ -1,4 +1,5 @@
 ;;; blueprint-capture.el --- Quick capture for Blueprint  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; URL: https://github.com/kLeZ/blueprint.el

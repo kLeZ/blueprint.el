@@ -1,0 +1,145 @@
+;;; blueprint-test-content.el --- Tests for glossary, references and questions  -*- lexical-binding:t; -*-
+
+;;; Commentary:
+
+;; Tests for blueprint-glossary.el, blueprint-references.el, and
+;; blueprint-questions.el content management commands.
+
+;;; Code:
+
+(require 'ert)
+(require 'blueprint-test-helpers)
+(require 'blueprint-core)
+(require 'blueprint-glossary)
+(require 'blueprint-references)
+(require 'blueprint-questions)
+
+;;; --- Glossary ---
+
+(ert-deftest blueprint-test-glossary/add-creates-file ()
+  "blueprint-glossary-add creates the glossary file if absent."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "API" "Application Programming Interface" "team-docs")
+    (should (file-exists-p
+             (expand-file-name ".blueprint/glossary.org" default-directory)))))
+
+(ert-deftest blueprint-test-glossary/add-term-present ()
+  "Added term appears in the glossary file."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Cache" "Temporary storage layer" "arch-review")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/glossary.org" default-directory))))
+      (should (string-match-p "Cache" content))
+      (should (string-match-p "Temporary storage layer" content))
+      (should (string-match-p "arch-review" content)))))
+
+(ert-deftest blueprint-test-glossary/add-multiple-terms ()
+  "Multiple terms can be added to the same glossary file."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Term-A" "Definition A" "source-a")
+    (blueprint-glossary-add "Term-B" "Definition B" "source-b")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/glossary.org" default-directory))))
+      (should (string-match-p "Term-A" content))
+      (should (string-match-p "Term-B" content)))))
+
+(ert-deftest blueprint-test-glossary/add-has-source-property ()
+  "Added term includes a :SOURCE: property."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Widget" "A small component" "interview-2024")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/glossary.org" default-directory))))
+      (should (string-match-p ":SOURCE: interview-2024" content)))))
+
+(ert-deftest blueprint-test-glossary/lookup-found ()
+  "A term that exists in the glossary is found by lookup."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Microservice" "Small independent service" "docs")
+    ;; lookup calls `message'; we verify it doesn't error
+    (should (progn (blueprint-glossary-lookup "Microservice") t))))
+
+(ert-deftest blueprint-test-glossary/lookup-not-found ()
+  "Lookup of an absent term does not error."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Present" "Here" "src")
+    (should (progn (blueprint-glossary-lookup "Absent") t))))
+
+;;; --- References ---
+
+(ert-deftest blueprint-test-references/add-creates-file ()
+  "blueprint-reference-add creates the references file if absent."
+  (blueprint-test--with-project
+    (blueprint-reference-add "Design Doc v1" "document" "Main design document")
+    (should (file-exists-p
+             (expand-file-name ".blueprint/references.org" default-directory)))))
+
+(ert-deftest blueprint-test-references/add-ref-present ()
+  "Added reference appears with title, type, and notes."
+  (blueprint-test--with-project
+    (blueprint-reference-add "Interview with CTO" "interview" "Key insights")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/references.org" default-directory))))
+      (should (string-match-p "Interview with CTO" content))
+      (should (string-match-p "interview" content))
+      (should (string-match-p "Key insights" content)))))
+
+(ert-deftest blueprint-test-references/add-has-date-property ()
+  "Added reference includes a :DATE: property with today's date."
+  (blueprint-test--with-project
+    (blueprint-reference-add "System Spec" "system" "Spec notes")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/references.org" default-directory))))
+      (should (string-match-p ":DATE:" content))
+      (should (string-match-p (format-time-string "%Y") content)))))
+
+(ert-deftest blueprint-test-references/add-multiple ()
+  "Multiple references accumulate in the same file."
+  (blueprint-test--with-project
+    (blueprint-reference-add "Ref-1" "document" "Notes 1")
+    (blueprint-reference-add "Ref-2" "interview" "Notes 2")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/references.org" default-directory))))
+      (should (string-match-p "Ref-1" content))
+      (should (string-match-p "Ref-2" content)))))
+
+;;; --- Questions ---
+
+(ert-deftest blueprint-test-questions/add-to-component ()
+  "blueprint-add-question inserts a QUESTION marker into the component file."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "mycomp")
+    (blueprint-add-question "mycomp" "Who owns the retry logic?")
+    (let ((content (blueprint-test--read-file
+                    (blueprint--component-file "mycomp"))))
+      (should (string-match-p "QUESTION" content))
+      (should (string-match-p "retry logic" content)))))
+
+(ert-deftest blueprint-test-questions/add-creates-section-if-missing ()
+  "A QUESTION is added even if the Open Questions heading is absent."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "noq"
+     "#+TITLE: noq\n\n* Introduction\n\nSome text.\n")
+    (blueprint-add-question "noq" "Where is the API gateway?")
+    (let ((content (blueprint-test--read-file (blueprint--component-file "noq"))))
+      (should (string-match-p "QUESTION" content))
+      (should (string-match-p "API gateway" content)))))
+
+(ert-deftest blueprint-test-questions/multiple-questions ()
+  "Multiple questions can be added to the same component."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (blueprint-add-question "svc" "Question one")
+    (blueprint-add-question "svc" "Question two")
+    (let ((content (blueprint-test--read-file (blueprint--component-file "svc"))))
+      (should (string-match-p "Question one" content))
+      (should (string-match-p "Question two" content)))))
+
+(ert-deftest blueprint-test-questions/unknown-component-errors ()
+  "Adding a question to a non-existent component raises an error."
+  (blueprint-test--with-project
+    (should-error (blueprint-add-question "ghost" "Does this exist?")
+                  :type 'user-error)))
+
+(provide 'blueprint-test-content)
+;;; blueprint-test-content.el ends here

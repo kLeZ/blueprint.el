@@ -1,0 +1,25 @@
+#+TITLE: Vincoli architetturali
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+UPDATED: {{DATE}}
+
+* Vincoli trasversali
+<<nfr-constraints>>
+[DA VALIDARE]
+
+Vincoli che impattano più componenti o l'intera architettura.
+
+** Vincoli tecnici
+| Vincolo | Descrizione | Impatto | Componenti coinvolti | Fonte |
+|---------+-------------+---------+----------------------+-------|
+|         |             |         |                      |       |
+
+** Vincoli organizzativi
+| Vincolo | Descrizione | Impatto | Fonte |
+|---------+-------------+---------+-------|
+|         |             |         |       |
+
+** Vincoli normativi e di compliance
+| Norma / Regolamento | Requisito | Componenti coinvolti | Stato conformità |
+|---------------------+-----------+----------------------+------------------|
+|                     |           |                      |                  |

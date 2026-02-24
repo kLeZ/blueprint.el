@@ -1,4 +1,5 @@
 ;;; blueprint-risks.el --- Rule-based risk suggestions for Blueprint  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; URL: https://github.com/kLeZ/blueprint.el
@@ -67,7 +68,7 @@ Returns a list of plists (:risk :severity :match)."
                          (insert-file-contents file)
                          (goto-char (point-min))
                          (when (re-search-forward
-                                "^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)" nil t)
+                                "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
                            (match-string 1)))))
            (is-depended nil))
       ;; Check if anyone depends on this component
@@ -80,7 +81,7 @@ Returns a list of plists (:risk :severity :match)."
                                   (insert-file-contents other-file)
                                   (goto-char (point-min))
                                   (when (re-search-forward
-                                         "^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)" nil t)
+                                         "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
                                     (match-string 1))))))
              (when (and other-deps
                         (member id (split-string other-deps)))

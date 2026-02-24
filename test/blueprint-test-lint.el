@@ -1,0 +1,140 @@
+;;; blueprint-test-lint.el --- Tests for blueprint-lint.el  -*- lexical-binding:t; -*-
+
+;;; Commentary:
+
+;; Tests for the linter: missing files, missing headings, marker
+;; thresholds, dangling dependencies, and empty content detection.
+
+;;; Code:
+
+(require 'ert)
+(require 'blueprint-test-helpers)
+(require 'blueprint-core)
+(require 'blueprint-health)
+(require 'blueprint-lint)
+
+;;; --- blueprint--lint-component ---
+
+(ert-deftest blueprint-test-lint/nil-file-reported ()
+  "A nil file path is reported as an error (not silently ignored)."
+  (blueprint-test--with-project
+    (let ((warnings (blueprint--lint-component "ghost" nil)))
+      (should (listp warnings))
+      (should (> (length warnings) 0))
+      (should (string-match-p "not found" (car warnings))))))
+
+(ert-deftest blueprint-test-lint/missing-file-reported ()
+  "A non-existent file is reported as an error."
+  (blueprint-test--with-project
+    (let ((warnings (blueprint--lint-component
+                     "ghost"
+                     "/tmp/this-does-not-exist/arc42.org")))
+      (should (listp warnings))
+      (should (> (length warnings) 0))
+      (should (string-match-p "not found" (car warnings))))))
+
+(ert-deftest blueprint-test-lint/full-template-passes-headings ()
+  "A component with all required headings has no heading warnings."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component "full")))
+      (let ((warnings (blueprint--lint-component "full" file)))
+        ;; Heading warnings are of the form "FILE:ID: missing heading ..."
+        (should-not (cl-some (lambda (w) (string-match-p "missing heading" w))
+                             warnings))))))
+
+(ert-deftest blueprint-test-lint/missing-heading-detected ()
+  "A missing Arc42 heading is reported."
+  (blueprint-test--with-project
+    (let* ((dir (expand-file-name ".blueprint/components/partial" default-directory))
+           (file (expand-file-name "arc42.org" dir)))
+      (make-directory dir t)
+      (with-temp-file file
+        ;; Only Introduction — many required headings missing
+        (insert "#+TITLE: partial\n\n* Introduction\n\nSome content here.\n"))
+      (let ((warnings (blueprint--lint-component "partial" file)))
+        (should (cl-some (lambda (w) (string-match-p "missing heading" w))
+                         warnings))))))
+
+(ert-deftest blueprint-test-lint/marker-threshold ()
+  "More than `blueprint-lint-marker-threshold' markers triggers a warning."
+  (blueprint-test--with-project
+    (let ((blueprint-lint-marker-threshold 2))
+      (let* ((dir (expand-file-name ".blueprint/components/noisy" default-directory))
+             (file (expand-file-name "arc42.org" dir)))
+        (make-directory dir t)
+        (with-temp-file file
+          (insert "#+TITLE: noisy\n\n"
+                  "* Introduction\n\nTBD one\nTBD two\nTBD three\n"))
+        (let ((warnings (blueprint--lint-component "noisy" file)))
+          (should (cl-some (lambda (w) (string-match-p "unresolved markers" w))
+                           warnings)))))))
+
+(ert-deftest blueprint-test-lint/marker-below-threshold-no-warning ()
+  "Fewer markers than the threshold produce no marker warning."
+  (blueprint-test--with-project
+    (let ((blueprint-lint-marker-threshold 10))
+      (let* ((dir (expand-file-name ".blueprint/components/quiet" default-directory))
+             (file (expand-file-name "arc42.org" dir)))
+        (make-directory dir t)
+        (with-temp-file file
+          (insert (blueprint-test--write-component "quiet")))
+        ;; Reuse the helper which writes a clean file
+        (let ((file2 (blueprint-test--write-component "quiet2")))
+          (let ((warnings (blueprint--lint-component "quiet2" file2)))
+            (should-not (cl-some (lambda (w) (string-match-p "unresolved markers" w))
+                                 warnings))))))))
+
+(ert-deftest blueprint-test-lint/empty-content-detected ()
+  "A file with only headings and keywords but no prose is reported."
+  (blueprint-test--with-project
+    (let* ((dir (expand-file-name ".blueprint/components/empty" default-directory))
+           (file (expand-file-name "arc42.org" dir)))
+      (make-directory dir t)
+      (with-temp-file file
+        (insert "#+TITLE: empty\n#+BLUEPRINT_DEPENDS:\n\n"
+                "* Introduction\n\n"
+                "* Context and Scope\n\n"
+                "* Constraints\n\n"
+                "* Solution Strategy\n\n"
+                "* Building Blocks\n\n"
+                "* Runtime Behavior\n\n"
+                "* Deployment\n\n"
+                "* Responsibility\n\n"
+                "* Risks\n\n"
+                "* Open Questions\n\n"
+                "* Diagrams\n"))
+      (let ((warnings (blueprint--lint-component "empty" file)))
+        (should (cl-some (lambda (w) (string-match-p "no content" w))
+                         warnings))))))
+
+(ert-deftest blueprint-test-lint/dangling-dep-detected ()
+  "A BLUEPRINT_DEPENDS referencing a non-existent component is reported."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "loner"
+                 "#+TITLE: loner\n#+BLUEPRINT_DEPENDS: ghost-comp\n\n* Introduction\n\nText.\n")))
+      (let ((warnings (blueprint--lint-component "loner" file)))
+        (should (cl-some (lambda (w) (string-match-p "unknown component" w))
+                         warnings))))))
+
+(ert-deftest blueprint-test-lint/valid-dep-no-warning ()
+  "A BLUEPRINT_DEPENDS referencing an existing component produces no warning."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "service-b")
+    (let ((file (blueprint-test--write-component
+                 "service-a"
+                 "#+TITLE: service-a\n#+BLUEPRINT_DEPENDS: service-b\n\n* Introduction\n\nText here.\n")))
+      (let ((warnings (blueprint--lint-component "service-a" file)))
+        (should-not (cl-some (lambda (w) (string-match-p "unknown component" w))
+                             warnings))))))
+
+;;; --- blueprint-lint (interactive) ---
+
+(ert-deftest blueprint-test-lint/no-components-clean ()
+  "Linting an empty project produces no warnings."
+  (blueprint-test--with-project
+    ;; Should not error; returns nil or shows "all clear"
+    (should (progn (blueprint-lint) t))))
+
+(provide 'blueprint-test-lint)
+;;; blueprint-test-lint.el ends here

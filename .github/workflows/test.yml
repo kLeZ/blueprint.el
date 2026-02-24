@@ -1,0 +1,50 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs-version: ['29.1', '29.4', 'snapshot']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: purcell/setup-emacs@master
+        with:
+          version: ${{ matrix.emacs-version }}
+
+      - name: Run ERT test suite
+        run: |
+          emacs -Q --batch \
+            --eval "(push default-directory load-path)" \
+            --eval "(push (expand-file-name \"test\" default-directory) load-path)" \
+            -l blueprint-core.el \
+            -l blueprint-c4.el \
+            -l blueprint-health.el \
+            -l blueprint-lint.el \
+            -l blueprint-adr.el \
+            -l blueprint-sync.el \
+            -l blueprint-glossary.el \
+            -l blueprint-references.el \
+            -l blueprint-questions.el \
+            -l blueprint-risks.el \
+            -l blueprint-ai.el \
+            -l blueprint-migrate.el \
+            -l test/blueprint-test-helpers.el \
+            -l test/blueprint-test-core.el \
+            -l test/blueprint-test-health.el \
+            -l test/blueprint-test-lint.el \
+            -l test/blueprint-test-c4.el \
+            -l test/blueprint-test-adr.el \
+            -l test/blueprint-test-sync.el \
+            -l test/blueprint-test-content.el \
+            -l test/blueprint-test-risks.el \
+            -l test/blueprint-test-ai.el \
+            -l test/blueprint-test-e2e.el \
+            -f ert-run-tests-batch-and-exit

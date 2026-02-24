@@ -1,0 +1,34 @@
+# Emacs byte-compiled files
+*.elc
+
+# Emacs backup files
+*~
+
+# Emacs auto-save files
+\#*\#
+.#*
+
+# Emacs flycheck temp files
+flycheck_*.el
+
+# Org-mode export artifacts
+*.html
+*.pdf
+*.tex
+*.odt
+
+# PlantUML/Graphviz generated output (uncomment to exclude)
+# *.puml
+# *.svg
+# *.png
+
+# Package managers
+elpa/
+.elpa/
+.cask/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

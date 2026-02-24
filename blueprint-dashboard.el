@@ -1,4 +1,5 @@
 ;;; blueprint-dashboard.el --- Magit-style dashboard for Blueprint  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; URL: https://github.com/kLeZ/blueprint.el
@@ -158,7 +159,7 @@ dependencies.  Writes dashboard.svg to the project root."
                             (insert-file-contents file)
                             (goto-char (point-min))
                             (when (re-search-forward
-                                   "^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)" nil t)
+                                   "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
                               (match-string 1))))))
          (push (format "  %s [label=\"%s\", fillcolor=\"%s\"];" id id color) lines)
          (when deps-str

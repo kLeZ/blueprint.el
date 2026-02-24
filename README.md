@@ -277,24 +277,51 @@ into logical groups:
 
 ```
 .blueprint/
-├── components/   # One subdirectory per component
-└── adr/          # Architecture Decision Records
+├── components/               # One subdirectory per component
+├── adr/                      # Architecture Decision Records
+├── templates/                # Local template overrides (copied from system)
+├── enterprise/
+│   ├── enterprise-context.org
+│   └── enterprise-dependencies.org
+├── nfr/
+│   ├── nfr-quality.org
+│   ├── nfr-constraints.org
+│   └── nfr-risks.org
+├── _archive/                 # Archived content
+├── glossary.org              # Project glossary
+└── references.org            # Sources and references
+master.org                    # Six-part assessment deliverable
 ```
+
+**Template provisioning**: the first time `blueprint-init` is called
+interactively, it checks whether user-level templates exist at
+`~/.config/blueprint/templates/`. If any template file is missing, Blueprint
+copies all system defaults there and displays a message listing every file
+written to your home directory. This ensures you always have an editable copy
+of the templates at the user level, independent of the package installation.
+
+> **Note**: provisioning only runs when called interactively. Batch mode and
+> automated tests are never affected.
 
 ### Adding components
 
 `blueprint-add-component` prompts for a component name and creates:
 
 ```
-.blueprint/components/<name>/
-└── arc42.org     # Component documentation (from template)
+.blueprint/components/<slug>/
+├── arc42.org          # Arc42 architectural view (from template)
+├── functional.org     # Technology-agnostic functional spec (when template exists)
+└── infrastructure.org # Infrastructure census (when template exists)
 ```
+
+The component name is slugified (lowercase, hyphens only) to produce the
+directory name and the `{{ID}}` placeholder used in PlantUML diagram IDs.
 
 The `arc42.org` template contains full Arc42 sections (Introduction,
 Context and Scope, Constraints, Solution Strategy, Building Blocks,
 Runtime Behavior, Deployment, Responsibility, Risks, Open Questions,
-Diagrams), plus a `#+BLUEPRINT_DEPENDS:` keyword for declaring
-dependencies.
+Diagrams), plus `#+BLUEPRINT_DEPENDS:`, `#+BLUEPRINT_OWNER:`, and
+`#+BLUEPRINT_TECH:` keywords.
 
 ### Declaring dependencies
 
@@ -359,10 +386,42 @@ Blueprint uses a three-tier template resolution order:
 When resolving a template, the first match wins. This allows projects and
 users to override system defaults without modifying the package.
 
+Available templates:
+
+| Template | Purpose |
+|----------|---------|
+| `component.org` | Arc42 architectural view per component |
+| `functional.org` | Technology-agnostic functional specification |
+| `infrastructure.org` | Infrastructure and deployment census |
+| `master.org` | Six-part assessment deliverable |
+| `adr.org` | Architecture Decision Record |
+| `glossary.org` | Project glossary |
+| `references.org` | Sources and references |
+| `enterprise-context.org` | Enterprise system context (L1 C4) |
+| `enterprise-dependencies.org` | Inter-system dependencies |
+| `nfr-quality.org` | Non-functional quality requirements |
+| `nfr-constraints.org` | Technical and organizational constraints |
+| `nfr-risks.org` | Project-level risks and mitigations |
+
 - `blueprint-template-diff` — shows a unified diff between system and
   project templates (read-only)
 - `blueprint-template-migrate` — copies missing template files from system
   defaults into the project (never overwrites existing files)
+
+### Master file sync
+
+`blueprint-sync` manages three independent `#+INCLUDE:` sections in
+`master.org`, each delimited by a pair of comment markers:
+
+| Section | Start marker | File synced |
+|---------|-------------|-------------|
+| Arc42 architecture (Parte II) | `@@blueprint-sync-start@@` | `arc42.org` |
+| Functional specs (Parte III) | `@@blueprint-sync-functional-start@@` | `functional.org` |
+| Infrastructure (Parte IV) | `@@blueprint-sync-infra-start@@` | `infrastructure.org` |
+
+If a marker pair is absent from `master.org`, that section is silently
+skipped — backward compatible with projects using only the original arc42
+markers. Components without the corresponding file are also skipped.
 
 ### CI / headless usage
 
@@ -412,6 +471,45 @@ All customization options are in the `blueprint` customize group
 | `blueprint-ai-endpoint`         | `http://localhost:11434`          | Ollama API URL                     |
 | `blueprint-ai-max-context`      | `4000`                            | Max chars sent to LLM              |
 
+## Assessment methodology
+
+Blueprint implements the methodology documented in
+`assessment-framework/methodology/METHOD.org`. The assessment is organized
+around a strict information-source hierarchy:
+
+1. **Source code** — the ground truth; behavior that deviates from other sources is a finding
+2. **Automated tests** — reveal intended contracts
+3. **Execution logs and monitoring** — expose runtime behavior
+4. **Direct interviews** — stakeholder intent and tribal knowledge
+5. **Pre-existing documentation** — lowest priority; may describe desired rather than actual behavior
+
+### Document structure
+
+The `master.org` deliverable follows a six-part structure targeting different
+audiences:
+
+| Part | Title | Audience |
+|------|-------|---------|
+| Parte 0 | Premesse | All — methodology, conventions |
+| Parte I | Architettura enterprise | Executives, CTO |
+| Parte II | Architettura per componente | Technical architects |
+| Parte III | Specifiche funzionali | Business analysts, product |
+| Parte IV | Censimento infrastrutturale | Operations, SRE |
+| Parte V | Requisiti non funzionali e rischi | Management, project leads |
+
+### Marking conventions
+
+Templates use Italian validation markers to track information quality:
+
+| Marker | Meaning |
+|--------|---------|
+| `[DA VALIDARE]` | Not yet confirmed — needs stakeholder review |
+| `[FINDING]` | Confirmed observation from primary sources |
+| `[APPROVATO YYYY-MM-DD]` | Formally approved by stakeholders |
+| `[FONTE: X]` | Source attribution (code, interview, log, etc.) |
+
+These markers are searchable and provide an audit trail of the assessment process.
+
 ## Architecture
 
 Blueprint is organized as a set of focused modules, each handling one
@@ -430,7 +528,7 @@ blueprint.el/
 ├── blueprint-questions.el   # Open questions (AST-based)
 ├── blueprint-glossary.el    # Glossary management
 ├── blueprint-references.el  # Reference tracking
-├── blueprint-sync.el        # Master file synchronization
+├── blueprint-sync.el        # Master file synchronization (3 sections)
 ├── blueprint-search.el      # Ripgrep/grep project search
 ├── blueprint-export.el      # Org-native export (PDF, HTML, DOCX)
 ├── blueprint-async.el       # Background threads for export/tangle
@@ -444,9 +542,19 @@ blueprint.el/
 ├── blueprint-roam.el        # org-roam integration (optional)
 ├── blueprint-ci.el          # CI/headless batch commands
 ├── templates/
-│   ├── component.org        # Default Arc42 component template
+│   ├── component.org        # Arc42 component template
 │   ├── adr.org              # ADR template
-│   └── master.org           # Master document template
+│   ├── master.org           # Six-part assessment master document
+│   ├── functional.org       # Functional specification template
+│   ├── infrastructure.org   # Infrastructure census template
+│   ├── glossary.org         # Glossary template
+│   ├── references.org       # References template
+│   ├── enterprise-context.org
+│   ├── enterprise-dependencies.org
+│   ├── nfr-quality.org
+│   ├── nfr-constraints.org
+│   └── nfr-risks.org
+├── assessment-framework/    # Original methodology and Python scaffolder
 └── README.md
 ```
 
@@ -469,4 +577,4 @@ Contributions are welcome. The guiding principles for this project:
 
 ## License
 
-See the repository for license information.
+MIT — see [LICENSE](LICENSE).

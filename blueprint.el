@@ -1,4 +1,5 @@
 ;;; blueprint.el --- Text-first architectural assessment toolkit  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; Version: 0.2.0

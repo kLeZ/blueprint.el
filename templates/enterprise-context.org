@@ -1,0 +1,37 @@
+#+TITLE: Vista enterprise -- Contesto aggregato
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+UPDATED: {{DATE}}
+
+* Vista contestuale aggregata
+<<enterprise-context>>
+[DA VALIDARE]
+
+Tutti i sistemi nel perimetro come System Context (C4 L1), con le loro
+relazioni e i sistemi esterni rilevanti.
+
+#+begin_src plantuml :file enterprise-context.svg
+!include <C4/C4_Context>
+' Sistemi nel perimetro
+System(sys_a, "Sistema A", "")
+System(sys_b, "Sistema B", "")
+' Sistemi esterni
+System_Ext(ext_1, "Sistema Esterno 1", "")
+' Utenti
+Person(user_1, "Utente 1", "")
+' Relazioni
+Rel(user_1, sys_a, "Usa")
+Rel(sys_a, sys_b, "Invia dati")
+Rel(sys_b, ext_1, "Chiama")
+@enduml
+#+end_src
+
+** Sistemi nel perimetro
+| Sistema | Tecnologia principale | Ruolo | Note |
+|---------+-----------------------+-------+------|
+|         |                       |       |      |
+
+** Sistemi esterni rilevanti
+| Sistema | Tipo interazione | Direzione | Note |
+|---------+------------------+-----------+------|
+|         |                  |           |      |

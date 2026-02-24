@@ -1,4 +1,5 @@
 ;;; blueprint-lint.el --- Linter for Blueprint projects  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
 ;; URL: https://github.com/kLeZ/blueprint.el
@@ -28,55 +29,56 @@
 
 (defun blueprint--lint-component (id file)
   "Lint component ID at FILE.  Return a list of warning strings."
-  (let ((warnings '()))
-    (if (not (and file (file-exists-p file)))
-        (list (format "%s: arc42.org not found" id))
-    (with-temp-buffer
-      (insert-file-contents file)
-      ;; Check for expected headings
-      (dolist (heading blueprint--lint-expected-headings)
+  (if (not (and file (file-exists-p file)))
+      (list (format "%s: arc42.org not found" id))
+    (let ((warnings '()))
+      (with-temp-buffer
+        (insert-file-contents file)
+        ;; Check for expected headings
+        (dolist (heading blueprint--lint-expected-headings)
+          (goto-char (point-min))
+          (unless (re-search-forward (format "^\\* %s" (regexp-quote heading)) nil t)
+            (push (format "%s:%s: missing heading \"%s\""
+                          (file-name-nondirectory file) id heading)
+                  warnings)))
+        ;; Check marker counts
         (goto-char (point-min))
-        (unless (re-search-forward (format "^\\* %s" (regexp-quote heading)) nil t)
-          (push (format "%s:%s: missing heading \"%s\""
-                        (file-name-nondirectory file) id heading)
-                warnings)))
-      ;; Check marker counts
-      (goto-char (point-min))
-      (let ((questions (count-matches "\\<QUESTION\\>" (point-min) (point-max)))
-            (tbds (count-matches "\\<TBD\\>" (point-min) (point-max)))
-            (fixmes (count-matches "\\<FIXME\\>" (point-min) (point-max))))
-        (let ((total (+ questions tbds fixmes)))
-          (when (> total blueprint-lint-marker-threshold)
-            (push (format "%s: %d unresolved markers (%d QUESTION, %d TBD, %d FIXME)"
-                          id total questions tbds fixmes)
+        (let ((questions (count-matches "\\<QUESTION\\>" (point-min) (point-max)))
+              (tbds (count-matches "\\<TBD\\>" (point-min) (point-max)))
+              (fixmes (count-matches "\\<FIXME\\>" (point-min) (point-max))))
+          (let ((total (+ questions tbds fixmes)))
+            (when (> total blueprint-lint-marker-threshold)
+              (push (format "%s: %d unresolved markers (%d QUESTION, %d TBD, %d FIXME)"
+                            id total questions tbds fixmes)
+                    warnings))))
+        ;; Check for effectively empty content (only headings, keywords, whitespace)
+        (goto-char (point-min))
+        (let ((content-lines 0))
+          (while (not (eobp))
+            (let ((line (buffer-substring-no-properties
+                         (line-beginning-position) (line-end-position))))
+              (unless (or (string-match-p "^\\s-*$" line)
+                          (string-match-p "^\\*+ " line)
+                          (string-match-p "^#\\+" line))
+                (cl-incf content-lines)))
+            (forward-line 1))
+          (when (zerop content-lines)
+            (push (format "%s: file has no content (only headings and keywords)" id)
                   warnings))))
-      ;; Check for effectively empty content (only headings, keywords, whitespace)
-      (goto-char (point-min))
-      (let ((content-lines 0))
-        (while (not (eobp))
-          (let ((line (buffer-substring-no-properties
-                       (line-beginning-position) (line-end-position))))
-            (unless (or (string-match-p "^\\s-*$" line)
-                        (string-match-p "^\\*+ " line)
-                        (string-match-p "^#\\+" line))
-              (cl-incf content-lines)))
-          (forward-line 1))
-        (when (zerop content-lines)
-          (push (format "%s: file has no content (only headings and keywords)" id)
-                warnings))))
-    ;; Check dangling dependencies
-    (let* ((deps-str (with-temp-buffer
-                       (insert-file-contents file)
-                       (goto-char (point-min))
-                       (when (re-search-forward "^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)" nil t)
-                         (match-string 1))))
-           (all-comps (blueprint--components)))
-      (when deps-str
-        (dolist (dep (split-string deps-str))
-          (unless (gethash dep all-comps)
-            (push (format "%s: depends on unknown component \"%s\"" id dep)
-                  warnings)))))
-    (nreverse warnings))))
+      ;; Check dangling dependencies
+      (let* ((deps-str (with-temp-buffer
+                         (insert-file-contents file)
+                         (goto-char (point-min))
+                         (when (re-search-forward
+                                "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
+                           (match-string 1))))
+             (all-comps (blueprint--components)))
+        (when deps-str
+          (dolist (dep (split-string deps-str))
+            (unless (gethash dep all-comps)
+              (push (format "%s: depends on unknown component \"%s\"" id dep)
+                    warnings)))))
+      (nreverse warnings))))
 
 ;;;###autoload
 (defun blueprint-lint ()

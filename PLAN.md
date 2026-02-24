@@ -2,319 +2,215 @@
 
 ## Panoramica
 
-25 feature documentate nel README come "Roadmap" sono completamente assenti
-dal codice. Questo piano le organizza in 7 fasi ordinate per dipendenze,
-partendo dalle fondamenta (infrastruttura e core) fino alle feature più
-avanzate (AI, CI).
-
-Ogni fase è autocontenuta: al termine di ciascuna il pacchetto è
-funzionante e testabile.
+Questo file traccia lo stato di implementazione delle feature e raccoglie idee
+per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
 
 ---
 
-## Fase 1 — Fondamenta e infrastruttura core
+## ~~Fase 1 — Fondamenta e infrastruttura core~~ ✅
 
-Obiettivo: rafforzare il core con le utility necessarie a tutte le fasi
-successive.
+### ~~1.1 Metrics caching (`blueprint-core.el`)~~ ✅
+- ~~Hash-table cache con invalidazione MD5~~
+- ~~`blueprint--invalidate-cache` e `blueprint--cached-metrics`~~
 
-### 1.1 Metrics caching (`blueprint-core.el`)
-- Aggiungere una hash-table cache per le metriche dei componenti
-- Invalidazione automatica via `after-save-hook` (hash del file)
-- Funzione `blueprint--invalidate-cache` e `blueprint--cached-metrics`
-- Le funzioni esistenti (`blueprint--component-metrics`,
-  `blueprint-health-score`) devono usare la cache
+### ~~1.2 Component CRUD completo (`blueprint-core.el`)~~ ✅
+- ~~`blueprint-list-components`~~
+- ~~`blueprint-rename-component`~~
+- ~~`blueprint-delete-component`~~
 
-### 1.2 Component CRUD completo (`blueprint-core.el`)
-- `blueprint-list-components` — buffer con lista navigabile
-- `blueprint-rename-component` — rinomina directory + aggiorna
-  BLUEPRINT_DEPENDS in tutti i componenti
-- `blueprint-delete-component` — rimuove directory (con conferma)
+### ~~1.3 ADR management (`blueprint-adr.el`)~~ ✅
+- ~~`blueprint-adr-new` con numerazione automatica~~
+- ~~`blueprint-adr-list`~~
+- ~~Template `templates/adr.org`~~
 
-### 1.3 ADR management (`blueprint-adr.el`) — nuovo file
-- `blueprint-adr-new` — crea un nuovo ADR con numerazione automatica
-  (0001-title.org, 0002-title.org, …)
-- `blueprint-adr-list` — buffer con lista ADR navigabile
-- Template ADR (aggiungere `templates/adr.org` con sezioni: Context,
-  Decision, Status, Consequences)
-
-### 1.4 Linter (`blueprint-lint.el`) — nuovo file
-- `blueprint-lint` — valida tutti i componenti, ritorna lista di warning:
-  - Heading Arc42 mancanti (confronto con template)
-  - Marker non risolti (QUESTION, TBD, FIXME) oltre soglia
-  - BLUEPRINT_DEPENDS che referenzia componenti inesistenti
-  - File arc42.org vuoti o con solo heading
-- `blueprint-lint-component` — lint su singolo componente
-- Output in buffer `*Blueprint Lint*` con `compilation-mode` per
-  navigazione
-- Exit code non-zero in batch mode per CI
+### ~~1.4 Linter (`blueprint-lint.el`)~~ ✅
+- ~~`blueprint-lint` e `blueprint-lint-component`~~
+- ~~Heading check, marker threshold, dangling deps, empty content~~
+- ~~**BUGFIX**: `blueprint--lint-component` restituiva lista vuota se il file mancava~~
 
 ---
 
-## Fase 2 — Dashboard e navigazione
+## ~~Fase 2 — Dashboard e navigazione~~ ✅
 
-Obiettivo: buffer Magit-style come hub centrale del progetto.
+### ~~2.1 Dashboard buffer (`blueprint-dashboard.el`)~~ ✅
+- ~~`blueprint-dashboard` con `tabulated-list-mode`~~
+- ~~Header con health score e numero componenti~~
 
-### 2.1 Dashboard buffer (`blueprint-dashboard.el`) — nuovo file
-- `blueprint-dashboard` — apre buffer `*Blueprint*` con:
-  - Header: nome progetto, health score, data ultimo aggiornamento
-  - Sezione componenti: tabella con colonne [Nome | Questions | TBDs |
-    FIXMEs | Linee | Stato]
-  - Sezione ADR: lista con titolo e stato
-  - Navigazione: `RET` apre il file, `g` aggiorna, `q` chiude
-- Usa `tabulated-list-mode` come base
-- Integra metrics caching dalla Fase 1
+### ~~2.2 Focus mode~~ ✅
+- ~~`blueprint-focus` — filtra componenti con marker aperti~~
 
-### 2.2 Focus mode (parte di `blueprint-dashboard.el`)
-- `blueprint-focus` — filtra il dashboard mostrando solo componenti con
-  markers aperti (QUESTION/TBD/FIXME > 0)
-- Toggle `F` nel dashboard buffer
-
-### 2.3 SVG dashboard (`blueprint-dashboard.el` o file separato)
-- `blueprint-dashboard-svg` — genera overview grafica con Graphviz (dot):
-  - Nodo per ogni componente, colorato in base al risk score
-  - Archi per dipendenze da BLUEPRINT_DEPENDS
-  - Legenda colori (verde=ok, giallo=warning, rosso=critical)
-- Scrive `dashboard.svg` nella root del progetto
+### ~~2.3 SVG dashboard~~ ✅
+- ~~`blueprint-dashboard-svg` — Graphviz con colorazione risk-based~~
 
 ---
 
-## Fase 3 — Gestione contenuti e sync
+## ~~Fase 3 — Gestione contenuti e sync~~ ✅
 
-Obiettivo: strumenti per lavorare sul contenuto dei documenti.
+### ~~3.1 Open questions — AST-based (`blueprint-questions.el`)~~ ✅
+- ~~`blueprint-add-question` via `org-element`~~
+- ~~`blueprint-list-questions`~~
 
-### 3.1 Open questions — AST-based (`blueprint-questions.el`) — nuovo file
-- `blueprint-add-question` — inserisce una QUESTION nel heading
-  "Open Questions" del componente, usando `org-element` per navigare
-  l'AST (niente regex)
-- `blueprint-list-questions` — buffer con tutte le domande aperte
-  da tutti i componenti, navigabili con RET
+### ~~3.2 Glossary management (`blueprint-glossary.el`)~~ ✅
+- ~~`blueprint-glossary-add`, `blueprint-glossary-list`, `blueprint-glossary-lookup`~~
 
-### 3.2 Glossary management (`blueprint-glossary.el`) — nuovo file
-- Glossario in `.blueprint/glossary.org` con struttura Org:
-  ```org
-  * Term
-  :PROPERTIES:
-  :SOURCE: interview-2024-01-15
-  :END:
-  Definition text.
-  ```
-- `blueprint-glossary-add` — aggiunge termine (prompt per name,
-  definition, source)
-- `blueprint-glossary-list` — apre il glossario
-- `blueprint-glossary-lookup` — cerca un termine
+### ~~3.3 Reference tracking (`blueprint-references.el`)~~ ✅
+- ~~`blueprint-reference-add`, `blueprint-reference-list`~~
 
-### 3.3 Reference tracking (`blueprint-references.el`) — nuovo file
-- Riferimenti in `.blueprint/references.org` con struttura:
-  ```org
-  * Reference Title
-  :PROPERTIES:
-  :TYPE: document|interview|system
-  :DATE: 2024-01-15
-  :END:
-  Notes.
-  ```
-- `blueprint-reference-add` — aggiunge un riferimento
-- `blueprint-reference-list` — apre il buffer riferimenti
+### ~~3.4 Master file sync (`blueprint-sync.el`)~~ ✅
+- ~~`blueprint-sync` con marker `@@blueprint-sync-start@@` / `@@blueprint-sync-end@@`~~
 
-### 3.4 Master file sync (`blueprint-sync.el`) — nuovo file
-- `blueprint-sync` — sincronizza `master.org` nella root del progetto:
-  - Scansiona tutti i componenti
-  - Genera/aggiorna direttive `#+INCLUDE:` per ogni componente
-  - Non sovrascrive contenuto manuale fuori dalle sezioni auto-generate
-  - Sezioni auto-generate delimitate da commenti marker
-- Template per master.org (`templates/master.org`)
-
-### 3.5 Ripgrep search (`blueprint-search.el`) — nuovo file
-- `blueprint-search` — ricerca project-wide con `rg` (se disponibile,
-  fallback a `grep -r`)
-- `blueprint-search-questions` — preset: cerca "QUESTION"
-- `blueprint-search-tbd` — preset: cerca "TBD"
-- `blueprint-search-fixme` — preset: cerca "FIXME"
-- Output in buffer `*Blueprint Search*` con `grep-mode`
+### ~~3.5 Ripgrep search (`blueprint-search.el`)~~ ✅
+- ~~`blueprint-search`, preset per QUESTION/TBD/FIXME~~
 
 ---
 
-## Fase 4 — Export e automazione
+## ~~Fase 4 — Export e automazione~~ ✅
 
-Obiettivo: produrre output e automatizzare workflow ripetitivi.
+### ~~4.1 Org-native export (`blueprint-export.el`)~~ ✅
+- ~~PDF, HTML, DOCX (con ox-pandoc)~~
 
-### 4.1 Org-native export (`blueprint-export.el`) — nuovo file
-- `blueprint-export-pdf` — esporta master.org in PDF via Org exporter
-  (`org-latex-export-to-pdf`)
-- `blueprint-export-docx` — esporta via `ox-pandoc` se disponibile,
-  altrimenti errore con messaggio chiaro
-- `blueprint-export-html` — esporta in HTML via Org exporter
-- Defcustom `blueprint-export-backend` per scegliere il backend default
+### ~~4.2 Async tangle/export (`blueprint-async.el`)~~ ✅
+- ~~`blueprint-async-export`, `blueprint-async-tangle` via `make-thread`~~
 
-### 4.2 Async tangle/export (`blueprint-async.el`) — nuovo file
-- Wrapper asincrono per operazioni lunghe usando `async.el` o
-  `make-thread` (Emacs 29+)
-- `blueprint-async-export` — export in background, notifica al termine
-- `blueprint-async-tangle` — tangle in background
+### ~~4.3 Auto-tangle on save~~ ✅
+- ~~`blueprint-auto-tangle-mode` minor mode~~
 
-### 4.3 Auto-tangle on save (hook in `blueprint-core.el`)
-- `blueprint-auto-tangle-mode` — minor mode che aggiunge
-  `after-save-hook` per eseguire `org-babel-tangle` sui file .org
-  dentro `.blueprint/`
-- Defcustom `blueprint-auto-tangle` (default nil)
-
-### 4.4 Watch mode (hook in `blueprint-core.el`)
-- `blueprint-watch-mode` — minor mode con `after-save-hook` che:
-  - Invalida la cache metriche
-  - (Opzionale) ri-sincronizza master file
-  - (Opzionale) ri-genera C4
-- Defcustom `blueprint-watch-auto-sync` (default nil)
+### ~~4.4 Watch mode~~ ✅
+- ~~`blueprint-watch-mode` con auto-sync e auto-C4~~
 
 ---
 
-## Fase 5 — Dependency graph avanzato
+## ~~Fase 5 — Dependency graph avanzato~~ ✅
 
-Obiettivo: visualizzazione grafica delle dipendenze.
-
-### 5.1 Dependency graph (`blueprint-graph.el`) — nuovo file
-- `blueprint-dependency-graph` — genera grafo PlantUML o Graphviz (dot)
-  delle dipendenze tra componenti
-- Supporta sia PlantUML (`component-deps.puml`) che Graphviz
-  (`component-deps.dot`)
-- Defcustom `blueprint-graph-backend` ('plantuml o 'graphviz)
-- Colorazione nodi basata su health score del componente
+### ~~5.1 Dependency graph (`blueprint-graph.el`)~~ ✅
+- ~~PlantUML e Graphviz, colorazione health-based~~
 
 ---
 
-## Fase 6 — UX e onboarding
+## ~~Fase 6 — UX e onboarding~~ ✅
 
-Obiettivo: rendere il tool accessibile ai nuovi utenti.
+### ~~6.1 Component skeleton wizard (`blueprint-wizard.el`)~~ ✅
+- ~~`blueprint-wizard-component` con pre-compilazione~~
 
-### 6.1 Component skeleton wizard (`blueprint-wizard.el`) — nuovo file
-- `blueprint-wizard-component` — wizard interattivo che chiede:
-  - Nome componente
-  - Responsabilità (una riga)
-  - Owner / team
-  - Tech stack
-  - Dipendenze iniziali
-- Pre-compila il template con le risposte
+### ~~6.2 Wizard onboarding~~ ✅
+- ~~`blueprint-wizard-init`~~
 
-### 6.2 Wizard onboarding (estensione di `blueprint-wizard.el`)
-- `blueprint-wizard-init` — guided project setup:
-  - Nome progetto
-  - Creazione directory
-  - Primo componente (opzionale)
-  - Migrazione template
-  - Apertura dashboard
+### ~~6.3 Quick capture (`blueprint-capture.el`)~~ ✅
+- ~~Template org-capture per note, domande, glossario~~
 
-### 6.3 Quick capture (`blueprint-capture.el`) — nuovo file
-- Configura `org-capture-templates` per Blueprint:
-  - Nota rapida in `.blueprint/notes.org`
-  - Domanda rapida in componente specifico
-  - Nuovo termine glossario
-- `blueprint-capture` — lancia `org-capture` con i template Blueprint
-
-### 6.4 Daily workflow command (`blueprint-daily.el`) — nuovo file
-- `blueprint-daily` — sequenza one-key:
-  1. Apre dashboard
-  2. Mostra focus mode (componenti da lavorare)
-  3. Prompt per selezionare componente
-  4. Apre il file
-  5. Al salvataggio: sync + export (se watch-mode attivo)
+### ~~6.4 Daily workflow command (`blueprint-daily.el`)~~ ✅
+- ~~`blueprint-daily` — sequenza triage giornaliero~~
 
 ---
 
-## Fase 7 — Intelligence e integrazione esterna
+## ~~Fase 7 — Intelligence e integrazione esterna~~ ✅
 
-Obiettivo: suggerimenti automatici e integrazioni.
+### ~~7.1 Rule-based risk suggestions (`blueprint-risks.el`)~~ ✅
+- ~~Pattern matching deterministico + check strutturali~~
 
-### 7.1 Rule-based risk suggestions (`blueprint-risks.el`) — nuovo file
-- Pattern matching deterministico sul testo dei componenti
-- Regole predefinite:
-  - "single point of failure" → rischio SPOF
-  - Nessun owner dichiarato → rischio "unclear ownership"
-  - Nessun monitoring menzionato → rischio "missing monitoring"
-  - Componente senza dipendenze e non dipeso → rischio "isolated component"
-  - Troppi TBD/QUESTION → rischio "immature documentation"
-- `blueprint-suggest-risks` — analizza un componente e suggerisce rischi
-- `blueprint-suggest-risks-all` — analizza tutto il progetto
-- Output nel buffer con possibilità di inserire i rischi nel file
+### ~~7.2 AI-assisted snippets — Ollama (`blueprint-ai.el`)~~ ✅
+- ~~`blueprint-ai-expand`, `blueprint-ai-suggest-risks`, `blueprint-ai-boilerplate`~~
 
-### 7.2 AI-assisted snippets — Ollama (`blueprint-ai.el`) — nuovo file
-- Integrazione con Ollama locale (HTTP API su localhost:11434)
-- `blueprint-ai-expand` — espande una sezione selezionata (prompt al
-  modello con contesto del componente)
-- `blueprint-ai-suggest-risks` — suggerisce rischi via LLM (fallback a
-  rule-based se Ollama non disponibile)
-- `blueprint-ai-boilerplate` — genera boilerplate per sezioni vuote
-- Defcustom `blueprint-ai-model` (default "llama3")
-- Defcustom `blueprint-ai-endpoint` (default "http://localhost:11434")
+### ~~7.3 Prompt guardrails~~ ✅
+- ~~Context clamping + sanitizzazione email/IP/password~~
 
-### 7.3 Prompt guardrails (parte di `blueprint-ai.el`)
-- Context clamping: limita il testo inviato al modello a N caratteri
-- Defcustom `blueprint-ai-max-context` (default 4000)
-- Sanitizzazione: rimuove dati sensibili (pattern email, IP, password)
-  prima di inviare al modello
+### ~~7.4 Org-roam integration (`blueprint-roam.el`)~~ ✅
+- ~~Soft dependency con `require ... nil t`~~
 
-### 7.4 Org-roam integration (`blueprint-roam.el`) — nuovo file
-- Solo se `org-roam` è disponibile (require con soft-dependency)
-- Registra i componenti come nodi org-roam
-- `blueprint-roam-find` — find-node filtrato su componenti Blueprint
-- Backlink navigation tra componenti
-
-### 7.5 CI/headless mode (`blueprint-ci.el`) — nuovo file
-- `blueprint-ci-lint` — wrapper batch per linting:
-  ```sh
-  emacs -Q --batch -l blueprint.el -f blueprint-ci-lint
-  ```
-- `blueprint-ci-export` — export batch
-- `blueprint-ci-validate` — validazione dipendenze + lint + health check
-- Exit code appropriati per CI pipeline (0=ok, 1=warning, 2=error)
+### ~~7.5 CI/headless mode (`blueprint-ci.el`)~~ ✅
+- ~~`blueprint-ci-lint`, `blueprint-ci-export`, `blueprint-ci-validate`~~
 
 ---
 
-## Aggiornamento Transient menu
+## ~~Infrastruttura test e licenza~~ ✅
 
-Il menu `blueprint-menu` deve essere esteso per esporre tutti i nuovi
-comandi. Struttura proposta:
-
-```
-Architecture    Quality      Templates   Project
-C generate C4   H health     D diff      I init
-G dep graph     L lint       M migrate   A add component
-                S suggest                R rename
-Content         Dashboard                X delete
-Q questions     B dashboard  Export      W wizard
-Y glossary      F focus      E export
-Z references                 T tangle
-                Capture
-Search          N capture    AI
-/ search        . daily      O ai expand
-```
+- ~~Suite ERT in `test/` a più livelli (unit, integration, end-to-end)~~
+- ~~CI GitHub Actions (`test.yml`) che esegue tutti i test~~
+- ~~Licenza MIT (`LICENSE`)~~
+- ~~`AGENTS.md` per agenti AI~~
+- ~~Fix bug `blueprint--lint-component` (file mancante silenzioso)~~
 
 ---
 
-## File nuovi da creare (14)
+## Fase 8 — Qualità e robustezza (TODO)
 
-1. `blueprint-adr.el`
-2. `blueprint-lint.el`
-3. `blueprint-dashboard.el`
-4. `blueprint-questions.el`
-5. `blueprint-glossary.el`
-6. `blueprint-references.el`
-7. `blueprint-sync.el`
-8. `blueprint-search.el`
-9. `blueprint-export.el`
-10. `blueprint-async.el`
-11. `blueprint-graph.el`
-12. `blueprint-wizard.el`
-13. `blueprint-capture.el`
-14. `blueprint-daily.el`
-15. `blueprint-risks.el`
-16. `blueprint-ai.el`
-17. `blueprint-roam.el`
-18. `blueprint-ci.el`
-19. `templates/adr.org`
-20. `templates/master.org`
+### 8.1 Fix noti e tech debt
 
-## File esistenti da modificare
+- [ ] `blueprint-questions.el`: `blueprint--find-heading` non gestisce heading
+  con sottotitoli (`:CUSTOM_ID:`, etc.) — usare `:raw-value` è corretto ma
+  verificare edge case con heading nested
+- [ ] `blueprint-sync.el`: primo sync aggiunge newline extra prima del contenuto
+  (cosmetic, non funzionale)
+- [ ] `blueprint-wizard.el`: `blueprint-wizard-component` scrive `#+BLUEPRINT_OWNER:`
+  e `#+BLUEPRINT_TECH:` ma nessun altro modulo li legge — documentare o
+  consumarli da qualche parte
+- [ ] `blueprint-rename-component`: dopo rename, la cache non viene invalidata
+  per i file dei componenti che hanno aggiornato le dipendenze
+- [ ] `blueprint-export.el`: `blueprint--master-or-error` blocca l'utente se
+  non ha mai eseguito `blueprint-sync` — aggiungere suggerimento automatico
 
-1. `blueprint.el` — require nuovi moduli, estendere transient menu
-2. `blueprint-core.el` — metrics caching, component CRUD, minor modes
-3. `blueprint-health.el` — usare cache
-4. `README.md` — spostare feature da Roadmap a Implemented
+### 8.2 Miglioramenti ai test
+
+- [ ] Aggiungere test per `blueprint-dashboard.el` (buffer entries, focus mode)
+- [ ] Aggiungere test per `blueprint-migrate.el` (diff e migrazione non-distruttiva)
+- [ ] Aggiungere test per `blueprint-watch.el` (hook install/remove)
+- [ ] Test negativi più sistematici (input invalido, file corrotti)
+
+---
+
+## Fase 9 — Nuove feature (idee)
+
+### 9.1 Changelog automatico
+
+Generare un file `CHANGELOG.org` a partire dai messaggi dei commit git e
+dagli ADR. Comando: `blueprint-changelog-generate`.
+
+### 9.2 Status tracking per componenti
+
+Aggiungere keyword `#+BLUEPRINT_STATUS: draft|active|deprecated|archived`
+interpretata dalla dashboard con icone colorate. Il linter potrebbe avvisare
+se un componente `active` ha FIXMEs o dipende da uno `deprecated`.
+
+### 9.3 Metriche trend nel tempo
+
+Registrare lo stato delle metriche (score, conteggi) in `.blueprint/metrics-history.org`
+ad ogni sync, in modo da mostrare un grafico dell'evoluzione del progetto.
+
+### 9.4 Esportazione JSON/YAML per CI
+
+Aggiungere `blueprint-ci-export-json` che produce un file `blueprint-report.json`
+con health score, componenti, dipendenze e warning — utile per integrazione
+con tool di CI che non supportano Emacs.
+
+### 9.5 Template "enterprise" con multi-livello
+
+Supporto per template `arc42-enterprise.org` con sezioni aggiuntive
+(enterprise context, stakeholder map, compliance) per engagement più grandi.
+L'assessment framework in `assessment-framework/` contiene già la base.
+
+### 9.6 Integrazione con org-agenda
+
+Convertire le QUESTION e FIXME aperte in task org-agenda con scadenza,
+in modo da poter fare triage dal buffer agenda standard di Emacs.
+
+### 9.7 Diff tra versioni di componente
+
+Usare git per mostrare la diff delle modifiche ai file arc42.org con
+contesto semantico (quale heading è cambiato, quante domande sono state
+risolte). Comando: `blueprint-component-diff`.
+
+### 9.8 Ricerca semantica con org-roam-db
+
+Se org-roam è disponibile, sfruttare il suo database SQLite per ricerche
+semantiche tra componenti (componenti simili, cluster di dipendenze, ecc.).
+
+### 9.9 Blueprint per monorepo
+
+Supporto per progetti con più sotto-sistemi: `.blueprint/systems/` con una
+directory per sistema, ciascuna con la propria struttura components/adr.
+Il dashboard mostrerebbe una vista aggregata multi-sistema.
+
+### 9.10 Live preview nella sidebar
+
+Minor mode che apre un buffer laterale con l'anteprima SVG del grafico
+delle dipendenze, aggiornata in tempo reale al salvataggio dei file.

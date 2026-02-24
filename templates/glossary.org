@@ -1,0 +1,27 @@
+#+TITLE: Glossario
+#+VERSION: 0.1
+#+UPDATED: {{DATE}}
+#+NOTE: File autonomo.  Usare blueprint-glossary-add (C-c b y) per aggiungere termini.
+
+* Termini di dominio
+<<glossary-domain>>
+
+** [Termine]
+<<glossary-esempio>>
+[Definizione operativa in linguaggio non tecnico.  Una o due frasi.]
+/Fonte: [intervista / codice / documento preesistente]/
+
+* Termini tecnici con uso specifico
+<<glossary-technical>>
+
+** [Termine tecnico]
+<<glossary-tecnico-esempio>>
+[Definizione di come il termine è usato in questo documento,
+se diversa dall'uso comune.]
+
+* Acronimi e abbreviazioni
+<<glossary-acronyms>>
+
+| Acronimo | Espansione | Note |
+|----------+------------+------|
+|          |            |      |
