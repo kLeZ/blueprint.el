@@ -92,12 +92,19 @@ when no matching files are found."
 (defun blueprint--sync-section (start-marker end-marker content)
   "Replace the text between START-MARKER and END-MARKER with CONTENT.
 Both markers must be present in the current buffer; if either is absent
-the function does nothing (safe to call on older master.org files)."
+the function does nothing (safe to call on older master.org files).
+
+The search for END-MARKER starts from the position immediately after
+START-MARKER, so duplicate or misplaced markers earlier in the buffer
+cannot interfere."
   (save-excursion
     (goto-char (point-min))
     (let ((start (search-forward start-marker nil t)))
       (when start
-        (goto-char (point-min))
+        ;; Search for end-marker from AFTER start-marker, not from
+        ;; point-min.  Searching from the beginning would match a stray
+        ;; end-marker appearing before start-marker, causing delete-region
+        ;; to receive inverted arguments and signal an error.
         (let ((end (search-forward end-marker nil t)))
           (when end
             (delete-region (1+ start) (line-beginning-position))

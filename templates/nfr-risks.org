@@ -3,13 +3,29 @@
 #+STATUS: [DA VALIDARE]
 #+UPDATED: {{DATE}}
 
+* Guida alla compilazione — Registro rischi                        :noexport:
+
+Ogni riga documenta un rischio tecnico, organizzativo o normativo.
+Il livello viene calcolato automaticamente dal comando
+=blueprint-nfr-add-risk= (=C-c b t=) secondo la matrice
+Probabilità × Impatto.
+
+Per i rischi locali a un singolo componente, usare la sezione =* Risks=
+di =arc42.org=; questo registro raccoglie i rischi trasversali.
+
+| ID    | Rischio                                   | Componente/i    | Probabilità | Impatto | Livello | Mitigazione                              | Owner     | Note          |
+|-------+-------------------------------------------+-----------------+-------------+---------+---------+------------------------------------------+-----------+---------------|
+| R-001 | Assenza di SLA contrattuale col provider  | payment-service | Alta        | Alto    | Critico | Rinegoziare contratto entro Q2; circuit  | arch-team | [FINDING]     |
+|       | di pagamenti (nessuna garanzia di uptime) |                 |             |         |         | breaker nel frattempo per degradare      |           | verificato    |
+| R-002 | Nessun piano di disaster recovery per il  | database        | Media       | Alto    | Alto    | Definire RTO/RPO, implementare replica   | ops-team  | [DA VALIDARE] |
+|       | database primario                         |                 |             |         |         | sincrona in standby con failover testato |           |               |
+
 * Registro dei rischi
 <<nfr-risks>>
 [DA VALIDARE]
 
-| ID    | Rischio | Componente/i | Probabilità | Impatto | Livello | Mitigazione | Owner | Note |
-|-------+---------+--------------+-------------+---------+---------+-------------+-------+------|
-| R-001 |         |              | Media       | Alto    | Alto    |             |       |      |
+| ID | Rischio | Componente/i | Probabilità | Impatto | Livello | Mitigazione | Owner | Note |
+|----+---------+--------------+-------------+---------+---------+-------------+-------+------|
 
 Livello = combinazione Probabilità x Impatto:
 - *Critico*: Alta prob. x Alto impatto

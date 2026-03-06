@@ -51,14 +51,14 @@ comportamento atteso sono marcate =[FINDING]=.
 
 Il documento è organizzato in sei parti con audience diverse:
 
-| Parte | Contenuto                     | Leggi se sei...              |
-|-------+-------------------------------+------------------------------|
-| 0     | Premesse e glossario          | Tutti                        |
-| I     | Vista enterprise              | Dirigenti, architetti senior |
-| II    | Architettura per componente   | Architetti, sviluppatori     |
-| III   | Specifiche funzionali         | Analisti, product owner, BU  |
-| IV    | Censimento infrastrutturale   | IT operations, sistemisti    |
-| V     | NFR e vincoli                 | Architetti, management IT    |
+| Parte | Contenuto                   | Leggi se sei...              |
+|-------+-----------------------------+------------------------------|
+| 0     | Premesse e glossario        | Tutti                        |
+| I     | Vista enterprise            | Dirigenti, architetti senior |
+| II    | Architettura per componente | Architetti, sviluppatori     |
+| III   | Specifiche funzionali       | Analisti, product owner, BU  |
+| IV    | Censimento infrastrutturale | IT operations, sistemisti    |
+| V     | NFR e vincoli               | Architetti, management IT    |
 
 Convenzioni di marcatura usate nel documento:
 - =[DA VALIDARE]= -- affermazione non verificata con il cliente

@@ -1,0 +1,288 @@
+#+TITLE: Metodo -- Assessment Architetturale su Sistemi Esistenti
+#+DATE: 2026-02-21
+#+VERSION: 1.0
+#+STATUS: draft
+
+* Premessa
+
+Questo documento descrive il metodo adottato per condurre assessment
+architetturali su sistemi software esistenti privi di documentazione.
+E' un asset metodologico riutilizzabile, indipendente da qualsiasi
+cliente o progetto specifico.
+
+Il metodo assume:
+- Sistemi in produzione, potenzialmente eterogenei per tecnologia ed eta'
+- Documentazione assente o inaffidabile
+- Accesso al codice sorgente e agli ambienti (condizione preferita ma non sempre garantita)
+- Stakeholder eterogenei con esigenze informative diverse
+- Vincoli di tempo significativi sul lato del consulente
+
+* Quando usare questo metodo
+
+Questo metodo e' adatto quando:
+- Il cliente ha software in produzione senza documentazione architetturale
+- L'obiettivo e' una fotografia dello stato attuale (as-is), non un progetto
+- Il perimetro include piu' sistemi con relazioni tra loro
+- La consegna deve essere leggibile da audience non solo tecniche
+
+Non e' adatto quando:
+- L'obiettivo e' progettare sistemi nuovi (usare approccio forward con arc42 standard)
+- Il perimetro e' un singolo microservizio semplice (overkill)
+- Il cliente richiede conformita' a standard specifici come TOGAF o NAF
+
+* Struttura del documento di output
+
+** Organizzazione a parti
+
+Il documento e' organizzato in sei parti con audience esplicita:
+
+| Parte | Titolo                      | Contenuto                                       | Audience primaria               |
+|-------+-----------------------------+-------------------------------------------------+---------------------------------|
+| 0     | Premesse                    | Scopo, perimetro, metodo di raccolta, glossario | Tutti                           |
+| I     | Architettura enterprise     | Vista aggregata, dipendenze cross-sistema       | Dirigenti, architetti senior    |
+| II    | Architettura per componente | arc42 selettivo per ogni sistema                | Architetti, sviluppatori senior |
+| III   | Specifiche funzionali       | Business rules, formule, logica di dominio      | Analisti, product owner, BU     |
+| IV    | Censimento infrastrutturale | Inventario, deployment, dipendenze infra        | IT operations, sistemisti       |
+| V     | NFR e vincoli               | Scenari di qualita', vincoli, rischi tecnici    | Architetti, management IT       |
+
+** Struttura di file
+
+#+begin_example
+<progetto>/
+  master.org                    <- documento finale, assembla tutto con #+INCLUDE
+  CONTEXT.org                   <- contesto di sessione per uso con strumenti AI
+  glossary.org                  <- glossario autonomo, linkabile da qualsiasi file
+  references.org                <- riferimenti (documenti, interviste, sistemi)
+  enterprise/
+    context.org                 <- C4 L1 aggregato, vista multi-sistema
+    dependencies.org            <- mappa dipendenze, matrice integrazioni
+  components/
+    <nome-componente>/
+      arc42.org                 <- sezioni arc42 selettive
+      functional.org            <- specifiche funzionali, business rules
+      infrastructure.org        <- deployment view, inventario infra
+  nfr/
+    quality-scenarios.org       <- scenari di qualita' (arc42 stile)
+    constraints.org             <- vincoli architetturali
+    risks.org                   <- rischi tecnici
+#+end_example
+
+** Riferimenti incrociati
+
+I link tra file usano la sintassi org-mode:
+#+begin_example
+[[file:../glossary.org::termine][Termine]]
+[[file:../components/sistema-a/arc42.org::target-name][Sezione]]
+#+end_example
+
+I target si definiscono con:
+#+begin_example
+<<nome-target>>
+#+end_example
+
+** Convenzioni di marcatura
+
+Ogni affermazione nel documento ha un livello di certezza implicito.
+Le sezioni non certe vanno marcate esplicitamente:
+
+| Tag                      | Significato                                            |
+|--------------------------+--------------------------------------------------------|
+| =[DA VALIDARE]=          | Non ancora verificato con referente del cliente        |
+| =[DA REVISIONARE]=       | Prodotto da processo automatico, non revisionato       |
+| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso       |
+| =[APPROVATO YYYY-MM-DD]= | Validato dal cliente nella data indicata               |
+| =[FONTE: X]=             | Provenienza specifica (es. FONTE: intervista Mario R.) |
+
+* Fonti e affidabilita'
+
+** Gerarchia delle fonti
+
+Le fonti non hanno uguale affidabilita'. In ordine decrescente:
+
+1. Codice sorgente: e' cio' che il sistema fa effettivamente. Fonte primaria.
+2. Test unitari e di integrazione: documentano il comportamento atteso e i
+   casi limite. Spesso piu' precisi delle specifiche scritte.
+3. Log e monitoring in produzione: mostrano il comportamento reale sotto carico.
+4. Interviste con i referenti tecnici: utili per il contesto e le intenzioni
+   originali. Soggette a dimenticanze e reinterpretazioni.
+5. Documentazione preesistente: spesso obsoleta o incompleta. Va sempre
+   verificata contro il codice prima di essere usata.
+
+** Problema dei bug-diventati-feature
+
+Il codice puo' contenere comportamenti errati che nel tempo il cliente ha
+accettato come corretti (i processi di business si sono adattati al bug).
+Documentare il comportamento effettivo come se fosse corretto e' un rischio.
+
+Approccio: documentare cio' che il codice fa, con nota esplicita se il
+comportamento sembra anomalo. Non correggere unilateralmente -- segnalare
+come finding e verificare con il domain expert.
+
+* Reverse-engineering della business logic
+
+** Obiettivo
+
+Produrre specifiche funzionali technology-agnostic: leggibili da un analista
+senza background tecnico, sufficientemente precise da permettere la
+reimplementazione in un linguaggio diverso senza perdita di logica.
+
+** Procedura per componente
+
+1. Identifica i punti di ingresso della business logic: service layer, use case
+   classes, domain objects. Ignora controller, repository, configurazione,
+   infrastructure code.
+2. Cerca i test unitari -- sono spesso la documentazione piu' precisa,
+   specialmente per casi limite e regole di arrotondamento.
+3. Leggi le costanti con nome e gli enum: contengono spesso frammenti di
+   logica esplicita (stati, categorie, soglie).
+4. Controlla stored procedure e trigger nel database: logica di business
+   finisce li' piu' spesso di quanto sia auspicabile.
+5. Traduce la logica in linguaggio di dominio: rinomina variabili tecniche
+   con nomi di business, esprimi formule in notazione matematica.
+6. Valida con un domain expert: almeno una review veloce per ogni area
+   funzionale rilevante.
+
+** Formato delle specifiche funzionali
+
+Per ogni funzione o regola di business:
+- Scopo in linguaggio di dominio (una frase)
+- Input: nome (business), tipo (business), vincoli, provenienza
+- Output: nome (business), tipo (business), formato, destinazione
+- Regole di business: lista numerata, ogni regola atomica e verificabile
+- Logica di calcolo: formule in notazione matematica, arrotondamenti, precisione
+- Regole di validazione: tabella condizione/comportamento
+- Casi limite e eccezioni: deviazioni dal flusso normale
+
+** Struttura per decision table
+
+Per logica condizionale con molte combinazioni input/output:
+
+| Condizione 1 | Condizione 2 | Condizione N | Azione |
+|--------------+--------------+--------------+--------|
+| valore A     | valore X     | ...          | ...    |
+| valore B     | valore Y     | ...          | ...    |
+
+* Notazioni grafiche
+
+** C4 -- architettura software
+
+Usato per viste strutturali statiche. Tre livelli operativi:
+- L1 (System Context): sistema nel suo contesto, utenti esterni, sistemi confinanti
+- L2 (Container): applicazioni, database, processi principali dentro il sistema
+- L3 (Component): moduli interni a un container, per sistemi complessi
+
+Sintassi PlantUML:
+#+begin_src plantuml :file example-c4-l1.svg
+!include <C4/C4_Context>
+System(sys, "Sistema A", "Descrizione breve")
+Person(user, "Utente")
+System_Ext(ext, "Sistema Esterno")
+Rel(user, sys, "Usa")
+Rel(sys, ext, "Chiama", "REST/HTTPS")
+@enduml
+#+end_src
+
+** UML sequence diagram -- interazioni runtime
+
+Per flussi di chiamata tra componenti, con sequenza temporale esplicita.
+Usare quando l'ordine delle operazioni e' semanticamente rilevante.
+
+** UML activity diagram con swimlane -- processi di business
+
+Approssimazione di BPMN per processi con attori multipli.
+Usare quando ci sono decisioni, cicli, e piu' attori (umani o sistemi).
+
+#+begin_src plantuml :file example-activity.svg
+| Utente |
+start
+:Invia richiesta;
+| Sistema |
+:Valida input;
+if (valido?) then (si)
+  :Elabora;
+  :Restituisce risultato;
+else (no)
+  :Restituisce errore;
+endif
+| Utente |
+:Riceve risposta;
+stop
+@enduml
+#+end_src
+
+** DFD -- data lineage e flussi di integrazione
+
+Per mostrare dove i dati nascono, dove vanno, come vengono trasformati.
+Livello 0 (context diagram) e Livello 1 (decomposizione) sono sufficienti
+per un assessment.
+
+Simulato con PlantUML component diagram:
+#+begin_src plantuml :file example-dfd.svg
+[Fonte Dati A] --> (Trasformazione T1) : dati grezzi
+(Trasformazione T1) --> [Sistema B] : dati normalizzati
+(Trasformazione T1) --> [Archivio C] : copia storica
+@enduml
+#+end_src
+
+** UML deployment diagram esteso -- topologia infrastrutturale
+
+Per ambienti complessi (cloud, ibridi, multi-zona), annotare esplicitamente:
+porte, protocolli, zone di rete, firewall, regioni cloud.
+
+* Gestione degli accessi mancanti
+
+Se gli accessi non sono disponibili al momento della raccolta, la procedura
+e' la seguente per ordine di priorita':
+
+1. Intervista al referente tecnico con walkthrough del sistema
+2. Analisi di artefatti secondari (documentazione deploy, script CI/CD,
+   Dockerfile, configurazioni Kubernetes, terraform)
+3. Osservazione dell'ambiente (monitoring, APM, log aggregati)
+4. Inferenza dalla sola interfaccia esterna (black-box) -- da usare solo
+   come ultima risorsa, con marcatura =[DA VALIDARE]=
+
+* Strumenti
+
+** Scaffolder (scaffold.py)
+
+Script Python per la gestione quotidiana della struttura di file.
+Comandi principali: init, add-component, add-term, add-question,
+add-reference, status, list.
+
+Vedi documentazione inline nello script.
+
+** Export in Word (.docx)
+
+Pipeline: org-mode -> pandoc -> .docx
+
+Comando base:
+#+begin_src bash
+  pandoc master.org -o output.docx --reference-doc=template.docx
+#+end_src
+
+Il file =template.docx= definisce gli stili Word. Va creato una sola volta
+per progetto, copiando il template aziendale del cliente e mappando i titoli
+org-mode agli stili Word corrispondenti.
+
+** Export in PDF
+
+Pipeline: org-mode -> LaTeX -> PDF (via Emacs org-export)
+oppure: org-mode -> pandoc -> PDF (via pdflatex)
+
+#+begin_src bash
+  pandoc master.org -o output.pdf --pdf-engine=pdflatex
+#+end_src
+
+* Checklist pre-consegna
+
+Prima di consegnare il documento al cliente:
+
+- [ ] Tutte le sezioni =[DA VALIDARE]= sono state verificate o rimosse
+- [ ] Tutte le sezioni =[DA REVISIONARE]= sono state revisionate
+- [ ] Il glossario copre tutti i termini tecnici e di dominio usati
+- [ ] I riferimenti sono completi e verificabili
+- [ ] I diagrammi sono leggibili (font size, contrasto, legenda)
+- [ ] La Parte 0 descrive accuratamente perimetro e fonti effettivamente usate
+- [ ] I finding sono formulati come osservazioni, non come critiche
+- [ ] Il documento e' stato esportato nel formato concordato e verificato visivamente
+- [ ] La versione e' stata approvata dal referente del cliente

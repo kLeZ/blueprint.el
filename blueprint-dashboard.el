@@ -14,6 +14,7 @@
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'blueprint-c4)
 (require 'blueprint-health)
 
 (defvar blueprint-dashboard-focus nil
@@ -46,15 +47,17 @@
               (questions (nth 0 metrics))
               (tbds (nth 1 metrics))
               (fixmes (nth 2 metrics))
-              (lines (blueprint--component-line-count file))
+              (owner (or (blueprint--org-keyword file "BLUEPRINT_OWNER") ""))
+              (tech (or (blueprint--org-keyword file "BLUEPRINT_TECH") ""))
               (status (blueprint--component-status questions tbds fixmes))
               (has-markers (> (+ questions tbds fixmes) 0)))
          (when (or (not blueprint-dashboard-focus) has-markers)
            (push (list id (vector id
+                                  owner
+                                  tech
                                   (number-to-string questions)
                                   (number-to-string tbds)
                                   (number-to-string fixmes)
-                                  (number-to-string lines)
                                   status))
                  entries))))
      (blueprint--components))
@@ -74,10 +77,11 @@
   "Major mode for the Blueprint project dashboard."
   (setq tabulated-list-format
         [("Component" 25 t)
+         ("Owner" 15 t)
+         ("Tech" 15 t)
          ("Questions" 10 t)
          ("TBDs" 6 t)
          ("FIXMEs" 8 t)
-         ("Lines" 7 t)
          ("Status" 12 t)])
   (tabulated-list-init-header))
 

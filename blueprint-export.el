@@ -25,10 +25,11 @@ Supported values: pdf, html, docx."
   :group 'blueprint)
 
 (defun blueprint--master-or-error ()
-  "Return the master.org path, creating it if needed."
+  "Return the master.org path, or signal an error if it does not exist.
+Run `blueprint-init' or `blueprint-sync' to create master.org first."
   (let ((file (expand-file-name "master.org" (blueprint--root))))
     (unless (file-exists-p file)
-      (user-error "No master.org found; run blueprint-sync first"))
+      (user-error "No master.org found; run blueprint-init or blueprint-sync first"))
     file))
 
 ;;;###autoload

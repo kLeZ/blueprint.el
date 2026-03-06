@@ -1,0 +1,26 @@
+#+TITLE: Glossario
+#+VERSION: 0.1
+#+UPDATED: [DATE]
+#+NOTE: File autonomo. Non modificare la struttura -- usare scaffold.py add-term.
+
+* Termini di dominio
+<<glossary-domain>>
+
+** [Termine]
+<<glossary-[termine-slug]>>
+[Definizione operativa in linguaggio non tecnico. Una o due frasi.]
+/Fonte: [intervista / codice / documento preesistente]/
+
+* Termini tecnici con uso specifico
+<<glossary-technical>>
+
+** [Termine]
+<<glossary-[termine-slug]>>
+[Definizione di come il termine e' usato in questo documento, se diversa dall'uso comune.]
+
+* Acronimi e abbreviazioni
+<<glossary-acronyms>>
+
+| Acronimo | Espansione | Note |
+|----------+------------+------|
+|          |            |      |

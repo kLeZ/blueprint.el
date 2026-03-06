@@ -5,6 +5,66 @@
 #+CREATED: {{DATE}}
 #+STATUS: [DA VALIDARE]
 
+* Guida alla compilazione — arc42                                  :noexport:
+
+Questo file documenta l'architettura del componente seguendo la struttura
+arc42.  Ogni sezione porta il marker =[DA VALIDARE]= fino a quando il
+contenuto non è confermato da una fonte attendibile (codice, log, intervista
+o documento).  Sostituire il marker con =[APPROVATO YYYY-MM-DD]= o
+=[FINDING]= a seconda dell'esito della verifica.
+
+Gerarchia delle fonti (dalla più affidabile): codice → test → log →
+monitoring → interviste → documentazione preesistente.
+
+** Esempio: intestazione e dipendenze
+
+#+BEGIN_SRC org
+  ,#+BLUEPRINT_DEPENDS: order-service notification-service
+  ,#+BLUEPRINT_OWNER: team-payments
+  ,#+BLUEPRINT_TECH: Java 17 / Spring Boot 3 / PostgreSQL 15
+#+END_SRC
+
+** Esempio: tabella utenti e ruoli
+
+| Ruolo           | Descrizione                                     | Tipo (umano/sistema) |
+|-----------------+-------------------------------------------------+----------------------|
+| Operatore cassa | Avvia transazioni di pagamento POS              | umano                |
+| order-service   | Chiama l'API di autorizzazione in modo sincrono | sistema              |
+| Stripe          | Provider esterno — processa l'addebito          | sistema esterno      |
+
+** Esempio: sistemi confinanti
+
+| Sistema          | Direzione | Tipo interazione       | Note                                     |
+|------------------+-----------+------------------------+------------------------------------------|
+| order-service    | IN        | REST sincrono (HTTP/2) | Invia richiesta di autorizzazione        |
+| notification-svc | OUT       | Kafka (asincrono)      | Evento =PaymentAuthorized= dopo successo |
+| Stripe API v3    | OUT       | HTTPS REST             | Delega autorizzazione carta al provider  |
+
+** Esempio: vincoli
+
+| Vincolo      | Tipo (tecnico/org/normativo) | Impatto                          | Fonte      |
+|--------------+------------------------------+----------------------------------+------------|
+| PCI-DSS v4.0 | normativo                    | Nessun dato di carta in chiaro   | audit 2023 |
+| Java 17 LTS  | tecnico                      | Librerie incompatibili < Java 17 | ADR 0001   |
+
+** Esempio: tabella Responsibility
+
+| Aspetto         | Approccio rilevato                              | Note                |
+|-----------------+-------------------------------------------------+---------------------|
+| Sicurezza       | TLS 1.3 in ingresso; no dati carta in chiaro    | [APPROVATO 2024-02] |
+| Autenticazione  | JWT Bearer validato dall'API Gateway            | [DA VALIDARE]       |
+| Autorizzazione  | Ruoli nel JWT claim =scope=                     | [DA VALIDARE]       |
+| Logging         | Structured JSON su stdout → Datadog             | [FINDING]           |
+| Gestione errori | Circuit breaker Resilience4j su chiamate Stripe | [DA VALIDARE]       |
+| Transazionalità | Saga orchestrata: compensazione via evento      | [DA VALIDARE]       |
+
+** Esempio: rischi locali al componente
+
+| Rischio                            | Probabilità | Impatto | Livello | Mitigazione                    |
+|------------------------------------+-------------+---------+---------+--------------------------------|
+| Timeout Stripe non gestito in modo | Media       | Alto    | Alto    | Aggiungere retry con backoff   |
+| idempotente → doppio addebito      |             |         |         | esponenziale e idempotency key |
+
 * Introduction
 <<{{ID}}-intro>>
 [DA VALIDARE]
@@ -31,12 +91,10 @@ Rel(user, {{ID}}, "Usa")
 ** Utenti e ruoli
 | Ruolo | Descrizione | Tipo (umano/sistema) |
 |-------+-------------+----------------------|
-|       |             |                      |
 
 ** Sistemi confinanti
 | Sistema | Direzione | Tipo interazione | Note |
 |---------+-----------+------------------+------|
-|         |           |                  |      |
 
 * Constraints
 <<{{ID}}-constraints>>
@@ -47,7 +105,6 @@ architetturali.
 
 | Vincolo | Tipo (tecnico/org/normativo) | Impatto | Fonte |
 |---------+------------------------------+---------+-------|
-|         |                              |         |       |
 
 * Solution Strategy
 <<{{ID}}-strategy>>
@@ -78,11 +135,41 @@ System_Boundary({{ID}}, "{{NAME}}") {
 <<{{ID}}-runtime>>
 [DA VALIDARE]
 
-Flussi principali a runtime.  Un diagramma di sequenza per ogni flusso
-rilevante.
+Flussi principali a runtime.  Per ogni flusso documentare gli attori
+coinvolti (casi d'uso) e il dettaglio degli scambi di messaggi (sequenza).
 
 ** Flusso: [nome flusso]
+<<{{ID}}-flow-main>>
+[DA VALIDARE]
+
+Descrizione del flusso: obiettivo, precondizioni, attori coinvolti e
+vincoli di contesto rilevanti.
+
+*** Casi d'uso
+
+Panoramica degli attori e delle funzionalità coinvolte nel flusso.
+Questa vista è utile per comunicare con stakeholder non tecnici.
+
+#+begin_src plantuml :file {{ID}}-uc-main.svg
+@startuml
+left to right direction
+actor "Utente" as u
+rectangle "{{NAME}}" {
+  usecase "Caso d'uso 1" as uc1
+  usecase "Caso d'uso 2" as uc2
+}
+u --> uc1
+u --> uc2
+@enduml
+#+end_src
+
+*** Sequenza
+
+Dettaglio temporale degli scambi di messaggi per il flusso.
+Questa vista è utile per i team tecnici e per la documentazione delle API.
+
 #+begin_src plantuml :file {{ID}}-seq-main.svg
+@startuml
 participant "A" as a
 participant "B" as b
 a -> b : messaggio
@@ -116,16 +203,16 @@ Vedere anche: [[file:infrastructure.org][Censimento infrastrutturale -- {{NAME}}
 Aspetti trasversali: sicurezza, logging, gestione errori,
 transazionalità, autenticazione, autorizzazione.
 
-| Aspetto | Approccio rilevato | Note |
-|---------+--------------------+------|
-| Sicurezza | | |
-| Autenticazione | | |
-| Autorizzazione | | |
-| Logging | | |
-| Gestione errori | | |
-| Transazionalità | | |
+| Aspetto         | Approccio rilevato | Note |
+|-----------------+--------------------+------|
+| Sicurezza       |                    |      |
+| Autenticazione  |                    |      |
+| Autorizzazione  |                    |      |
+| Logging         |                    |      |
+| Gestione errori |                    |      |
+| Transazionalità |                    |      |
 
-* Risks
+* Risks                                                   :important:meeting:
 <<{{ID}}-risks>>
 [DA VALIDARE]
 
@@ -134,7 +221,8 @@ Vedere anche: [[file:../../nfr/risks.org][Registro rischi trasversale]]
 
 | Rischio | Probabilità | Impatto | Livello | Mitigazione |
 |---------+-------------+---------+---------+-------------|
-|         |             |         |         |             |
+
+- [ ] parlare di questo capitolo più approfonditamente per vagliare l'ipotesi di espanderlo o eliminarlo
 
 * Open Questions
 <<{{ID}}-questions>>

@@ -6,66 +6,113 @@
 
 ;;; Commentary:
 
-;; Architecture Decision Record management: create, list, and navigate
-;; ADRs stored in .blueprint/adr/.
+;; Architecture Decision Record management for Blueprint.
+;;
+;; All ADRs live in a single consolidated file `.blueprint/adr/adr.org'.
+;; Each ADR is a level-1 heading with the form:
+;;
+;;   * ADR 0001: Title
+;;   :PROPERTIES:
+;;   :STATUS: proposed
+;;   :DATE:   YYYY-MM-DD
+;;   :END:
+;;
+;;   ** Contesto
+;;   ** Decisione
+;;   ** Conseguenze
+;;
+;; The STATUS property is stored in the standard Org PROPERTIES drawer so
+;; it is both human-readable and accessible to `org-element', the column
+;; view, and Org's property API -- without requiring a file-level keyword.
+;;
+;; Possible STATUS values: proposed, accepted, deprecated, superseded.
 
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'org-element)
 
-(defun blueprint--adr-dir ()
-  "Return the ADR directory for the current Blueprint project."
-  (expand-file-name ".blueprint/adr" (blueprint--root)))
+(defun blueprint--adr-file ()
+  "Return the path to the consolidated ADR file (.blueprint/adr.org)."
+  (expand-file-name ".blueprint/adr.org" (blueprint--root)))
 
 (defun blueprint--adr-next-number ()
-  "Return the next ADR number as a zero-padded string."
-  (let* ((dir (blueprint--adr-dir))
-         (files (and (file-directory-p dir)
-                     (directory-files dir nil "^[0-9]\\{4\\}-.*\\.org$")))
-         (max-num 0))
-    (dolist (f files)
-      (when (string-match "^\\([0-9]\\{4\\}\\)-" f)
-        (let ((n (string-to-number (match-string 1 f))))
-          (when (> n max-num) (setq max-num n)))))
+  "Return the next ADR number as a zero-padded 4-digit string.
+Scans level-1 headings matching `* ADR NNNN:' in adr.org and increments
+past the highest number found.  Returns \"0001\" when the file is absent
+or contains no ADR headings."
+  (let ((file (blueprint--adr-file))
+        (max-num 0))
+    (when (file-exists-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward "^\\* ADR \\([0-9]\\{4\\}\\):" nil t)
+          (let ((n (string-to-number (match-string 1))))
+            (when (> n max-num) (setq max-num n))))))
     (format "%04d" (1+ max-num))))
+
+(defun blueprint--adr-ensure-file ()
+  "Create .blueprint/adr.org from template if it does not exist.  Return its path."
+  (let ((file (blueprint--adr-file)))
+    (make-directory (file-name-directory file) t)
+    (unless (file-exists-p file)
+      (let* ((content (blueprint--template "adr.org"))
+             (project (file-name-nondirectory
+                       (directory-file-name (blueprint--root))))
+             (date (format-time-string "%Y-%m-%d")))
+        (setq content (replace-regexp-in-string "{{PROJECT}}" project content t t))
+        (setq content (replace-regexp-in-string "{{DATE}}" date content t t))
+        (with-temp-file file (insert content))))
+    file))
 
 ;;;###autoload
 (defun blueprint-adr-new (title)
-  "Create a new Architecture Decision Record with TITLE."
+  "Add a new Architecture Decision Record with TITLE to adr.org.
+The ADR is appended as a level-1 heading with STATUS=proposed in its
+PROPERTIES drawer.  Creates adr.org from template if absent."
   (interactive "sADR title: ")
-  (let* ((dir (blueprint--adr-dir))
+  (let* ((file (blueprint--adr-ensure-file))
          (num (blueprint--adr-next-number))
-         (slug (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" (downcase title)))
-         (filename (format "%s-%s.org" num slug))
-         (file (expand-file-name filename dir))
-         (content (blueprint--template "adr.org"))
-         (date (format-time-string "%Y-%m-%d")))
-    (make-directory dir t)
-    (setq content (replace-regexp-in-string "{{NUMBER}}" num content t t))
-    (setq content (replace-regexp-in-string "{{TITLE}}" title content t t))
-    (setq content (replace-regexp-in-string "{{DATE}}" date content t t))
-    (with-temp-file file
-      (insert content))
+         (date (format-time-string "%Y-%m-%d"))
+         (entry (concat
+                 (format "* ADR %s: %s\n" num title)
+                 ":PROPERTIES:\n"
+                 ":STATUS: proposed\n"
+                 (format ":DATE:   %s\n" date)
+                 ":END:\n\n"
+                 "** Contesto\n\n"
+                 "Situazione e forze in gioco che hanno motivato questa decisione.\n\n"
+                 "** Decisione\n\n"
+                 "La decisione presa e le alternative considerate.\n\n"
+                 "** Conseguenze\n\n"
+                 "Conseguenze positive, negative e neutre di questa decisione.\n\n")))
+    (with-current-buffer (find-file-noselect file)
+      (goto-char (point-max))
+      (unless (bolp) (insert "\n"))
+      (insert entry)
+      (save-buffer))
     (find-file file)
-    (message "Created ADR %s: %s" num title)))
+    (message "Added ADR %s: %s" num title)))
 
 ;;;###autoload
 (defun blueprint-adr-list ()
-  "Display a list of all ADRs in the current Blueprint project."
+  "Display a list of all ADRs from the consolidated adr.org.
+RET on an entry opens adr.org and jumps to the corresponding heading."
   (interactive)
-  (let* ((dir (blueprint--adr-dir))
-         (files (and (file-directory-p dir)
-                     (directory-files dir t "^[0-9]\\{4\\}-.*\\.org$")))
+  (let* ((file (blueprint--adr-file))
          (entries '()))
-    (dolist (f files)
-      (let* ((name (file-name-sans-extension (file-name-nondirectory f)))
-             (status (or (with-temp-buffer
-                           (insert-file-contents f)
-                           (goto-char (point-min))
-                           (when (re-search-forward "^#\\+STATUS:\\s-*\\(.*\\S-\\)" nil t)
-                             (match-string 1)))
-                         "unknown")))
-        (push (list f (vector name status)) entries)))
+    (when (file-exists-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (org-element-map (org-element-parse-buffer 'headline) 'headline
+          (lambda (hl)
+            (when (and (= (org-element-property :level hl) 1)
+                       (string-match-p "^ADR [0-9]\\{4\\}:"
+                                       (or (org-element-property :raw-value hl) "")))
+              (let* ((raw (org-element-property :raw-value hl))
+                     (status (or (org-element-property :STATUS hl) "unknown")))
+                (push (list (cons file raw) (vector raw status)) entries)))))))
     (if (null entries)
         (message "No ADRs found.")
       (with-current-buffer (get-buffer-create "*Blueprint ADRs*")
@@ -77,8 +124,12 @@
         (local-set-key (kbd "RET")
                        (lambda ()
                          (interactive)
-                         (let ((file (tabulated-list-get-id)))
-                           (when file (find-file file)))))
+                         (let ((data (tabulated-list-get-id)))
+                           (when data
+                             (find-file (car data))
+                             (goto-char (point-min))
+                             (when (search-forward (cdr data) nil t)
+                               (beginning-of-line))))))
         (switch-to-buffer (current-buffer))))))
 
 (provide 'blueprint-adr)

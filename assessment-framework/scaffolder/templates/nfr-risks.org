@@ -1,0 +1,18 @@
+#+TITLE: Rischi tecnici
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+UPDATED: [DATE]
+
+* Registro dei rischi
+<<nfr-risks>>
+[DA VALIDARE]
+
+| ID    | Rischio | Componente/i | Probabilita' | Impatto | Livello | Mitigazione | Owner | Note |
+|-------+---------+--------------+--------------+---------+---------+-------------+-------+------|
+| R-001 |         |              | Media        | Alto    | Alto    |             |       |      |
+
+Livello = combinazione Probabilita' x Impatto:
+- Critico: Alta prob. x Alto impatto
+- Alto: Alta prob. x Medio impatto, o Media prob. x Alto impatto
+- Medio: combinazioni intermedie
+- Basso: Bassa prob. x Basso impatto

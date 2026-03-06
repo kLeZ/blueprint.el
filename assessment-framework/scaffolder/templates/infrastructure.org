@@ -1,0 +1,60 @@
+#+TITLE: [COMPONENT_NAME] -- Censimento infrastrutturale
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+COMPONENT: [COMPONENT_NAME]
+#+UPDATED: [DATE]
+
+* Inventario
+<<[COMPONENT_ID]-inventory>>
+[DA VALIDARE]
+
+| ID | Nome host / servizio | Ruolo | OS / Runtime | Versione | Ambiente | Owner |
+|----+----------------------+-------+--------------+----------+----------+-------|
+|    |                      |       |              |          |          |       |
+
+* Deployment view
+<<[COMPONENT_ID]-deployment-view>>
+[DA VALIDARE]
+
+#+begin_src plantuml :file [COMPONENT_ID]-infra.svg
+node "Ambiente: [nome]" {
+  node "Host: [nome]" {
+    artifact "[COMPONENT_NAME] vX.Y"
+  }
+  database "DB: [nome]" {
+  }
+}
+@enduml
+#+end_src
+
+* Dipendenze infrastrutturali
+<<[COMPONENT_ID]-infra-deps>>
+[DA VALIDARE]
+
+| Dipendenza | Tipo | Porta / Protocollo | Direzione | Obbligatoria? |
+|------------+------+--------------------+-----------+---------------|
+|            |      |                    |           |               |
+
+* Configurazione rilevante
+<<[COMPONENT_ID]-config>>
+[DA VALIDARE]
+
+Parametri di configurazione con impatto architetturale (non operativi).
+Es. pool size, timeout, dimensioni buffer, modalita' di failover.
+
+| Parametro | Valore rilevato | Impatto | Note |
+|-----------+-----------------+---------+------|
+|           |                 |         |      |
+
+* Ambienti
+<<[COMPONENT_ID]-environments>>
+[DA VALIDARE]
+
+| Ambiente   | URL / Endpoint | Versione | Differenze rispetto a prod |
+|------------+----------------+----------+----------------------------|
+| Produzione |                |          | --                         |
+| Collaudo   |                |          |                            |
+| Sviluppo   |                |          |                            |
+
+* Open questions
+-

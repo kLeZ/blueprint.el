@@ -1,0 +1,32 @@
+#+TITLE: Riferimenti
+#+VERSION: 0.1
+#+UPDATED: [DATE]
+#+NOTE: File autonomo. Non modificare la struttura -- usare scaffold.py add-reference.
+
+* Documenti
+<<references-documents>>
+
+| ID | Titolo | Autore / Owner | Data | Tipo | Note |
+|----+--------+----------------+------+------+------|
+|    |        |                |      |      |      |
+
+* Interviste
+<<references-interviews>>
+
+| ID | Intervistato | Ruolo | Data | Argomenti trattati | Note |
+|----+--------------+-------+------+--------------------+------|
+|    |              |       |      |                    |      |
+
+* Sistemi e strumenti
+<<references-systems>>
+
+| ID | Nome | Versione | Scopo nel progetto |
+|----+------+----------+--------------------|
+|    |      |          |                    |
+
+* Ambienti analizzati
+<<references-environments>>
+
+| ID | Ambiente | Data rilevazione | Componenti inclusi | Note |
+|----+----------+------------------+--------------------+------|
+|    |          |                  |                    |      |

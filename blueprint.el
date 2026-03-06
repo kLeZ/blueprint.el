@@ -69,6 +69,10 @@
 (require 'blueprint-risks)
 (require 'blueprint-ai)
 (require 'blueprint-ci)
+(require 'blueprint-functional)
+(require 'blueprint-runtime)
+(require 'blueprint-nfr)
+(require 'blueprint-delivery)
 
 ;; Optional integrations (soft dependencies)
 (require 'blueprint-roam nil t)
@@ -93,7 +97,10 @@
    ["Quality"
     ("H" "health svg" blueprint-health-svg)
     ("L" "lint" blueprint-lint)
-    ("s" "suggest risks" blueprint-suggest-risks-all)]
+    ("s" "suggest risks" blueprint-suggest-risks-all)
+    ("d" "pre-delivery check" blueprint-pre-delivery-check)
+    ("g" "list findings" blueprint-list-findings)
+    ("u" "list unvalidated" blueprint-list-unvalidated)]
    ["Dashboard"
     ("B" "dashboard" blueprint-dashboard)
     ("F" "focus mode" blueprint-focus)
@@ -116,7 +123,18 @@
     ("/" "search" blueprint-search)
     ("N" "new ADR" blueprint-adr-new)
     ("n" "list ADRs" blueprint-adr-list)
-    ("K" "capture" blueprint-capture)]])
+    ("K" "capture" blueprint-capture)]]
+  [["Functional"
+    ("a" "add area" blueprint-functional-add-area)
+    ("f" "add feature" blueprint-functional-add-feature)
+    ("e" "add entity" blueprint-functional-add-entity)
+    ("i" "add integration" blueprint-functional-add-integration)]
+   ["Runtime"
+    ("r" "add flow" blueprint-runtime-add-flow)]
+   ["NFR"
+    ("p" "quality scenario" blueprint-nfr-add-quality-scenario)
+    ("c" "constraint" blueprint-nfr-add-constraint)
+    ("t" "risk entry" blueprint-nfr-add-risk)]])
 
 ;;;###autoload
 (defvar blueprint-command-map
@@ -140,6 +158,17 @@
     (define-key map (kbd "/") #'blueprint-search)
     (define-key map (kbd "K") #'blueprint-capture)
     (define-key map (kbd ".") #'blueprint-daily)
+    (define-key map (kbd "a") #'blueprint-functional-add-area)
+    (define-key map (kbd "f") #'blueprint-functional-add-feature)
+    (define-key map (kbd "e") #'blueprint-functional-add-entity)
+    (define-key map (kbd "i") #'blueprint-functional-add-integration)
+    (define-key map (kbd "r") #'blueprint-runtime-add-flow)
+    (define-key map (kbd "p") #'blueprint-nfr-add-quality-scenario)
+    (define-key map (kbd "c") #'blueprint-nfr-add-constraint)
+    (define-key map (kbd "t") #'blueprint-nfr-add-risk)
+    (define-key map (kbd "d") #'blueprint-pre-delivery-check)
+    (define-key map (kbd "g") #'blueprint-list-findings)
+    (define-key map (kbd "u") #'blueprint-list-unvalidated)
     map)
   "Keymap for Blueprint commands (non-transient).
 Bind this to a prefix key if you prefer plain keybindings over Transient:

@@ -104,5 +104,81 @@
                     (expand-file-name "master.org" default-directory))))
       (should (string-match-p ":minlevel 2" content)))))
 
+;;; --- blueprint--sync-section (direct unit tests) ---
+
+(ert-deftest blueprint-test-sync/sync-section-replaces-content ()
+  "blueprint--sync-section replaces content between markers."
+  (with-temp-buffer
+    (insert "# @@start@@\nold content\n# @@end@@\n")
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "new content")
+    (let ((result (buffer-string)))
+      (should (string-match-p "new content" result))
+      (should-not (string-match-p "old content" result)))))
+
+(ert-deftest blueprint-test-sync/sync-section-preserves-markers ()
+  "blueprint--sync-section keeps both markers intact."
+  (with-temp-buffer
+    (insert "# @@start@@\nold\n# @@end@@\n")
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "new")
+    (let ((result (buffer-string)))
+      (should (string-match-p "# @@start@@" result))
+      (should (string-match-p "# @@end@@" result)))))
+
+(ert-deftest blueprint-test-sync/sync-section-empty-content ()
+  "blueprint--sync-section with empty content removes old content."
+  (with-temp-buffer
+    (insert "# @@start@@\nsome old content\n# @@end@@\n")
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "")
+    (let ((result (buffer-string)))
+      (should-not (string-match-p "some old content" result))
+      (should (string-match-p "# @@start@@" result))
+      (should (string-match-p "# @@end@@" result)))))
+
+(ert-deftest blueprint-test-sync/sync-section-missing-start-noop ()
+  "blueprint--sync-section does nothing when start-marker is absent."
+  (with-temp-buffer
+    (insert "no markers here\n# @@end@@\n")
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "new")
+    (should (string-match-p "no markers here" (buffer-string)))
+    (should-not (string-match-p "new" (buffer-string)))))
+
+(ert-deftest blueprint-test-sync/sync-section-missing-end-noop ()
+  "blueprint--sync-section does nothing when end-marker is absent."
+  (with-temp-buffer
+    (insert "# @@start@@\nold content\nno end marker\n")
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "new")
+    (should (string-match-p "old content" (buffer-string)))
+    (should-not (string-match-p "new" (buffer-string)))))
+
+(ert-deftest blueprint-test-sync/sync-section-end-must-follow-start ()
+  "blueprint--sync-section does not match end-marker appearing before start.
+This is the regression test for the bug where the end-marker was searched
+from point-min, allowing a stray end-marker before the start-marker to be
+matched, which caused delete-region to receive inverted arguments."
+  (with-temp-buffer
+    ;; Stray end-marker BEFORE start-marker — must be ignored.
+    (insert "# @@end@@\nstray content\n# @@start@@\nreal content\n# @@end@@\n")
+    ;; With the bug fix, the search for end-marker begins AFTER start-marker,
+    ;; so the real end-marker is found and only "real content" is replaced.
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "replaced")
+    (let ((result (buffer-string)))
+      (should (string-match-p "replaced" result))
+      (should-not (string-match-p "real content" result))
+      ;; stray content before the start-marker must be untouched
+      (should (string-match-p "stray content" result)))))
+
+(ert-deftest blueprint-test-sync/sync-section-second-call-updates ()
+  "Two sequential calls each update their own section independently."
+  (with-temp-buffer
+    (insert (concat "# @@start-a@@\nold-a\n# @@end-a@@\n"
+                    "# @@start-b@@\nold-b\n# @@end-b@@\n"))
+    (blueprint--sync-section "# @@start-a@@" "# @@end-a@@" "new-a")
+    (blueprint--sync-section "# @@start-b@@" "# @@end-b@@" "new-b")
+    (let ((result (buffer-string)))
+      (should (string-match-p "new-a" result))
+      (should (string-match-p "new-b" result))
+      (should-not (string-match-p "old-a" result))
+      (should-not (string-match-p "old-b" result)))))
+
 (provide 'blueprint-test-sync)
 ;;; blueprint-test-sync.el ends here

@@ -1,0 +1,30 @@
+#+TITLE: Scenari di qualita' e requisiti non funzionali
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+UPDATED: [DATE]
+
+* Scenari di qualita'
+<<nfr-quality-scenarios>>
+[DA VALIDARE]
+
+Ogni scenario segue la struttura: contesto, stimolo, risposta attesa, misura.
+
+** [Nome scenario]
+- *Attributo di qualita'*: [Performance / Sicurezza / Affidabilita' / Manutenibilita' / ...]
+- *Contesto*: [quando si verifica]
+- *Stimolo*: [cosa scatena lo scenario]
+- *Risposta attesa*: [comportamento del sistema]
+- *Misura*: [criterio quantificabile di successo o fallimento]
+- *Priorita'*: [Alta / Media / Bassa]
+- *Fonte*: [da dove proviene questo requisito]
+
+* Service Level
+<<nfr-sla>>
+[DA VALIDARE]
+
+| Servizio / Componente | Metrica     | Valore rilevato | Valore atteso | Fonte |
+|-----------------------+-------------+-----------------+---------------+-------|
+|                       | Uptime      |                 |               |       |
+|                       | RTO         |                 |               |       |
+|                       | RPO         |                 |               |       |
+|                       | Latenza p95 |                 |               |       |

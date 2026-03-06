@@ -1,0 +1,817 @@
+#+TITLE: Blueprint.el — Guida operativa per l'assessment architetturale
+#+LANGUAGE: it
+#+OPTIONS: toc:3 num:t H:4
+#+DATE: 2026-03-05
+
+#+begin_comment
+Questo documento descrive il workflow operativo per condurre un assessment
+architetturale completo con Blueprint.el. Non e' un riferimento API: e' una
+guida pratica che segue la metodologia definita in assessment-framework/methodology/METHOD.org.
+
+Audience: architetti e consulenti che usano Blueprint.el in un engagement.
+#+end_comment
+
+* Introduzione
+
+Blueprint.el e' uno strumento Emacs per la produzione di documentazione
+architetturale su sistemi software esistenti privi di documentazione.
+Il metodo sottostante e' il reverse-engineering: si parte dal codice sorgente
+come fonte primaria e si ricostruisce progressivamente la documentazione.
+
+** Modello mentale
+
+Il documento di output e' un =master.org= che assembla file satellite tramite
+=#+INCLUDE=. Ogni componente ha la propria directory con tre file autonomi:
+
+| File                 | Contenuto                             | Parte master |
+|----------------------+---------------------------------------+--------------|
+| =arc42.org=          | Architettura software (arc42)         | Parte II     |
+| =functional.org=     | Specifiche funzionali, business rules | Parte III    |
+| =infrastructure.org= | Censimento infrastrutturale           | Parte IV     |
+
+I file trasversali al progetto vivono in =.blueprint/=:
+
+| File/Directory   | Contenuto                        | Parte master |
+|------------------+----------------------------------+--------------|
+| =enterprise/=    | Vista aggregata multi-sistema    | Parte I      |
+| =nfr/=           | NFR, vincoli, rischi trasversali | Parte V      |
+| =glossary.org=   | Glossario di dominio             | Parte 0      |
+| =references.org= | Fonti, interviste, documenti     | Riferimenti  |
+| =adr.org=        | Architecture Decision Records    | (separato)   |
+
+Il menu principale e' disponibile con =C-c b=.
+
+** Prerequisiti
+
+- Emacs 29+
+- Blueprint.el installato (=M-x package-install RET blueprint RET= o manualmente)
+- PlantUML disponibile per il rendering dei diagrammi (opzionale ma raccomandato)
+- Graphviz per il grafo delle dipendenze (opzionale)
+
+Per il rendering inline di PlantUML in Org-mode, aggiungere al proprio =init.el=:
+
+#+begin_src emacs-lisp
+  (setq org-plantuml-jar-path "/path/to/plantuml.jar")
+  (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
+  (org-babel-do-load-languages 'org-babel-load-languages
+  			     '((plantuml . t)))
+#+end_src
+
+-----
+
+* Struttura del documento di output
+
+Il documento master segue la struttura a sei parti definita dalla metodologia:
+
+| Parte | Titolo                      | Audience primaria               |
+|-------+-----------------------------+---------------------------------|
+| 0     | Premesse                    | Tutti                           |
+| I     | Architettura enterprise     | Dirigenti, architetti senior    |
+| II    | Architettura per componente | Architetti, sviluppatori senior |
+| III   | Specifiche funzionali       | Analisti, product owner, BU     |
+| IV    | Censimento infrastrutturale | IT operations, sistemisti       |
+| V     | NFR, vincoli, rischi        | Architetti, management IT       |
+
+Ogni parte ha audience esplicita: cio' consente lettura selettiva per ruolo
+senza dover attraversare materiale irrilevante.
+
+-----
+
+* Flusso 0 — Avvio progetto
+
+/Quando: inizio engagement, prima sessione operativa./
+
+** Azione 1: Inizializzare la struttura
+
+#+begin_src
+M-x blueprint-init  (oppure: C-c b i)
+#+end_src
+
+Crea la struttura completa =.blueprint/= nella directory corrente. Il comando e'
+idempotente: eseguirlo piu' volte non sovrascrive file esistenti.
+
+Struttura creata:
+
+#+begin_example
+.blueprint/
+  components/
+  enterprise/
+    enterprise-context.org
+    enterprise-dependencies.org
+  nfr/
+    nfr-quality.org
+    nfr-constraints.org
+    nfr-risks.org
+  templates/
+  _archive/
+  adr.org
+  glossary.org
+  references.org
+master.org
+#+end_example
+
+** Azione 2: Personalizzare i template (opzionale)
+
+Se il progetto richiede template personalizzati (es. sezioni aggiuntive,
+notazioni diverse, testo prefabbricato per il cliente):
+
+#+begin_src
+M-x blueprint-template-migrate  (oppure: C-c b T)
+#+end_src
+
+Copia i template di sistema in =.blueprint/templates/=. Da quel momento, i
+template locali hanno precedenza su quelli di sistema.
+
+I template disponibili: =component.org=, =functional.org=, =infrastructure.org=,
+=adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
+=enterprise-dependencies.org=, =nfr-quality.org=, =nfr-constraints.org=, =nfr-risks.org=.
+
+** Azione 3: Compilare la Parte 0 del master
+
+Aprire =master.org= e compilare manualmente le sezioni della Parte 0:
+- Scopo del documento
+- Perimetro dell'assessment (lista componenti inclusi ed esclusi)
+- Metodo di raccolta delle informazioni
+- Periodo di riferimento e versioni analizzate
+
+Queste sezioni sono editoriali e richiedono input specifico del progetto.
+
+-----
+
+* Flusso 1 — Gestione del perimetro
+
+/Quando: dopo aver concordato con il cliente la lista dei componenti da documentare./
+
+** Aggiungere un componente
+
+#+begin_src
+M-x blueprint-add-component  (oppure: C-c b a)
+Component name: order-service
+#+end_src
+
+Crea la directory =.blueprint/components/order-service/= con:
+- =arc42.org= — sempre creato
+- =functional.org= — se il template esiste
+- =infrastructure.org= — se il template esiste
+
+Il nome viene slugificato automaticamente (lowercase, trattini). Usare nomi
+che riflettano il linguaggio di dominio del cliente, non i nomi interni del codice
+(es. =fatturazione= anziche' =billing-service-v2=).
+
+** Dichiarare le dipendenze
+
+Aprire il file =arc42.org= del componente e compilare il keyword:
+
+#+begin_example
+#+BLUEPRINT_DEPENDS: auth-service database cache
+#+end_example
+
+Questa dichiarazione e' la fonte per la generazione automatica del diagramma C4
+e per il rilevamento di dipendenze anomale (componenti isolati, cicli).
+
+Per i sistemi esterni al perimetro (black-box), documentarli nel diagramma C4
+con =System_Ext= invece di aggiungere un componente blueprint.
+
+** Rinominare un componente
+
+#+begin_src
+M-x blueprint-rename-component  (oppure: C-c b R)
+#+end_src
+
+Aggiorna automaticamente tutte le occorrenze del nome in =BLUEPRINT_DEPENDS=
+degli altri componenti.
+
+** Eliminare un componente
+
+#+begin_src
+M-x blueprint-delete-component  (oppure: C-c b D)
+#+end_src
+
+Sposta la directory in =.blueprint/_archive/= (non elimina definitivamente).
+
+** Verificare lo stato del perimetro
+
+#+begin_src
+M-x blueprint-lint  (oppure: C-c b l)
+#+end_src
+
+Segnala: componenti con dipendenze verso componenti non esistenti, sezioni
+obbligatorie mancanti, file di template assenti.
+
+-----
+
+* Flusso 2 — Architettura per componente (arc42)
+
+/Quando: per ogni componente, dopo aver acquisito accesso al codice sorgente./
+
+** Approccio consigliato: dall'alto verso il basso
+
+1. Compilare prima =Context and Scope= (cosa fa, chi lo usa, sistemi confinanti)
+2. Poi =Building Blocks= (struttura interna, C4 L2/L3)
+3. Poi =Runtime Behavior= (flussi principali)
+4. Poi =Constraints= e =Solution Strategy= (ricostruite dal codice)
+5. Per ultimo =Risks= e =Open Questions= (emergono durante l'analisi)
+
+** Aprire il file di un componente
+
+Navigare in =.blueprint/components/<nome>/arc42.org= oppure usare:
+
+#+begin_src
+M-x blueprint-open  (oppure: C-c b o)
+#+end_src
+
+** Gestire i flussi runtime
+
+Aggiungere un flusso runtime documentato (casi d'uso + sequence diagram):
+
+#+begin_src
+M-x blueprint-runtime-add-flow  (oppure: C-c b r)
+Component: order-service
+Flow name: checkout
+#+end_src
+
+Inserisce nella sezione =* Runtime Behavior= un sotto-heading con:
+- =*** Casi d'uso= — diagramma PlantUML use case (per stakeholder non tecnici)
+- =*** Sequenza= — sequence diagram (per team tecnici)
+
+Entrambi i blocchi contengono PlantUML template da completare.
+
+** Convenzioni di marcatura durante la compilazione
+
+Usare le marcature definite dalla metodologia:
+
+| Marcatura                | Quando usarla                                           |
+|--------------------------+---------------------------------------------------------|
+| =[DA VALIDARE]=          | Sezione scritta ma non ancora verificata con il cliente |
+| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso        |
+| =[APPROVATO YYYY-MM-DD]= | Sezione approvata dal referente nella data indicata     |
+| =[FONTE: X]=             | Specificare la fonte (es. FONTE: intervista Mario R.)   |
+
+I marcatori =QUESTION=, =TBD=, =FIXME= sono rilevati automaticamente dal
+sistema di health scoring e penalizzano il punteggio di salute del progetto.
+
+** Aggiungere domande aperte durante l'analisi
+
+#+begin_src
+M-x blueprint-add-question  (oppure: C-c b q)
+Component: order-service
+Question: Chi autorizza il rimborso quando il pagamento e' gia' contabilizzato?
+#+end_src
+
+Le domande vengono inserite nella sezione =* Open Questions= del componente
+e tracciate nel health score (penalita' -3 per =QUESTION= non risolta).
+
+-----
+
+* Flusso 3 — Specifiche funzionali
+
+/Quando: dopo la prima lettura del codice, per tradurre la logica tecnica in linguaggio di dominio./
+
+L'obiettivo e' produrre specifiche leggibili da un analista senza background tecnico,
+sufficientemente precise da permettere la reimplementazione senza perdita di logica.
+
+** Struttura del file functional.org
+
+Il file =functional.org= si organizza in:
+- =* Aree funzionali= — macro-aree del dominio (es. =Ordini=, =Fatturazione=)
+  - =** Area= — sotto-sezione per area
+    - =*** Feature= — singola funzione o regola di business con input/output/regole
+- =* Entita' di dominio= — oggetti di business (non tabelle DB)
+- =* Punti di integrazione= — flussi IN/OUT verso altri sistemi
+- =* Open questions=
+
+** Aggiungere un'area funzionale
+
+#+begin_src
+M-x blueprint-functional-add-area  (oppure: C-c b F a)
+Component: order-service
+Area name: Gestione ordini
+#+end_src
+
+** Aggiungere una feature
+
+#+begin_src
+M-x blueprint-functional-add-feature  (oppure: C-c b F f)
+Component: order-service
+Area: Gestione ordini
+Feature name: Calcolo importo netto
+#+end_src
+
+Inserisce uno skeleton con: Scopo, Input, Output, Regole di business,
+Logica di calcolo, Regole di validazione, Casi limite.
+
+** Aggiungere un'entita' di dominio
+
+#+begin_src
+M-x blueprint-functional-add-entity  (oppure: C-c b F e)
+Component: order-service
+Entity name: Ordine
+#+end_src
+
+Inserisce una tabella attributi e un blocco PlantUML per il diagramma ER.
+
+** Aggiungere un punto di integrazione
+
+#+begin_src
+M-x blueprint-functional-add-integration  (oppure: C-c b F i)
+Component: order-service
+Integration name: Invio a sistema di fatturazione
+#+end_src
+
+Inserisce una tabella metadati (direzione, controparte, frequenza) e una
+sotto-sezione =*** Formato scambio= per documentare la struttura del payload.
+
+** Principio: tecnologia-agnostico
+
+Le specifiche funzionali non devono menzionare classi, metodi, tabelle, endpoint.
+Rinominare sempre le variabili tecniche con nomi di business:
+- =order.total_amount_cents= → =Importo totale dell'ordine (centesimi di euro)=
+- =ENUM Status { PENDING, CONFIRMED }= → =Stato ordine: in_attesa, confermato=
+
+-----
+
+* Flusso 4 — Censimento infrastrutturale
+
+/Quando: con accesso agli ambienti o agli script di deployment (Dockerfile, Kubernetes, Terraform)./
+
+Il file =infrastructure.org= e' principalmente manuale: le fonti sono configurazioni
+infrastrutturali, non codice applicativo.
+
+** Fonti raccomandate
+
+In ordine di affidabilita':
+1. Script Terraform / Pulumi / CloudFormation — fonte piu' precisa
+2. Manifest Kubernetes / Docker Compose
+3. Documentazione CI/CD (pipeline YAML)
+4. Intervista al sistemista / DevOps
+
+** Sezioni da compilare
+
+Aprire =.blueprint/components/<nome>/infrastructure.org= e compilare:
+
+- =* Inventario= — tabella host/servizi: nome, ruolo, OS/runtime, versione, ambiente, owner
+- =* Deployment view= — diagramma PlantUML del deployment (nodi, container, DB)
+- =* Dipendenze infrastrutturali= — porte, protocolli, direzione, obbligatorieta'
+- =* Configurazione rilevante= — parametri ad impatto architetturale (pool size, timeout, failover)
+- =* Ambienti= — differenze tra produzione, collaudo, sviluppo
+
+** Nota sugli accessi mancanti
+
+Se gli accessi non sono disponibili, la procedura di fallback (in ordine):
+1. Walkthrough con il referente tecnico
+2. Artefatti secondari (Dockerfile, CI/CD config)
+3. Osservazione di monitoring/APM/log
+4. Inferenza black-box — usare solo come ultima risorsa, marcare =[DA VALIDARE]=
+
+-----
+
+* Flusso 5 — Vista enterprise
+
+/Quando: dopo aver documentato almeno i componenti principali, per avere una vista aggregata./
+
+La vista enterprise e' la Parte I del documento master. Ha due file:
+- =.blueprint/enterprise/enterprise-context.org= — C4 L1 aggregato
+- =.blueprint/enterprise/enterprise-dependencies.org= — mappa dipendenze
+
+** Generare il diagramma C4 container (Parte II)
+
+#+begin_src
+M-x blueprint-generate-c4  (oppure: C-c b c)
+#+end_src
+
+Genera =c4.puml= nella root del progetto con tutti i componenti come Container
+e le loro dipendenze come relazioni =Rel=. Il file e' pronto per il rendering
+con PlantUML.
+
+** Compilare la vista enterprise (manuale)
+
+Aprire =enterprise-context.org= e costruire il diagramma C4 L1 che mostra:
+- Tutti i sistemi nel perimetro come =System(...)=
+- Sistemi esterni come =System_Ext(...)=
+- Utenti come =Person(...)=
+- Relazioni di alto livello tra sistemi
+
+Aprire =enterprise-dependencies.org= e compilare:
+- La matrice di dipendenze (tabella N×N con IN/OUT/BI/--)
+- I flussi cross-sistema principali (sequence diagram per ogni flusso rilevante)
+
+** Nota
+
+La generazione automatica della vista enterprise a partire da =BLUEPRINT_DEPENDS=
+e' in roadmap. Per ora la vista enterprise e' compilata manualmente partendo
+dall'output di =blueprint-generate-c4= come riferimento.
+
+-----
+
+* Flusso 6 — NFR, vincoli e rischi
+
+/Quando: durante e dopo la raccolta per componente; i rischi emergono naturalmente./
+
+I file NFR sono trasversali all'intero progetto (non per componente) e vivono in
+=.blueprint/nfr/=. Il file =arc42.org= di ogni componente ha anche una sezione
+=* Risks= per i rischi specifici del componente; rimanda al registro trasversale.
+
+** File NFR disponibili
+
+| File                  | Contenuto                                           |
+|-----------------------+-----------------------------------------------------|
+| =nfr-quality.org=     | Scenari di qualita' (performance, affidabilita'...) |
+| =nfr-constraints.org= | Vincoli tecnici, organizzativi, normativi           |
+| =nfr-risks.org=       | Registro rischi trasversale                         |
+
+** Scenari di qualita' (nfr-quality.org)
+
+Ogni scenario usa la struttura: attributo / contesto / stimolo / risposta attesa / misura / priorita'.
+
+Aprire =nfr-quality.org= e aggiungere scenari manualmente. Per ogni scenario:
+
+- Attributo di qualita': Performance, Sicurezza, Affidabilita', Manutenibilita', Scalabilita'
+- Stimolo: cosa scatena lo scenario (es. "1000 richieste concorrenti")
+- Risposta attesa: comportamento corretto del sistema
+- Misura: criterio quantificabile (es. "latenza p95 < 200ms")
+
+La tabella SLA (uptime, RTO, RPO, latenza p95) va compilata per ogni servizio critico.
+
+** Vincoli (nfr-constraints.org)
+
+Tre categorie:
+- Vincoli tecnici: es. "must run on JVM 11", "max 4GB RAM per container"
+- Vincoli organizzativi: es. "team responsabile e' di 2 persone", "nessun accesso root in prod"
+- Vincoli normativi: es. GDPR, PCI-DSS, SOC2 — con stato di conformita'
+
+** Registro rischi (nfr-risks.org)
+
+Il rilevamento automatico di pattern di rischio e' disponibile:
+
+#+begin_src
+M-x blueprint-detect-risks  (oppure: C-c b k)
+#+end_src
+
+Rileva pattern come: "no backup", "single point of failure", "hardcoded credentials",
+"no monitoring", "deprecated library", "isolated component". I risultati vanno
+trasferiti manualmente nel registro con valutazione di probabilita' e impatto.
+
+Per i rischi non rilevati automaticamente, aprire =nfr-risks.org= e aggiungere
+righe alla tabella con: ID (R-NNN), descrizione, componente/i coinvolti,
+probabilita', impatto, livello, mitigazione, owner.
+
+-----
+
+* Flusso 7 — Glossario e riferimenti
+
+/Quando: in continuo, durante tutta la durata del progetto./
+
+** Aggiungere un termine al glossario
+
+#+begin_src
+M-x blueprint-glossary-add  (oppure: C-c b g a)
+Term: SLA
+Definition: Service Level Agreement - accordo contrattuale sui livelli di servizio
+Source: contratto-cliente-2024
+#+end_src
+
+Il termine viene inserito in =glossary.org= come heading di livello 1 con
+=:SOURCE:= nella drawer Properties.
+
+** Cercare un termine
+
+#+begin_src
+M-x blueprint-glossary-lookup  (oppure: C-c b g l)
+#+end_src
+
+** Aggiungere una fonte
+
+#+begin_src
+M-x blueprint-reference-add  (oppure: C-c b r a)
+Title: Intervista con Mario Rossi (Lead Dev)
+Type: interview
+Notes: Walkthrough architettura ordini, 2026-03-10
+#+end_src
+
+I tipi raccomandati: =interview=, =document=, =codebase=, =monitoring=, =ticket=.
+
+** Principio: tracciabilita' completa
+
+Ogni affermazione non derivabile direttamente dal codice deve avere una fonte
+esplicita. Usare la marcatura =[FONTE: X]= nel testo o la sezione References
+per la tracciabilita' formale.
+
+-----
+
+* Flusso 8 — Architecture Decision Records
+
+/Quando: ogni volta che viene presa o rilevata una decisione architetturale significativa./
+
+Gli ADR documentano le decisioni prese, il loro contesto e le conseguenze.
+Sono utili sia per le decisioni del cliente (trovate nel codice) che per le
+decisioni del progetto di assessment stesso.
+
+** Aggiungere un ADR
+
+#+begin_src
+M-x blueprint-adr-new  (oppure: C-c b A n)
+ADR title: Adozione di PostgreSQL come database primario
+#+end_src
+
+Aggiunge in =.blueprint/adr.org= un nuovo heading livello-1 con numero progressivo:
+
+#+begin_example
+* ADR 0001: Adozione di PostgreSQL come database primario
+:PROPERTIES:
+:STATUS:   proposed
+:DATE:     2026-03-05
+:END:
+
+** Contesto
+
+Situazione che ha motivato questa decisione.
+
+** Decisione
+
+La decisione presa e le alternative considerate.
+
+** Conseguenze
+
+Conseguenze positive, negative e neutre.
+#+end_example
+
+** Ciclo di vita degli ADR
+
+Gli stati possibili sono: =proposed= → =accepted= (o =deprecated= / =superseded=).
+Aggiornare manualmente il campo =:STATUS:= dopo la validazione con il cliente.
+
+** Visualizzare la lista degli ADR
+
+#+begin_src
+M-x blueprint-adr-list  (oppure: C-c b A l)
+#+end_src
+
+Apre un buffer =*Blueprint ADRs*= con titolo e stato di ogni ADR. Premere =RET=
+su un ADR per aprire =adr.org= posizionato sull'heading corrispondente.
+
+-----
+
+* Flusso 9 — Monitoraggio salute dell'assessment
+
+/Quando: periodicamente, per capire quanto lavoro resta e dove concentrarsi./
+
+** Health score
+
+#+begin_src
+M-x blueprint-health-score  (oppure: C-c b h)
+#+end_src
+
+Restituisce un punteggio 0-100. Ogni marcatore irrisolto nei file dei componenti
+penalizza il punteggio:
+
+| Marcatore  | Penalita' |
+|------------+-----------|
+| =QUESTION= |        -3 |
+| =TBD=      |        -2 |
+| =FIXME=    |        -4 |
+
+Un punteggio di 100 significa che tutti i marcatori sono stati risolti.
+Un punteggio basso non significa "documentazione scarsa" ma "lavoro ancora da fare".
+
+** Lint
+
+#+begin_src
+M-x blueprint-lint  (oppure: C-c b l)
+#+end_src
+
+Verifica:
+- Sezioni obbligatorie mancanti in =arc42.org=
+- Dipendenze verso componenti non esistenti (dangling deps)
+- Componenti con contenuto vuoto o insufficiente
+- File di template assenti
+
+** Dashboard
+
+#+begin_src
+M-x blueprint-dashboard  (oppure: C-c b d)
+#+end_src
+
+Mostra per ogni componente: health score, markers irrisolti, owner, tecnologia.
+
+** Rilevamento automatico rischi
+
+#+begin_src
+M-x blueprint-detect-risks  (oppure: C-c b k)
+#+end_src
+
+Scansiona tutti i componenti in cerca di pattern di rischio: nessun backup,
+single point of failure, credenziali hardcoded, dipendenza da tecnologie
+deprecate, nessun monitoring.
+
+-----
+
+* Flusso 10 — Sincronizzazione del documento master
+
+/Quando: periodicamente, e prima di ogni consegna intermedia./
+
+#+begin_src
+M-x blueprint-sync  (oppure: C-c b s)
+#+end_src
+
+Aggiorna le tre sezioni auto-gestite di =master.org= con i file attuali dei
+componenti:
+
+| Marker pair                               | Sezione sincronizzata           |
+|-------------------------------------------+---------------------------------|
+| =@@blueprint-sync-start/end@@=            | =arc42.org= (Parte II)          |
+| =@@blueprint-sync-functional-start/end@@= | =functional.org= (Parte III)    |
+| =@@blueprint-sync-infra-start/end@@=      | =infrastructure.org= (Parte IV) |
+
+I marker sono commenti org nel =master.org=. Le coppie mancanti sono saltate
+silenziosamente (backward compatible con master parzialmente configurati).
+
+Parti del master che NON sono sincronizzate automaticamente:
+- Parte 0 (premesse) — compilazione manuale
+- Parte I (enterprise) — compilazione manuale
+- Parte V (NFR) — i file nfr/*.org sono inclusi con =#+INCLUDE= statici
+
+-----
+
+* Flusso 11 — Export e consegna
+
+/Quando: per le review intermedie con il cliente e per la consegna finale./
+
+** Export in Word (.docx)
+
+#+begin_src
+M-x blueprint-export-docx  (oppure: C-c b e d)
+#+end_src
+
+Usa la pipeline: =org-mode → pandoc → .docx=.
+
+Se il cliente ha un template Word aziendale (header, footer, stili, logo),
+salvarlo come =.blueprint/templates/reference.docx= prima di eseguire l'export.
+Blueprint lo usa come reference document per pandoc.
+
+** Export in PDF
+
+#+begin_src
+M-x blueprint-export-pdf  (oppure: C-c b e p)
+#+end_src
+
+Usa la pipeline: =org-mode → LaTeX → PDF= (via Emacs org-export) oppure pandoc.
+
+** CI headless
+
+Per ambienti CI/CD o workflow automatizzati:
+
+#+begin_src bash
+  # Lint: exit 0=ok, 1=warning
+  emacs -Q --batch -l blueprint.el -f blueprint-ci-lint
+
+  # Validate: exit 0=ok, 1=warn, 2=error
+  emacs -Q --batch -l blueprint.el -f blueprint-ci-validate
+
+  # Export: exit 0=ok, 2=error
+  emacs -Q --batch -l blueprint.el -f blueprint-ci-export
+#+end_src
+
+-----
+
+* Flusso 12 — Ciclo di revisione e approvazione
+
+/Quando: prima di ogni consegna al cliente e prima della consegna finale./
+
+** Checklist pre-consegna
+
+Prima di consegnare il documento al cliente, verificare manualmente:
+
+- [ ] Tutte le sezioni =[DA VALIDARE]= sono state verificate o rimosse
+- [ ] Tutte le sezioni =[DA REVISIONARE]= sono state revisionate
+- [ ] Il glossario copre tutti i termini tecnici e di dominio usati nel documento
+- [ ] I riferimenti sono completi e verificabili
+- [ ] I diagrammi PlantUML sono stati renderizzati e sono leggibili
+- [ ] La Parte 0 descrive accuratamente perimetro e fonti effettivamente usate
+- [ ] I finding sono formulati come osservazioni, non come critiche
+- [ ] Il health score e' a un livello accettabile (raccomandato: > 80)
+- [ ] Il lint non riporta errori bloccanti
+- [ ] Il documento e' stato esportato nel formato concordato e verificato visivamente
+- [ ] La versione e' stata approvata dal referente del cliente
+
+** Ciclo di approvazione
+
+Per ogni sezione approvata dal cliente, aggiornare la marcatura:
+
+#+begin_example
+[APPROVATO 2026-03-15]
+#+end_example
+
+La data di approvazione permette di tracciare la validita' nel tempo:
+se il sistema cambia dopo la data, la sezione torna =[DA VALIDARE]=.
+
+-----
+
+* Appendice A — Domande del framework e mapping ai comandi
+
+Le domande sotto, tratte dalla metodologia di assessment, indicano quale
+comando Blueprint.el e' rilevante per rispondervi. Una domanda senza comando
+associato e' un gap attuale dello strumento (vedi Appendice C).
+
+** Perimetro e struttura
+
+| Domanda                                    | Comando                       |
+|--------------------------------------------+-------------------------------|
+| Quali componenti sono nel perimetro?       | =blueprint-add-component=     |
+| Come si chiamano i componenti nel dominio? | =blueprint-rename-component=  |
+| Quali sistemi di terze parti esistono?     | C4 =System_Ext= in template   |
+| Quali ambienti documentare?                | =infrastructure.org= Ambienti |
+
+** Raccolta architetturale
+
+| Domanda                                   | Comando                         |
+|-------------------------------------------+---------------------------------|
+| Quale e' il contesto del componente?      | =arc42.org= → Context and Scope |
+| Quali sono le dipendenze?                 | =BLUEPRINT_DEPENDS= keyword     |
+| Come si genera il diagramma C4?           | =blueprint-generate-c4=         |
+| Quali sono i flussi runtime principali?   | =blueprint-runtime-add-flow=    |
+| Ci sono open questions durante l'analisi? | =blueprint-add-question=        |
+
+** Logica di business
+
+| Domanda                                       | Comando                                |
+|-----------------------------------------------+----------------------------------------|
+| Quali sono le aree funzionali del componente? | =blueprint-functional-add-area=        |
+| Quali regole di business esistono?            | =blueprint-functional-add-feature=     |
+| Quali entita' di dominio gestisce?            | =blueprint-functional-add-entity=      |
+| Quali sono i punti di integrazione?           | =blueprint-functional-add-integration= |
+
+** Infrastruttura e NFR
+
+| Domanda                                        | Comando                            |
+|------------------------------------------------+------------------------------------|
+| Dove gira il componente?                       | =infrastructure.org= manuale       |
+| Quali sono i requisiti di qualita' misurabili? | =nfr-quality.org= manuale          |
+| Quali vincoli architetturali esistono?         | =nfr-constraints.org= manuale      |
+| Quali rischi tecnici sono stati rilevati?      | =blueprint-detect-risks= + manuale |
+
+** Governance e tracciabilita'
+
+| Domanda                                          | Comando                   |
+|--------------------------------------------------+---------------------------|
+| Quali decisioni architetturali sono state prese? | =blueprint-adr-new=       |
+| Quali termini tecnici/dominio vanno definiti?    | =blueprint-glossary-add=  |
+| Quali fonti sono state usate?                    | =blueprint-reference-add= |
+| Quanto lavoro manca?                             | =blueprint-health-score=  |
+| Ci sono anomalie nella struttura?                | =blueprint-lint=          |
+
+-----
+
+* Appendice B — Convenzioni di marcatura
+
+| Marcatura                | Significato                                                 | Tracciata da |
+|--------------------------+-------------------------------------------------------------+--------------|
+| =[DA VALIDARE]=          | Sezione non ancora verificata con referente del cliente     | Manuale      |
+| =[DA REVISIONARE]=       | Sezione prodotta automaticamente, non revisionata           | Manuale      |
+| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso/dichiarato | Manuale      |
+| =[APPROVATO YYYY-MM-DD]= | Sezione validata dal cliente nella data indicata            | Manuale      |
+| =[FONTE: X]=             | Attribuzione specifica della fonte informativa              | Manuale      |
+| =QUESTION=               | Domanda aperta irrisolta (penalizza health score: -3)       | Automatica   |
+| =TBD=                    | Sezione da completare (penalizza health score: -2)          | Automatica   |
+| =FIXME=                  | Problema identificato da correggere (penalizza h.s.: -4)    | Automatica   |
+
+Le marcature =[DA VALIDARE]=, =[FINDING]=, =[APPROVATO]= non sono attualmente
+tracciate automaticamente dal health score: vanno gestite manualmente nella
+checklist pre-consegna.
+
+-----
+
+* Appendice C — Gap noti tra metodologia e strumento
+
+I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
+Richiedono gestione manuale fino all'implementazione.
+
+** NFR management interattivo
+Non esistono comandi interattivi per aggiungere scenari di qualita', vincoli
+e rischi ai file =nfr/*.org=. Le aggiunte vanno fatte a mano direttamente
+nel file.
+
+** Vista enterprise auto-generata
+Il diagramma C4 generato da =blueprint-generate-c4= e' a livello Container.
+La vista enterprise (C4 L1 con tutti i sistemi) va costruita manualmente
+in =enterprise-context.org= partendo dall'output di generazione come riferimento.
+
+** Activity diagram e DFD
+La metodologia prevede UML activity diagram con swimlane (per processi di
+business multi-attore) e DFD (per data lineage). Non esistono comandi
+o template dedicati: aggiungere questi diagrammi manualmente nelle sezioni
+appropriate di =arc42.org= o =functional.org=.
+
+** Tracciamento marcature metodologiche
+I marcatori =[DA VALIDARE]=, =[FINDING]=, =[APPROVATO]= non sono conteggiati
+dal health score. Monitorare manualmente o con una ricerca org:
+=C-c / m [DA VALIDARE]=
+
+** Tipi di riferimento (documenti vs interviste)
+=blueprint-reference-add= usa un tipo libero. Le sezioni del master distinguono
+riferimenti-documenti da riferimenti-interviste: usare la convenzione di tipo
+=interview= vs =document= e filtrare manualmente.
+
+** Gestione del perimetro (inclusi/esclusi)
+Non esiste un comando per marcare componenti come "esclusi dal perimetro con
+motivazione". Documentare la lista degli esclusi direttamente nella Parte 0
+del master.

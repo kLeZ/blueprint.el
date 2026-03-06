@@ -144,5 +144,109 @@
   (blueprint-test--with-project
     (should (= 100 (blueprint-health-score)))))
 
+;;; --- blueprint--methodology-metrics ---
+
+(ert-deftest blueprint-test-methodology/no-markers ()
+  "A file with no methodology markers returns (0 0 0)."
+  (let ((file (make-temp-file "bp-method-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert "* Introduction\n\nSome text.\n"))
+          (should (equal '(0 0 0) (blueprint--methodology-metrics file))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-methodology/nil-file ()
+  "A nil file returns (0 0 0) without error."
+  (should (equal '(0 0 0) (blueprint--methodology-metrics nil))))
+
+(ert-deftest blueprint-test-methodology/counts-da-validare ()
+  "[DA VALIDARE] occurrences are counted."
+  (let ((file (make-temp-file "bp-method-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "* A\n[DA VALIDARE]\n* B\n[DA VALIDARE]\n[DA VALIDARE]\n"))
+          (should (= 3 (car (blueprint--methodology-metrics file)))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-methodology/counts-findings ()
+  "[FINDING] occurrences are counted."
+  (let ((file (make-temp-file "bp-method-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "* Section\n[FINDING] discrepanza A\n[FINDING] discrepanza B\n"))
+          (should (= 2 (cadr (blueprint--methodology-metrics file)))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-methodology/counts-da-revisionare ()
+  "[DA REVISIONARE] occurrences are counted."
+  (let ((file (make-temp-file "bp-method-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "* Section\n[DA REVISIONARE]\n"))
+          (should (= 1 (caddr (blueprint--methodology-metrics file)))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-methodology/mixed-markers ()
+  "All three methodology marker types are counted independently."
+  (let ((file (make-temp-file "bp-method-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "[DA VALIDARE]\n[FINDING] f1\n[DA REVISIONARE]\n[DA VALIDARE]\n"))
+          (pcase-let ((`(,dv ,fi ,dr) (blueprint--methodology-metrics file)))
+            (should (= 2 dv))
+            (should (= 1 fi))
+            (should (= 1 dr))))
+      (delete-file file))))
+
+;;; --- Health score with methodology markers ---
+
+(ert-deftest blueprint-test-health-score/da-validare-penalty ()
+  "Each [DA VALIDARE] deducts 1 from health score."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "comp"
+     "#+TITLE: comp\n#+BLUEPRINT_DEPENDS:\n\n[DA VALIDARE]\n[DA VALIDARE]\n\n* Introduction\n\n* Context and Scope\n\n* Constraints\n\n* Solution Strategy\n\n* Building Blocks\n\n* Runtime Behavior\n\n* Deployment\n\n* Responsibility\n\n* Risks\n\n* Open Questions\n\n* Diagrams\n")
+    (blueprint--invalidate-cache)
+    (should (= 98 (blueprint-health-score)))))  ; 100 - 2*1
+
+(ert-deftest blueprint-test-health-score/finding-penalty ()
+  "Each [FINDING] deducts 2 from health score."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "comp"
+     "#+TITLE: comp\n#+BLUEPRINT_DEPENDS:\n\n[FINDING] anomalia rilevata\n\n* Introduction\n\n* Context and Scope\n\n* Constraints\n\n* Solution Strategy\n\n* Building Blocks\n\n* Runtime Behavior\n\n* Deployment\n\n* Responsibility\n\n* Risks\n\n* Open Questions\n\n* Diagrams\n")
+    (blueprint--invalidate-cache)
+    (should (= 98 (blueprint-health-score)))))  ; 100 - 1*2
+
+;;; --- blueprint-list-findings / blueprint-list-unvalidated ---
+
+(ert-deftest blueprint-test-list-findings/creates-buffer ()
+  "blueprint-list-findings creates a results buffer."
+  (blueprint-test--with-project
+    (blueprint-list-findings)
+    (should (get-buffer "*Blueprint: Blueprint Findings*"))))
+
+(ert-deftest blueprint-test-list-findings/finds-marker ()
+  "[FINDING] in a component file appears in the results buffer."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "comp" "#+TITLE: comp\n\n[FINDING] discrepanza rilevata nel flusso\n")
+    (blueprint-list-findings)
+    (with-current-buffer "*Blueprint: Blueprint Findings*"
+      (should (string-match-p "discrepanza rilevata" (buffer-string))))))
+
+(ert-deftest blueprint-test-list-unvalidated/finds-marker ()
+  "[DA VALIDARE] in a component file appears in the results buffer."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "comp" "#+TITLE: comp\n\n[DA VALIDARE]\n")
+    (blueprint-list-unvalidated)
+    (with-current-buffer "*Blueprint: Blueprint Sezioni da validare*"
+      (should (string-match-p "DA VALIDARE" (buffer-string))))))
+
 (provide 'blueprint-test-health)
 ;;; blueprint-test-health.el ends here

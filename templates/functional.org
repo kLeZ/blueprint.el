@@ -4,6 +4,121 @@
 #+COMPONENT: {{NAME}}
 #+UPDATED: {{DATE}}
 
+* Guida alla compilazione — Specifiche funzionali                  :noexport:
+
+Questo file descrive il componente in termini di business, senza fare
+assunzioni sulla tecnologia sottostante.  Il lettore di riferimento è
+il /domain expert/ o il /product owner/, non il tecnico.
+
+Struttura:
+- *Aree funzionali*: macro-capacità del componente (es. "Gestione pagamenti")
+- *Feature*: singola funzionalità con input, output e regole di business
+- *Entità di dominio*: oggetti con cui il componente lavora
+- *Punti di integrazione*: cosa entra e cosa esce, in linguaggio di business
+
+** Esempio: area funzionale e feature                              :noexport:
+
+*** Autorizzazione pagamento
+
+**** Scopo
+Verifica che un pagamento possa essere processato e ne avvia
+l'autorizzazione presso il provider.  Restituisce l'esito (autorizzato /
+rifiutato) al chiamante entro i termini di latenza contrattualmente
+definiti.
+
+**** Input
+| Nome (business)     | Tipo (business)  | Vincoli                        | Provenienza   |
+|---------------------+------------------+--------------------------------+---------------|
+| Importo             | Valore monetario | > 0,01 €; max 9.999,99 €       | order-service |
+| Valuta              | Codice ISO 4217  | Solo EUR e USD supportati      | order-service |
+| Metodo di pagamento | Identificatore   | Token Stripe; mai dati carta   | order-service |
+| Idempotency key     | Stringa UUID     | Univoca per richiesta; 24h TTL | order-service |
+
+**** Output
+| Nome (business) | Tipo (business) | Formato        | Destinazione  |
+|-----------------+-----------------+----------------+---------------|
+| Esito           | Enum            | authorized /   | order-service |
+|                 |                 | declined /     |               |
+|                 |                 | error          |               |
+| Codice risposta | Stringa         | Stripe decline | order-service |
+|                 | descrittiva     | codes (es.     |               |
+|                 |                 | insufficient_  |               |
+|                 |                 | funds)         |               |
+
+**** Regole di business
+1. Un pagamento con la stessa idempotency key già elaborata nelle ultime
+   24 h restituisce l'esito originale senza ri-autorizzare.
+2. Se Stripe risponde con errore transitorio (=HTTP 500/503=), il sistema
+   effettua al massimo 3 tentativi con backoff esponenziale (1 s, 2 s, 4 s).
+3. Importi superiori a 1.000 € richiedono verifica 3DS2 obbligatoria.
+
+**** Logica di calcolo
+Nessuna logica di calcolo: la decisione di autorizzazione è delegata
+interamente al provider (Stripe).  Il sistema è un orchestratore.
+
+**** Regole di validazione
+| Condizione              | Comportamento / Errore                      |
+|-------------------------+---------------------------------------------|
+| Importo ≤ 0             | =HTTP 400= — "importo non valido"           |
+| Valuta non supportata   | =HTTP 422= — "valuta non supportata"        |
+| Idempotency key assente | =HTTP 400= — "idempotency key obbligatoria" |
+
+**** Casi limite e eccezioni
+- Timeout Stripe (> 30 s): restituire =error= al chiamante; registrare
+  la transazione come =pending= per verifica asincrona tramite webhook.
+- Provider non raggiungibile (circuit breaker aperto): restituire =error=
+  con motivo =provider_unavailable=; non ritentare oltre i 3 tentativi.
+
+** Esempio: entità di dominio                                      :noexport:
+
+*** Transazione
+
+Registrazione immutabile di un tentativo di pagamento, indipendentemente
+dall'esito.  Corrisponde a una singola chiamata al provider.
+
+| Attributo          | Tipo (business)  | Vincoli               | Relazione | Note                         |
+|--------------------+------------------+-----------------------+-----------+------------------------------|
+| ID transazione     | UUID             | Generato internamente |           |                              |
+| Idempotency key    | Stringa          | Fornita dal chiamante |           |                              |
+| Importo            | Valore monetario | > 0                   |           |                              |
+| Valuta             | Codice ISO 4217  |                       |           |                              |
+| Stato              | Enum             | authorized/declined/  |           | Immutabile dopo assegnazione |
+|                    |                  | pending/error         |           |                              |
+| Riferimento ordine | UUID             |                       | → Ordine  | Chiave esterna logica        |
+| Timestamp          | Data/ora UTC     |                       |           |                              |
+
+** Esempio: punto di integrazione                                  :noexport:
+
+*** Ricezione richiesta da order-service
+
+Descrizione: l'=order-service= chiama il =payment-service= in modo sincrono
+per richiedere l'autorizzazione di un pagamento associato a un ordine
+confermato.
+
+| Campo          | Valore                                         |
+|----------------+------------------------------------------------|
+| Direzione      | IN                                             |
+| Controparte    | order-service                                  |
+| Protocollo     | REST / HTTPS / HTTP 2                          |
+| Autenticazione | mTLS (certificato client del chiamante)        |
+| Frequenza      | Sincrona — una chiamata per ordine confermato  |
+| SLA            | Risposta entro 5 s; timeout client impostato a |
+|                | 8 s per includere i retry interni              |
+
+**** Formato scambio
+
+Struttura del payload in ingresso.
+
+#+begin_src json
+{
+  "idempotency_key": "ord-20240215-78fa3c",
+  "amount": 4950,
+  "currency": "EUR",
+  "payment_method_token": "pm_1OdXXXXX",
+  "order_reference": "ORD-2024-001847"
+}
+#+end_src
+
 * Panoramica del componente
 <<{{ID}}-func-overview>>
 [DA VALIDARE]
@@ -29,12 +144,10 @@ Cosa fa questa funzione in termini di business.  Una frase.
 **** Input
 | Nome (business) | Tipo (business) | Vincoli | Provenienza |
 |-----------------+-----------------+---------+-------------|
-|                 |                 |         |             |
 
 **** Output
 | Nome (business) | Tipo (business) | Formato | Destinazione |
 |-----------------+-----------------+---------+--------------|
-|                 |                 |         |              |
 
 **** Regole di business
 1.
@@ -45,13 +158,12 @@ Cosa fa questa funzione in termini di business.  Una frase.
 linguaggio di dominio.]
 
 Esempio:
-  Importo_Netto = Importo_Lordo * (1 - Aliquota_IVA)
-  Arrotondamento: 2 cifre decimali, half-up, applicato al risultato finale.
+Importo_Netto = Importo_Lordo * (1 - Aliquota_IVA)
+Arrotondamento: 2 cifre decimali, half-up, applicato al risultato finale.
 
 **** Regole di validazione
 | Condizione | Comportamento / Errore |
 |------------+------------------------|
-|            |                        |
 
 **** Casi limite e eccezioni
 [Deviazioni dal flusso normale.  Condizioni che bypassano le regole standard.]
@@ -60,27 +172,105 @@ Esempio:
 <<{{ID}}-entities>>
 [DA VALIDARE]
 
-Entità di business gestite da questo componente.  Non tabelle DB --
-oggetti di dominio con attributi in linguaggio business.
+Entità di business gestite da questo componente.  Oggetti di dominio con
+attributi in linguaggio business, piuttosto che tabelle del DB.
+La colonna /Relazione/ indica l'entità target per gli attributi che sono
+chiavi esterne (es.: ~→ Ordine~); lasciare vuota per attributi semplici.
 
 ** [Nome entità]
+<<{{ID}}-entity-01>>
+[DA VALIDARE]
+
 Descrizione.  Attributi principali in termini di business.
 
-| Attributo | Tipo (business) | Vincoli | Note |
-|-----------+-----------------+---------+------|
-|           |                 |         |      |
+| Attributo | Tipo (business) | Vincoli | Relazione | Note |
+|-----------+-----------------+---------+-----------+------|
+
+*** Rappresentazione logica
+<<{{ID}}-entity-01-er>>
+
+Diagramma ER dell'entità.  Le frecce verso entità esterne puntano ai soli
+identificatori, senza mostrare la struttura interna delle entità correlate.
+
+#+begin_src plantuml :file {{ID}}-er-entity-01.svg
+@startuml
+entity "[Nome entità]" as e {
+  * id : tipo <<PK>>
+  --
+  attributo : tipo
+  * fk_correlata : tipo <<FK>>
+}
+' Entità esterne: solo il bordo, nessun dettaglio interno
+entity "[Entità correlata]" as ext #lightgrey {
+}
+e }o--|| ext : "descrizione relazione"
+@enduml
+#+end_src
+
+** Diagramma ER generale
+<<{{ID}}-er-general>>
+[DA VALIDARE]
+
+Schema ER completo del componente con tutte le entità e le relazioni.
+Aggiornare man mano che si aggiungono entità.
+
+#+begin_src plantuml :file {{ID}}-er-general.svg
+@startuml
+' Aggiungere le entità del componente e le loro relazioni
+entity "Entità1" as e1 {
+  * id : tipo <<PK>>
+  --
+  attributo : tipo
+}
+entity "Entità2" as e2 {
+  * id : tipo <<PK>>
+  --
+  attributo : tipo
+  * fk_e1 : tipo <<FK>>
+}
+e1 ||--o{ e2 : "relazione"
+@enduml
+#+end_src
 
 * Punti di integrazione
 <<{{ID}}-func-integrations>>
 [DA VALIDARE]
 
 Cosa questo componente riceve da e invia ad altri sistemi, in termini
-di business.
+di business.  La colonna /Dato/ collega alla sezione di dettaglio.
 
-| Direzione | Controparte | Dati scambiati | Frequenza | Note |
-|-----------+-------------+----------------+-----------+------|
-| IN        |             |                |           |      |
-| OUT       |             |                |           |      |
+| Direzione | Controparte | Dato      | Protocollo | Frequenza | Note |
+|-----------+-------------+-----------+------------+-----------+------|
+| IN        |             | [[{{ID}}-integ-01][Nome dato]] |            |           |      |
+| OUT       |             |           |            |           |      |
+
+** [Nome integrazione]
+<<{{ID}}-integ-01>>
+[DA VALIDARE]
+
+Descrizione dell'integrazione in termini di business.  Cosa viene
+scambiato, perché, e in quale contesto operativo.
+
+| Campo          | Valore                                          |
+|----------------+-------------------------------------------------|
+| Direzione      | IN / OUT                                        |
+| Controparte    | [Sistema esterno]                               |
+| Protocollo     | REST / SOAP / Kafka / gRPC / file / batch / ... |
+| Autenticazione | OAuth2 / API key / mTLS / nessuna / ...         |
+| Frequenza      | sincrona / asincrona / batch giornaliero / ...  |
+| SLA            | [latenza attesa o finestra di consegna]         |
+
+*** Formato scambio
+<<{{ID}}-integ-01-fmt>>
+
+Struttura del payload o del file scambiato.  Includere un esempio
+realistico con tutti i campi obbligatori valorizzati.
+
+#+begin_src json
+{
+  "attr1": ""
+}
+#+end_src
 
 * Open Questions
 - [Elementi non determinabili dal codice che richiedono validazione con domain expert]

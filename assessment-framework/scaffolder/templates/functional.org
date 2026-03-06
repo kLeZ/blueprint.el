@@ -1,0 +1,85 @@
+#+TITLE: [COMPONENT_NAME] -- Specifiche funzionali
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+COMPONENT: [COMPONENT_NAME]
+#+UPDATED: [DATE]
+
+* Panoramica del componente
+<<[COMPONENT_ID]-func-overview>>
+[DA VALIDARE]
+
+Scopo del componente in termini di business. Quale problema risolve.
+A quale dominio funzionale appartiene.
+
+* Aree funzionali
+
+** [Nome area funzionale]
+<<[COMPONENT_ID]-area-[AREA_ID]>>
+[DA VALIDARE]
+
+Descrizione dell'area in termini di business.
+
+*** [Nome funzione o feature]
+<<[COMPONENT_ID]-func-[FUNC_ID]>>
+[DA VALIDARE]
+
+**** Scopo
+Cosa fa questa funzione in termini di business. Una frase.
+
+**** Input
+| Nome (business) | Tipo (business) | Vincoli | Provenienza |
+|-----------------+-----------------+---------+-------------|
+|                 |                 |         |             |
+
+**** Output
+| Nome (business) | Tipo (business) | Formato | Destinazione |
+|-----------------+-----------------+---------+--------------|
+|                 |                 |         |              |
+
+**** Regole di business
+1.
+2.
+
+**** Logica di calcolo
+[Se applicabile. Usare notazione matematica con variabili in linguaggio di dominio.]
+
+Esempio:
+Importo_Netto = Importo_Lordo * (1 - Aliquota_IVA)
+Arrotondamento: 2 cifre decimali, half-up, applicato al risultato finale.
+
+**** Regole di validazione
+| Condizione | Comportamento / Errore |
+|------------+------------------------|
+|            |                        |
+
+**** Casi limite e eccezioni
+[Deviazioni dal flusso normale. Condizioni che bypassano le regole standard.]
+
+* Entita' di dominio
+<<[COMPONENT_ID]-entities>>
+[DA VALIDARE]
+
+Entita' di business gestite da questo componente. Non tabelle DB -- oggetti
+di dominio con attributi in linguaggio business.
+
+** [Nome entita']
+Descrizione. Attributi principali in termini di business.
+
+| Attributo | Tipo (business) | Vincoli | Note |
+|-----------+-----------------+---------+------|
+|           |                 |         |      |
+
+* Punti di integrazione
+<<[COMPONENT_ID]-integrations>>
+[DA VALIDARE]
+
+Cosa questo componente riceve da e invia ad altri sistemi, in termini di business.
+
+| Direzione | Controparte | Dati scambiati | Frequenza | Note |
+|-----------+-------------+----------------+-----------+------|
+| IN        |             |                |           |      |
+| OUT       |             |                |           |      |
+
+* Open questions
+[Elementi non determinabili dal codice che richiedono validazione con domain expert.]
+-

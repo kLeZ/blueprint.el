@@ -1,0 +1,131 @@
+#+TITLE: [COMPONENT_NAME] -- Architettura (arc42)
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+COMPONENT: [COMPONENT_NAME]
+#+UPDATED: [DATE]
+
+* Contesto e perimetro del sistema
+<<[COMPONENT_ID]-context>>
+[DA VALIDARE]
+
+Descrizione del sistema nel suo contesto: cosa fa, a chi serve, quali sistemi
+esterni interagisce.
+
+#+begin_src plantuml :file [COMPONENT_ID]-context.svg
+!include <C4/C4_Context>
+System([COMPONENT_ID], "[COMPONENT_NAME]", "")
+Person(user, "Utente")
+' aggiungere sistemi esterni
+Rel(user, [COMPONENT_ID], "Usa")
+@enduml
+#+end_src
+
+** Utenti e ruoli
+| Ruolo | Descrizione | Tipo (umano/sistema) |
+|-------+-------------+----------------------|
+|       |             |                      |
+
+** Sistemi confinanti
+| Sistema | Direzione | Tipo interazione | Note |
+|---------+-----------+------------------+------|
+|         |           |                  |      |
+
+* Vincoli
+<<[COMPONENT_ID]-constraints>>
+[DA VALIDARE]
+
+Vincoli tecnici, organizzativi, normativi che impattano le scelte architetturali.
+
+| Vincolo | Tipo (tecnico/org/normativo) | Impatto | Fonte |
+|---------+------------------------------+---------+-------|
+|         |                              |         |       |
+
+* Strategia della soluzione
+<<[COMPONENT_ID]-strategy>>
+[DA VALIDARE]
+
+Principi architetturali principali. Pattern adottati. Scelte tecnologiche
+rilevanti con motivazione (se ricostruibile).
+
+* Vista statica -- building blocks
+<<[COMPONENT_ID]-static>>
+[DA VALIDARE]
+
+#+begin_src plantuml :file [COMPONENT_ID]-containers.svg
+!include <C4/C4_Container>
+System_Boundary([COMPONENT_ID], "[COMPONENT_NAME]") {
+  Container(app, "Applicazione", "Tecnologia", "Descrizione")
+  ContainerDb(db, "Database", "Tecnologia", "Descrizione")
+}
+@enduml
+#+end_src
+
+** Componenti interni principali
+[Aggiungere C4 L3 se la complessita' lo richiede]
+
+* Vista runtime
+<<[COMPONENT_ID]-runtime>>
+[DA VALIDARE]
+
+Flussi principali a runtime. Uno sequence diagram per ogni flusso rilevante.
+
+** Flusso: [nome flusso]
+#+begin_src plantuml :file [COMPONENT_ID]-seq-[flusso].svg
+participant "A" as a
+participant "B" as b
+a -> b : messaggio
+b --> a : risposta
+@enduml
+#+end_src
+
+* Vista di deployment
+<<[COMPONENT_ID]-deployment>>
+[DA VALIDARE]
+
+#+begin_src plantuml :file [COMPONENT_ID]-deployment.svg
+node "Server / Ambiente" {
+  artifact "[COMPONENT_NAME]"
+  database "DB"
+}
+@enduml
+#+end_src
+
+Vedere anche: [[file:infrastructure.org::][Censimento infrastrutturale -- [COMPONENT_NAME]]]
+
+* Concetti trasversali
+<<[COMPONENT_ID]-crosscutting>>
+[DA VALIDARE]
+
+Aspetti che interessano tutto il sistema: sicurezza, logging, gestione errori,
+transazionalita', autenticazione, autorizzazione, internazionalizzazione.
+
+| Aspetto          | Approccio rilevato | Note |
+|------------------+--------------------+------|
+| Sicurezza        |                    |      |
+| Autenticazione   |                    |      |
+| Autorizzazione   |                    |      |
+| Logging          |                    |      |
+| Gestione errori  |                    |      |
+| Transazionalita' |                    |      |
+
+* Requisiti di qualita'
+<<[COMPONENT_ID]-quality>>
+[DA VALIDARE]
+
+Vedere Parte V per i requisiti non funzionali trasversali.
+Qui solo quelli specifici di questo componente.
+
+| Scenario | Attributo | Stimolo | Risposta attesa | Misura | Priorita' |
+|----------+-----------+---------+-----------------+--------+-----------|
+|          |           |         |                 |        |           |
+
+* Rischi tecnici
+<<[COMPONENT_ID]-risks>>
+[DA VALIDARE]
+
+| Rischio | Probabilita' | Impatto | Livello | Mitigazione |
+|---------+--------------+---------+---------+-------------|
+|         |              |         |         |             |
+
+* Open questions
+- [Inserire domande emerse durante l'analisi che richiedono validazione]

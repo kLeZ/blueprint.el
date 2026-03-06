@@ -10,11 +10,11 @@
 ** Matrice di dipendenze
 Legenda: IN = riceve da, OUT = invia a, BI = bidirezionale, -- = nessuna relazione
 
-| Sistema  | Sistema A | Sistema B | Sistema C | [Ext] |
-|----------+-----------+-----------+-----------+-------|
-| Sistema A | --       | OUT       | --        | OUT   |
-| Sistema B | IN       | --        | BI        | --    |
-| Sistema C | --       | BI        | --        | --    |
+| Sistema   | Sistema A | Sistema B | Sistema C | [Ext] |
+|-----------+-----------+-----------+-----------+-------|
+| Sistema A | --        | OUT       | --        | OUT   |
+| Sistema B | IN        | --        | BI        | --    |
+| Sistema C | --        | BI        | --        | --    |
 
 ** Flussi principali cross-sistema
 [Un DFD o sequence diagram per ogni flusso di business rilevante che

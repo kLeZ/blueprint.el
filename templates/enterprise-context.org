@@ -3,6 +3,29 @@
 #+STATUS: [DA VALIDARE]
 #+UPDATED: {{DATE}}
 
+* Guida alla compilazione — Contesto enterprise                    :noexport:
+
+Vista di sistema a livello C4 L1: tutti i sistemi nel perimetro,
+i sistemi esterni rilevanti e le relazioni tra loro.  Il diagramma
+PlantUML e le tabelle devono essere coerenti: ogni elemento che appare
+nel PlantUML deve avere una riga nella tabella corrispondente.
+
+** Esempio: sistemi nel perimetro
+
+| Sistema          | Tecnologia principale   | Ruolo                                   | Note          |
+|------------------+-------------------------+-----------------------------------------+---------------|
+| payment-service  | Java 17 / Spring Boot 3 | Autorizzazione e tracking dei pagamenti | [DA VALIDARE] |
+| order-service    | Node.js 20 / Fastify    | Gestione ciclo di vita degli ordini     | [DA VALIDARE] |
+| notification-svc | Python 3.12 / FastAPI   | Invio notifiche email/SMS/push          | [DA VALIDARE] |
+
+** Esempio: sistemi esterni rilevanti
+
+| Sistema       | Tipo interazione | Direzione | Note                                      |
+|---------------+------------------+-----------+-------------------------------------------|
+| Stripe        | REST HTTPS       | OUT       | Provider pagamenti — autorizzazione carte |
+| Twilio        | REST HTTPS       | OUT       | Provider SMS — notifiche transazionali    |
+| ERP aziendale | SFTP batch       | IN / OUT  | [FINDING] integrazione non documentata    |
+
 * Vista contestuale aggregata
 <<enterprise-context>>
 [DA VALIDARE]
@@ -29,9 +52,7 @@ Rel(sys_b, ext_1, "Chiama")
 ** Sistemi nel perimetro
 | Sistema | Tecnologia principale | Ruolo | Note |
 |---------+-----------------------+-------+------|
-|         |                       |       |      |
 
 ** Sistemi esterni rilevanti
 | Sistema | Tipo interazione | Direzione | Note |
 |---------+------------------+-----------+------|
-|         |                  |           |      |

@@ -159,11 +159,13 @@
       ;; Create two ADRs — save proj before, since blueprint-adr-new calls find-file
       (blueprint-adr-new "Use JWT for authentication")
       (blueprint-adr-new "Adopt hexagonal architecture")
-      (let* ((adr-dir (expand-file-name ".blueprint/adr" proj))
-             (files (directory-files adr-dir nil "^[0-9]\\{4\\}-.*\\.org$")))
-        (should (= 2 (length files)))
-        (should (cl-some (lambda (f) (string-match-p "jwt" f)) files))
-        (should (cl-some (lambda (f) (string-match-p "hexagonal" f)) files))))))
+      ;; Both ADRs must be in the consolidated adr.org file (single-file model)
+      (let* ((adr-file (expand-file-name ".blueprint/adr.org" proj))
+             (content (blueprint-test--read-file adr-file)))
+        (should (string-match-p "ADR 0001.*JWT" content))
+        (should (string-match-p "ADR 0002.*hexagonal" content))
+        ;; adr.org lives directly in .blueprint/, not in a subdirectory
+        (should (file-exists-p adr-file))))))
 
 (ert-deftest blueprint-test-e2e/glossary-and-references ()
   "Glossary and reference management work end-to-end."

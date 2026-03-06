@@ -4,13 +4,47 @@
 #+COMPONENT: {{NAME}}
 #+UPDATED: {{DATE}}
 
+* Guida alla compilazione — Infrastruttura                         :noexport:
+
+Censimento dell'infrastruttura su cui gira questo componente al momento
+dell'assessment.  Non descrive l'architettura ideale, ma lo stato
+rilevato.  Usare =[FINDING]= per anomalie o discrepanze rispetto alla
+documentazione esistente.
+
+** Esempio: inventario host e servizi
+
+| ID   | Nome host / servizio     | Ruolo                         | OS / Runtime     | Versione   | Ambiente   | Owner    |
+|------+--------------------------+-------------------------------+------------------+------------+------------+----------|
+| H-01 | pay-app-01.prod.internal | Applicazione principale       | Ubuntu 22.04 LTS | JVM 17.0.9 | Produzione | ops-team |
+| H-02 | pay-app-02.prod.internal | Applicazione (standby attivo) | Ubuntu 22.04 LTS | JVM 17.0.9 | Produzione | ops-team |
+| H-03 | pay-db-01.prod.internal  | Database primario             | PostgreSQL 15.4  | 15.4       | Produzione | dba-team |
+| H-04 | pay-db-02.prod.internal  | Database replica sincrona     | PostgreSQL 15.4  | 15.4       | Produzione | dba-team |
+
+** Esempio: dipendenze infrastrutturali
+
+| Dipendenza               | Tipo         | Porta / Protocollo | Direzione | Obbligatoria? |
+|--------------------------+--------------+--------------------+-----------+---------------|
+| pay-db-01.prod.internal  | PostgreSQL   | 5432/TCP           | OUT       | Sì            |
+| stripe.com               | HTTPS API    | 443/TCP            | OUT       | Sì            |
+| kafka-broker-01.internal | Kafka        | 9093/TCP (TLS)     | OUT       | Sì            |
+| consul.internal          | Service mesh | 8500/TCP           | OUT       | No (graceful) |
+
+** Esempio: configurazione rilevante
+
+| Parametro              | Valore rilevato | Impatto                                | Note                    |
+|------------------------+-----------------+----------------------------------------+-------------------------|
+| DB connection pool max | 20              | Limita le connessioni simultanee al DB | [FINDING] troppo basso  |
+|                        |                 |                                        | sotto carico            |
+| Stripe timeout         | 30000 ms        | Blocca il thread per 30 s in caso di   | [DA VALIDARE] adeguato? |
+|                        |                 | mancata risposta del provider          |                         |
+| Circuit breaker        | non configurato | Nessuna degradazione automatica        | [FINDING] da aggiungere |
+
 * Inventario
 <<{{ID}}-inventory>>
 [DA VALIDARE]
 
 | ID | Nome host / servizio | Ruolo | OS / Runtime | Versione | Ambiente | Owner |
 |----+----------------------+-------+--------------+----------+----------+-------|
-|    |                      |       |              |          |          |       |
 
 * Deployment view
 <<{{ID}}-deployment-view>>
@@ -33,7 +67,6 @@ node "Ambiente: [nome]" {
 
 | Dipendenza | Tipo | Porta / Protocollo | Direzione | Obbligatoria? |
 |------------+------+--------------------+-----------+---------------|
-|            |      |                    |           |               |
 
 * Configurazione rilevante
 <<{{ID}}-config>>
@@ -44,17 +77,16 @@ Es. pool size, timeout, dimensioni buffer, modalità di failover.
 
 | Parametro | Valore rilevato | Impatto | Note |
 |-----------+-----------------+---------+------|
-|           |                 |         |      |
 
 * Ambienti
 <<{{ID}}-environments>>
 [DA VALIDARE]
 
-| Ambiente | URL / Endpoint | Versione | Differenze rispetto a prod |
-|----------+----------------+----------+---------------------------|
-| Produzione |              |          | --                        |
-| Collaudo   |              |          |                           |
-| Sviluppo   |              |          |                           |
+| Ambiente   | URL / Endpoint | Versione | Differenze rispetto a prod |
+|------------+----------------+----------+----------------------------|
+| Produzione |                |          | --                         |
+| Collaudo   |                |          |                            |
+| Sviluppo   |                |          |                            |
 
 * Open Questions
 -

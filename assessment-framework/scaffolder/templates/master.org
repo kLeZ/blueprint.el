@@ -1,0 +1,133 @@
+#+TITLE: Assessment Architetturale -- [CLIENT_NAME]
+#+AUTHOR: [AUTHOR]
+#+DATE: [DATE]
+#+VERSION: 0.1-draft
+#+OPTIONS: toc:3 num:t H:4
+#+LANGUAGE: it
+
+#+begin_comment
+Documento master. Non modificare direttamente le sezioni incluse con #+INCLUDE.
+Modificare i file satellite nella loro directory.
+#+end_comment
+
+* Parte 0 -- Premesse
+
+** Scopo del documento
+<<part0-scope>>
+
+** Perimetro dell'assessment
+<<part0-perimeter>>
+
+Sistemi inclusi:
+- [lista da completare]
+
+Sistemi esclusi:
+- [lista da completare con motivazione]
+
+Periodo di riferimento: [data inizio] -- [data rilevazione]
+Versioni analizzate: [da specificare per componente]
+
+Limitazioni agli accessi: [nessuna / specificare se presenti]
+
+** Metodo di raccolta delle informazioni
+<<part0-method>>
+
+Le informazioni contenute in questo documento sono state raccolte attraverso
+le seguenti fonti, elencate in ordine decrescente di affidabilita':
+
+1. Analisi del codice sorgente
+2. Osservazione degli ambienti di produzione e collaudo
+3. Interviste con i referenti tecnici (vedi [[file:references.org::references-interviews][Riferimenti -- Interviste]])
+4. Documentazione preesistente (vedi [[file:references.org::references-documents][Riferimenti -- Documenti]])
+
+Tutte le affermazioni non verificate tramite il codice sono marcate =[DA VALIDARE]=.
+Le discrepanze rilevate tra comportamento effettivo e comportamento atteso
+sono marcate =[FINDING]=.
+
+** Come leggere questo documento
+<<part0-reading>>
+
+Il documento e' organizzato in sei parti con audience diverse:
+
+| Parte | Contenuto                   | Leggi se sei...                 |
+|-------+-----------------------------+---------------------------------|
+| 0     | Premesse e glossario        | Tutti                           |
+| I     | Vista enterprise            | Dirigenti, architetti senior    |
+| II    | Architettura per componente | Architetti, sviluppatori senior |
+| III   | Specifiche funzionali       | Analisti, product owner, BU     |
+| IV    | Censimento infrastrutturale | IT operations, sistemisti       |
+| V     | NFR e vincoli               | Architetti, management IT       |
+
+Convenzioni di marcatura usate nel documento:
+- =[DA VALIDARE]= -- affermazione non ancora verificata con il cliente
+- =[FINDING]= -- discrepanza rilevata tra comportamento effettivo e atteso
+- =[APPROVATO YYYY-MM-DD]= -- sezione validata dal cliente nella data indicata
+
+Notazioni grafiche usate:
+- Diagrammi C4 (L1-L3): struttura statica dei sistemi
+- UML Sequence Diagram: flussi di interazione a runtime
+- UML Activity Diagram con swimlane: processi di business
+- DFD: flussi di dati e integrazioni
+- UML Deployment Diagram: topologia infrastrutturale
+
+** Glossario
+<<part0-glossary>>
+
+#+INCLUDE: "glossary.org" :minlevel 3
+
+-----
+
+* Parte I -- Architettura enterprise
+<<part1>>
+
+#+INCLUDE: "enterprise/context.org" :minlevel 2
+#+INCLUDE: "enterprise/dependencies.org" :minlevel 2
+
+-----
+
+* Parte II -- Architettura per componente
+<<part2>>
+
+#+begin_comment
+Aggiungere un #+INCLUDE per ogni componente nel perimetro.
+Esempio:
+#+INCLUDE: "components/sistema-a/arc42.org" :minlevel 2
+#+end_comment
+
+-----
+
+* Parte III -- Specifiche funzionali
+<<part3>>
+
+#+begin_comment
+Aggiungere un #+INCLUDE per ogni componente nel perimetro.
+Esempio:
+#+INCLUDE: "components/sistema-a/functional.org" :minlevel 2
+#+end_comment
+
+-----
+
+* Parte IV -- Censimento infrastrutturale
+<<part4>>
+
+#+begin_comment
+Aggiungere un #+INCLUDE per ogni componente nel perimetro.
+Esempio:
+#+INCLUDE: "components/sistema-a/infrastructure.org" :minlevel 2
+#+end_comment
+
+-----
+
+* Parte V -- Requisiti non funzionali e vincoli
+<<part5>>
+
+#+INCLUDE: "nfr/quality-scenarios.org" :minlevel 2
+#+INCLUDE: "nfr/constraints.org" :minlevel 2
+#+INCLUDE: "nfr/risks.org" :minlevel 2
+
+-----
+
+* Riferimenti
+<<references>>
+
+#+INCLUDE: "references.org" :minlevel 2
