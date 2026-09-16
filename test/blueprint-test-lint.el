@@ -107,6 +107,28 @@
         (should (cl-some (lambda (w) (string-match-p "no content" w))
                          warnings))))))
 
+(ert-deftest blueprint-test-lint/binary-content-no-crash ()
+  "Linting a component file with invalid-UTF-8 / binary bytes does not
+error.  The binary line itself counts as \"content\" (the empty-content
+check does not distinguish valid prose from garbage bytes, only
+blank/heading/keyword lines from everything else), so this asserts
+graceful handling -- a warning list is still produced, missing
+headings are still detected -- not the specific \"no content\" case."
+  (blueprint-test--with-project
+    (let* ((dir (expand-file-name ".blueprint/components/corrupt" default-directory))
+           (file (expand-file-name "arc42.org" dir)))
+      (make-directory dir t)
+      (with-temp-buffer
+        (set-buffer-multibyte nil)
+        (insert "#+TITLE: corrupt\n")
+        (insert (unibyte-string 0 255 254 1 2 3))
+        (insert "\n")
+        (write-region (point-min) (point-max) file))
+      (let ((warnings (blueprint--lint-component "corrupt" file)))
+        (should (listp warnings))
+        (should (cl-some (lambda (w) (string-match-p "missing heading" w))
+                         warnings))))))
+
 (ert-deftest blueprint-test-lint/dangling-dep-detected ()
   "A BLUEPRINT_DEPENDS referencing a non-existent component is reported."
   (blueprint-test--with-project

@@ -347,6 +347,15 @@ Template placeholders replaced:
          (replacements `(("{{NAME}}" . ,name)
                          ("{{ID}}"   . ,id)
                          ("{{DATE}}" . ,date))))
+    ;; `make-directory' with PARENTS=t does not signal an error when DIR
+    ;; already exists, so without this check adding a component whose
+    ;; slugified id collides with an existing one (same name typed
+    ;; twice, or two names that slugify the same, e.g. "Order Service"
+    ;; and "order-service") would silently overwrite its arc42.org/
+    ;; functional.org/infrastructure.org back to the blank template --
+    ;; no error, no confirmation, no warning.
+    (when (gethash id (blueprint--components))
+      (user-error "Component \"%s\" already exists" id))
     (make-directory dir t)
     ;; arc42.org -- always created
     (let ((content (blueprint--template "component.org")))

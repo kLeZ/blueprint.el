@@ -169,7 +169,7 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
 
 ---
 
-## Fase 8 — Qualità e robustezza (TODO)
+## ~~Fase 8 — Qualità e robustezza~~ ✅
 
 ### 8.1 Fix noti e tech debt
 
@@ -359,7 +359,30 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
 - [x] Aggiungere test per `blueprint-watch.el` (hook install/remove,
       `blueprint--in-project-p`, invalidazione cache) —
       `test/blueprint-test-watch.el`
-- [ ] Test negativi più sistematici (input invalido, file corrotti)
+- [x] Test negativi più sistematici (input invalido, file corrotti). Nel
+      processo, trovato e corretto un bug reale in
+      `blueprint-add-component`: `make-directory` con `PARENTS=t` non
+      segnala errore se la directory esiste già, quindi aggiungere un
+      componente il cui id slugificato collide con uno esistente (stesso
+      nome digitato due volte, o due nomi che slugificano allo stesso id,
+      es. "Order Service" e "order-service") sovrascriveva silenziosamente
+      arc42.org/functional.org/infrastructure.org tornando al template
+      vuoto — nessun errore, nessuna conferma. **fix**: `user-error` se
+      l'id esiste già in `blueprint--components`. Verificato invece che
+      `blueprint-rename-component` fallisce già in modo sicuro su una
+      collisione (`rename-file` senza `OK-IF-ALREADY-EXISTS` segnala
+      `file-already-exists`), solo con un test di regressione, nessun fix
+      necessario. Test aggiunti anche per contenuto binario/UTF-8 non
+      valido (`blueprint--component-metrics`, `blueprint--lint-component`)
+      e per un componente registrato la cui directory esiste ma il cui
+      arc42.org è stato cancellato a mano (documenta il comportamento
+      reale di `blueprint-health-score`: zero penalità, perché rilevare un
+      arc42.org mancante è compito di `blueprint-lint`, non di
+      `blueprint-health-score`). Test in `test/blueprint-test-core.el`,
+      `test/blueprint-test-health.el`, `test/blueprint-test-lint.el`.
+
+Con questa voce **tutto il debito tecnico approvato per questa sessione
+(8.1 + 8.2) e tutte le voci 10.4-10.7 sono completate.**
 
 ---
 

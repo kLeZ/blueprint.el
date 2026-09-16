@@ -82,6 +82,34 @@
   (should (equal '(0 0 0)
                  (blueprint--component-metrics "/tmp/this-file-does-not-exist.org"))))
 
+(ert-deftest blueprint-test-metrics/binary-content-no-crash ()
+  "A file with invalid-UTF-8 / binary content does not error; markers
+inside otherwise-valid text are still counted (a \"corrupted\" arc42.org
+should degrade, not crash the whole health scan)."
+  (let ((file (make-temp-file "bp-corrupt-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-buffer
+            (set-buffer-multibyte nil)
+            (insert "QUESTION unresolved\n")
+            (insert (unibyte-string 0 255 254 1 2 3))
+            (insert "\nTBD later\n")
+            (write-region (point-min) (point-max) file))
+          (should (equal '(1 1 0) (blueprint--component-metrics file))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-health-score/dangling-component-no-crash ()
+  "blueprint-health-score does not error when a registered component's
+directory exists but its arc42.org was deleted after the fact (e.g. by
+hand outside Blueprint).  Documents actual behavior: a missing file
+contributes zero markers to the score, since detecting a missing
+arc42.org is blueprint-lint's job, not blueprint-health-score's."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (delete-file (expand-file-name ".blueprint/components/svc/arc42.org"
+                                    default-directory))
+    (should (= 100 (blueprint-health-score)))))
+
 ;;; --- blueprint-health-score ---
 
 (ert-deftest blueprint-test-health-score/perfect ()

@@ -177,6 +177,32 @@
         (should (string-match-p "myservice" content))
         (should-not (string-match-p "{{NAME}}" content))))))
 
+(ert-deftest blueprint-test-add-component/duplicate-name-errors ()
+  "Adding a component whose id already exists signals a user-error,
+instead of silently overwriting the existing arc42.org back to the
+blank template (`make-directory' with PARENTS=t does not error on an
+already-existing directory, so this must be checked explicitly)."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-add-component "svc")
+      (let ((file (expand-file-name ".blueprint/components/svc/arc42.org" proj)))
+        ;; Simulate pre-existing work that a silent overwrite would lose.
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-max))
+          (insert "\nDo not lose this.\n")
+          (write-region (point-min) (point-max) file))
+        (let ((before (blueprint-test--read-file file)))
+          (should-error (blueprint-add-component "svc") :type 'user-error)
+          (should (equal before (blueprint-test--read-file file))))))))
+
+(ert-deftest blueprint-test-add-component/slugify-collision-errors ()
+  "Two display names that slugify to the same id are treated as a
+collision, not two distinct components."
+  (blueprint-test--with-project
+    (blueprint-add-component "Order Service")
+    (should-error (blueprint-add-component "order-service") :type 'user-error)))
+
 ;;; --- blueprint-rename-component ---
 
 (ert-deftest blueprint-test-rename-component/renames-directory ()
@@ -190,6 +216,22 @@
     (should (file-directory-p
              (expand-file-name ".blueprint/components/new-name"
                                default-directory)))))
+
+(ert-deftest blueprint-test-rename-component/collision-with-existing-fails-safely ()
+  "Renaming onto an existing component's name fails instead of
+silently overwriting it (`rename-file' signals `file-already-exists'
+without an explicit OK-IF-ALREADY-EXISTS argument, which
+blueprint-rename-component does not pass)."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "alpha")
+      (blueprint-test--write-component "beta")
+      (should-error (blueprint-rename-component "alpha" "beta"))
+      ;; Both original components must survive the failed rename.
+      (should (file-directory-p
+               (expand-file-name ".blueprint/components/alpha" proj)))
+      (should (file-directory-p
+               (expand-file-name ".blueprint/components/beta" proj))))))
 
 (ert-deftest blueprint-test-rename-component/updates-depends ()
   "Renaming updates BLUEPRINT_DEPENDS references in other components."

@@ -287,6 +287,19 @@ Templates follow the methodology from
 
 ## Bug noti e fix
 
+- **`blueprint-core.el` — `blueprint-add-component` sovrascriveva un
+  componente esistente in silenzio**: `(make-directory dir t)` non segnala
+  errore se `dir` esiste già (il flag `PARENTS` sopprime quel controllo).
+  Aggiungere un componente il cui id slugificato collide con uno esistente
+  (stesso nome digitato due volte, o due nomi che slugificano allo stesso
+  id, es. "Order Service" e "order-service") sovrascriveva quindi
+  arc42.org/functional.org/infrastructure.org tornando al template vuoto
+  — nessun errore, nessuna conferma, nessun modo di recuperare il
+  contenuto perso. **Fix**: `user-error` se l'id esiste già in
+  `blueprint--components`, prima di creare qualunque file. Test di
+  regressione: `blueprint-test-add-component/duplicate-name-errors`,
+  `blueprint-test-add-component/slugify-collision-errors`.
+
 - **`blueprint-lint.el`**: `blueprint--lint-component` restituiva lista vuota
   quando `file` era nil o mancante (il `(list ...)` nella branch `then`
   dell'`if` veniva scartato; `(nreverse warnings)` era sempre l'ultima
