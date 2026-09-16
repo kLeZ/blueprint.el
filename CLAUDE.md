@@ -23,7 +23,8 @@ emacs -Q --batch \
   -l blueprint-glossary.el -l blueprint-references.el -l blueprint-questions.el \
   -l blueprint-risks.el -l blueprint-ai.el -l blueprint-migrate.el \
   -l blueprint-functional.el -l blueprint-runtime.el \
-  -l blueprint-nfr.el -l blueprint-delivery.el \
+  -l blueprint-nfr.el -l blueprint-delivery.el -l blueprint-export.el \
+  -l blueprint-dashboard.el -l blueprint-watch.el \
   -l test/blueprint-test-helpers.el \
   -l test/blueprint-test-core.el -l test/blueprint-test-health.el \
   -l test/blueprint-test-lint.el -l test/blueprint-test-c4.el \
@@ -32,7 +33,9 @@ emacs -Q --batch \
   -l test/blueprint-test-ai.el -l test/blueprint-test-functional.el \
   -l test/blueprint-test-runtime.el \
   -l test/blueprint-test-nfr.el -l test/blueprint-test-delivery.el \
-  -l test/blueprint-test-e2e.el \
+  -l test/blueprint-test-dashboard.el -l test/blueprint-test-migrate.el \
+  -l test/blueprint-test-watch.el \
+  -l test/blueprint-test-e2e.el -l test/blueprint-test-export.el \
   -f ert-run-tests-batch-and-exit
 
 # Single test by name pattern
@@ -146,6 +149,22 @@ the dependency graph both parse this keyword.
 - Parse Org files with `org-element`, never with regex
 - Optional integrations: `(require 'feature nil t)`
 
+### Other autoloaded modules
+
+`blueprint.el` also `require`s several single-purpose modules that still have
+no dedicated ERT suite and are not part of the test commands above:
+
+- `blueprint-daily.el` — one-key daily triage (dashboard -> focus -> component)
+- `blueprint-search.el` — project-wide search via ripgrep, with a fallback
+- `blueprint-graph.el` — dependency graphs in PlantUML/Graphviz (dot)
+- `blueprint-wizard.el` — interactive onboarding/component-creation wizards
+- `blueprint-async.el` — background processing for long-running ops (export, tangle)
+- `blueprint-capture.el` — `org-capture` templates for quick notes
+
+Treat diffs touching these as untested until a suite is added.
+`blueprint-dashboard.el`, `blueprint-migrate.el`, and `blueprint-watch.el` are
+covered (see the Test structure table below).
+
 ## Test structure
 
 Tests in `test/` usano ERT. Il macro `blueprint-test--with-project` crea una
@@ -167,7 +186,11 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | `blueprint-test-runtime.el`    | Flussi runtime e diagrammi UC/sequenza        |
 | `blueprint-test-nfr.el`        | Quality scenarios, vincoli, registro rischi   |
 | `blueprint-test-delivery.el`   | Pre-delivery check e master sync              |
+| `blueprint-test-dashboard.el`  | Entry, status, focus mode, colonne Owner/Tech |
+| `blueprint-test-migrate.el`    | Template diff/migrazione non distruttiva      |
+| `blueprint-test-watch.el`      | Minor mode hook install/remove, invalidazione cache |
 | `blueprint-test-e2e.el`        | Lifecycle completo di un progetto             |
+| `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless |
 
 ## Blueprint init: full project structure
 
@@ -272,6 +295,24 @@ Templates follow the methodology from
   ricerca parte ora dalla posizione già avanzata dopo il `start-marker`. Test di
   regressione: `blueprint-test-sync/sync-section-end-must-follow-start`.
 
+- **`blueprint-export.el` — titolo duplicato nell'export multi-file**:
+  `#+TITLE` ha comportamento `parse` in `org-export-options-alist` (concatena
+  valori multipli). Ogni file satellite incluso in `master.org` via
+  `#+INCLUDE` porta il proprio `#+TITLE` (per essere leggibile standalone), e
+  org lo mantiene nel buffer espanso: il titolo del documento esportato
+  diventava la concatenazione di tutti i titoli inclusi. **Fix**: nuova
+  `blueprint--strip-duplicate-titles` agganciata a
+  `org-export-before-parsing-functions` al caricamento del pacchetto — rimuove
+  ogni `#+TITLE` tranne il primo dopo l'espansione degli `#+INCLUDE` e prima
+  che org raccolga le keyword del documento. Essendo una variabile hook
+  globale, vale anche per l'export ODT nativo di org (che
+  `blueprint-export.el` non gestisce direttamente). Implementata con
+  `org-element` (non regex): individua solo i nodi keyword reali, per non
+  toccare un `#+TITLE:` mostrato come testo di esempio dentro un blocco
+  `example`/`src` (pattern comune nei file org tutorial-style, verificato su
+  un config.org reale con blocchi `EXAMPLE`). Test di regressione:
+  `test/blueprint-test-export.el`.
+
 - **`blueprint-health.el` — `blueprint--display-marker-list`**:
   `(blueprint--root)` veniva chiamato dentro
   `(with-current-buffer (get-buffer-create bufname) ...)`. Se il buffer esisteva
@@ -280,6 +321,43 @@ Templates follow the methodology from
   falliva. **Fix**: `root` catturato fuori da `with-current-buffer`, prima dello
   switch di buffer. Sintomo: `blueprint-test-list-findings/finds-marker` passava
   in isolamento ma falliva in suite completa.
+
+- **`blueprint-questions.el` — riga vuota persa prima dell'heading successivo**:
+  `blueprint-add-question` inserisce la nuova QUESTION alla posizione
+  dell'heading successivo (`next-heading`, trovato via
+  `re-search-forward "^\\* "`), consumando così la riga vuota che separava la
+  sezione "Open Questions" dall'heading successivo. Il presunto bug collegato
+  a heading con TODO keyword/tag (`:raw-value` non gestirebbe questi casi) è
+  stato verificato come infondato: `:raw-value` esclude già correttamente sia
+  il TODO keyword sia i tag. **Fix**: dopo l'insert, se il carattere
+  immediatamente successivo è `*` (nessuna riga vuota residua), viene
+  reinserita. Test di regressione:
+  `blueprint-test-questions/preserves-blank-line-before-next-heading`.
+
+- **`blueprint-export.el` — diagrammi PlantUML persi in silenzio nell'export
+  headless**: `emacs -Q --batch` (necessario per CI/riproducibilità) parte
+  con `org-confirm-babel-evaluate` a `t` e `org-plantuml-exec-mode` a
+  `'jar`; senza disattivare il primo e passare il secondo all'eseguibile,
+  ogni blocco `#+begin_src plantuml` viene esportato come listato di
+  codice al posto dell'immagine, senza errori né warning — funziona solo
+  per caso in sessione interattiva perché l'`init.el` dell'utente già
+  imposta questi valori. **Fix**: macro `blueprint--with-plantuml-export`,
+  usata da tutte e quattro le funzioni di export; `let`-binding (non
+  `setq`) e solo quando la variabile è ancora al default di libreria, così
+  non tocca mai una configurazione utente già presente. `ob-plantuml` va
+  richiesto a livello di file, non dentro la macro: altrimenti
+  `org-plantuml-exec-mode` non è ancora dichiarata "special" quando il
+  primo `let` la binda, e si ottiene `void-variable` o
+  `"Defining as dynamic an already lexical var"` a runtime. Test di
+  regressione: `blueprint-test-export/plantuml-export-*`.
+
+- **`blueprint-sync.el` — riga vuota spuria a ogni sync**:
+  `blueprint--sync-section` inseriva `(insert "\n" content "\n")`, ma il punto
+  di inserimento (`(1+ start)`) è già a inizio riga subito dopo lo
+  start-marker: il `\n` iniziale produceva quindi una riga vuota extra fra
+  marker e contenuto sincronizzato a ogni chiamata di `blueprint-sync`.
+  **Fix**: rimosso il `\n` iniziale ridondante. Test di regressione:
+  `blueprint-test-sync/sync-section-no-spurious-blank-line`.
 
 - **`templates/nfr-risks.org` — riga placeholder**: il template conteneva
   `| R-001 | |...|` come esempio, causando `blueprint--nfr-next-risk-id` →

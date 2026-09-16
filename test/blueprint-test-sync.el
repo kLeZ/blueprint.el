@@ -26,6 +26,31 @@
       (should (string-match-p "INCLUDE" includes))
       (should (string-match-p "mycomp" includes)))))
 
+(ert-deftest blueprint-test-sync/generate-includes-headline-before-include ()
+  "Each #+INCLUDE: is preceded by a level-2 headline naming the component."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "mycomp")
+    (let ((includes (blueprint--generate-includes)))
+      (should (string-match-p "\\`\\*\\* .*\n#\\+INCLUDE" includes)))))
+
+(ert-deftest blueprint-test-sync/generate-includes-uses-title-display-name ()
+  "The headline uses the component's #+TITLE:, not the raw directory name."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "portale"
+     (concat "#+TITLE: Portale -- Architettura (arc42)\n"
+             "#+BLUEPRINT_DEPENDS:\n\n* Introduction\n\n"))
+    (let ((includes (blueprint--generate-includes)))
+      (should (string-match-p "\\*\\* Portale$" includes))
+      (should-not (string-match-p "\\*\\* Portale --" includes)))))
+
+(ert-deftest blueprint-test-sync/generate-includes-falls-back-to-capitalized-name ()
+  "Without a parseable #+TITLE:, the headline falls back to NAME capitalized."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "mycomp" "* Introduction\n\n")
+    (let ((includes (blueprint--generate-includes)))
+      (should (string-match-p "\\*\\* Mycomp$" includes)))))
+
 (ert-deftest blueprint-test-sync/generate-includes-sorted ()
   "Include directives are sorted alphabetically by component name."
   (blueprint-test--with-project
@@ -68,10 +93,11 @@
     (blueprint-sync)
     (let ((content (blueprint-test--read-file
                     (expand-file-name "master.org" default-directory))))
-      ;; Both components should appear exactly once
-      (should (= 1 (cl-count-if (lambda (l) (string-match-p "first" l))
+      ;; Each component now appears on exactly two lines: its headline
+      ;; and its #+INCLUDE:, not duplicated beyond that pair.
+      (should (= 2 (cl-count-if (lambda (l) (string-match-p "first" l))
                                  (split-string content "\n"))))
-      (should (= 1 (cl-count-if (lambda (l) (string-match-p "second" l))
+      (should (= 2 (cl-count-if (lambda (l) (string-match-p "second" l))
                                  (split-string content "\n"))))
       ;; Markers appear exactly once each
       (should (= 1 (cl-count blueprint-sync-start-marker
@@ -95,14 +121,14 @@
         (should (string-match-p "This is written by hand" content))
         (should (string-match-p "comp-a" content))))))
 
-(ert-deftest blueprint-test-sync/minlevel-2 ()
-  "Include directives use :minlevel 2."
+(ert-deftest blueprint-test-sync/minlevel-3 ()
+  "Include directives use :minlevel 3, nesting under the component headline."
   (blueprint-test--with-project
     (blueprint-test--write-component "lvl")
     (blueprint-sync)
     (let ((content (blueprint-test--read-file
                     (expand-file-name "master.org" default-directory))))
-      (should (string-match-p ":minlevel 2" content)))))
+      (should (string-match-p ":minlevel 3" content)))))
 
 ;;; --- blueprint--sync-section (direct unit tests) ---
 
@@ -114,6 +140,16 @@
     (let ((result (buffer-string)))
       (should (string-match-p "new content" result))
       (should-not (string-match-p "old content" result)))))
+
+(ert-deftest blueprint-test-sync/sync-section-no-spurious-blank-line ()
+  "blueprint--sync-section does not insert a blank line between
+start-marker and CONTENT on every sync (regression test for the
+extra-blank-line cosmetic bug)."
+  (with-temp-buffer
+    (insert "# @@start@@\nold content\n# @@end@@\n")
+    (blueprint--sync-section "# @@start@@" "# @@end@@" "new content")
+    (let ((result (buffer-string)))
+      (should (string-match-p "# @@start@@\nnew content\n# @@end@@" result)))))
 
 (ert-deftest blueprint-test-sync/sync-section-preserves-markers ()
   "blueprint--sync-section keeps both markers intact."

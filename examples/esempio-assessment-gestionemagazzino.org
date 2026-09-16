@@ -1,0 +1,1306 @@
+#+TITLE: Assessment Architetturale — GestioneMagazzino
+#+SUBTITLE: Documento di analisi architetturale del sistema legacy di gestione ordini e magazzino
+#+AUTHOR: 
+#+DATE: 2026-03-18
+#+OPTIONS: toc:3 num:t H:4 ':t
+#+LANGUAGE: it
+
+* Parte 0 — Premesse
+
+** Obiettivo e perimetro
+
+Il presente documento raccoglie i risultati dell'assessment architetturale
+condotto sul sistema *GestioneMagazzino*, applicazione web PHP/MySQL in
+produzione dal 2014 presso Logistica Nord S.r.l.
+
+L'obiettivo è fornire al management una fotografia completa dello stato attuale
+del sistema, identificare rischi tecnici e proporre un percorso di
+modernizzazione incrementale.
+
+*Perimetro dell'analisi:*
+- Applicazione web PHP (Apache/MySQL su server Linux)
+- 4 moduli funzionali principali
+- 2 job schedulati (crontab)
+- Infrastruttura di produzione e staging
+
+*Esclusi dal perimetro:*
+- Sistema di fatturazione elettronica (gestito da fornitore esterno)
+- App mobile del magazziniere (progetto separato, non ancora in produzione)
+
+** Metodo di lavoro
+
+L'analisi segue una metodologia strutturata basata su Arc42, adattata per
+scenari di reverse-engineering su sistemi legacy privi di documentazione
+preesistente.
+
+*Gerarchia delle fonti informative* (in ordine di affidabilità):
+1. Codice sorgente (repository Git interno)
+2. Test automatici (PHPUnit, parziali)
+3. Log applicativi e di sistema
+4. Monitoraggio (Munin, accesso limitato)
+5. Interviste con il team di sviluppo (2 persone)
+6. Documentazione esistente (README obsoleto del 2016)
+
+*Convenzioni di marcatura:*
+- Le informazioni riportate sono state verificate sul codice salvo diversa indicazione
+- Dove indicato "[da intervista]", l'informazione proviene da colloquio con il team
+- Le sezioni approvate dal committente riportano la data di approvazione
+
+** Glossario
+
+*** Termini di dominio
+
+| Termine       | Definizione                                                    |
+|---------------+----------------------------------------------------------------|
+| SKU           | Stock Keeping Unit — codice univoco di un prodotto a magazzino |
+| Giacenza      | Quantità disponibile di un prodotto in un dato momento         |
+| Scorta minima | Soglia sotto la quale si genera un allarme di riordino         |
+| Bolla         | Documento di trasporto associato a una spedizione              |
+| Lotto         | Raggruppamento di prodotti con stessa data di ingresso         |
+| Picking       | Prelievo fisico dei prodotti dal magazzino per evasione ordine |
+| Packing list  | Lista dei prodotti inclusi in una spedizione                   |
+
+*** Termini tecnici con uso specifico
+
+| Termine   | Significato nel contesto di GestioneMagazzino           |
+|-----------+---------------------------------------------------------|
+| Modulo    | Sotto-applicazione PHP con proprio controller e viste   |
+| Job       | Script PHP eseguito da crontab senza interazione utente |
+| Dashboard | Pagina riepilogativa con KPI aggiornati in tempo reale  |
+
+*** Acronimi e abbreviazioni
+
+| Acronimo | Espansione                    |
+|----------+-------------------------------|
+| LAMP     | Linux, Apache, MySQL, PHP     |
+| SKU      | Stock Keeping Unit            |
+| ORM      | Object-Relational Mapping     |
+| CRUD     | Create, Read, Update, Delete  |
+| CSV      | Comma-Separated Values        |
+| SMTP     | Simple Mail Transfer Protocol |
+| KPI      | Key Performance Indicator     |
+
+** Riferimenti e fonti
+
+*** Documenti
+
+| ID   | Titolo                 | Autore        |       Data | Tipo     | Note                         |
+|------+------------------------+---------------+------------+----------+------------------------------|
+| D-01 | README.md              | Marco Bianchi | 2016-04-12 | Markdown | Obsoleto, struttura iniziale |
+| D-02 | Schema DB v1           | Marco Bianchi | 2015-01-20 | SQL dump | Non aggiornato dal 2018      |
+| D-03 | Manuale utente interno | Laura Verdi   | 2019-06-01 | PDF      | Copre solo modulo Ordini     |
+
+*** Interviste
+
+| ID   | Intervistato  | Ruolo             |       Data | Argomenti                        | Note                         |
+|------+---------------+-------------------+------------+----------------------------------+------------------------------|
+| I-01 | Marco Bianchi | Lead developer    | 2026-02-10 | Architettura, storia, dipendenze | Unico sviluppatore originale |
+| I-02 | Laura Verdi   | Operatrice magaz. | 2026-02-12 | Workflow quotidiano, problemi UX | Utente principale dal 2017   |
+| I-03 | Paolo Neri    | Responsabile IT   | 2026-02-14 | Infrastruttura, backup, accessi  | Gestisce i server dal 2020   |
+
+*** Sistemi e strumenti
+
+| ID   | Nome          |  Versione | Scopo                           |
+|------+---------------+-----------+---------------------------------|
+| S-01 | PHP           |    7.4.33 | Runtime applicativo             |
+| S-02 | MySQL         |    5.7.41 | Database relazionale            |
+| S-03 | Apache HTTP   |    2.4.54 | Web server                      |
+| S-04 | Ubuntu Server | 20.04 LTS | Sistema operativo               |
+| S-05 | PHPMailer     |     6.5.3 | Invio email (allarmi, report)   |
+| S-06 | TCPDF         |     6.6.2 | Generazione PDF (bolle, report) |
+| S-07 | jQuery        |     3.5.1 | Interattività frontend          |
+| S-08 | Bootstrap     |     4.6.0 | Framework CSS                   |
+| S-09 | Munin         |    2.0.69 | Monitoraggio risorse server     |
+| S-10 | Git           |    2.25.1 | Versioning (repository locale)  |
+
+*** Ambienti analizzati
+
+| ID   | Ambiente   | Data accesso | Componenti verificati    | Note                           |
+|------+------------+--------------+--------------------------+--------------------------------|
+| A-01 | Produzione |   2026-02-10 | App, DB, Apache, crontab | Accesso SSH read-only          |
+| A-02 | Staging    |   2026-02-11 | App, DB                  | Dati anonimizzati parzialmente |
+
+
+* Parte I — Architettura enterprise
+
+** Vista contestuale
+
+Il sistema GestioneMagazzino opera all'interno dell'ecosistema IT di Logistica
+Nord S.r.l., interagendo con sistemi interni e servizi esterni.
+
+#+begin_src plantuml :file enterprise-context.png :exports results
+@startuml
+!include <C4/C4_Context>
+
+title Sistema GestioneMagazzino — Contesto Enterprise (C4 L1)
+
+Person(operatore, "Operatore magazzino", "Gestisce ordini,\nverifica giacenze,\nstampa bolle")
+Person(manager, "Responsabile logistica", "Consulta report,\nmonitora KPI")
+
+System(gm, "GestioneMagazzino", "Applicazione web PHP/MySQL\nper gestione ordini e scorte")
+
+System_Ext(erp, "SAP Business One", "ERP aziendale —\nimportazione ordini clienti")
+System_Ext(fattura, "FatturaPA Service", "Servizio esterno\nfatturazione elettronica")
+System_Ext(corriere, "API Corriere BRT", "Tracking spedizioni\ne generazione etichette")
+System_Ext(smtp, "Server SMTP interno", "Invio notifiche\ne allarmi email")
+
+Rel(operatore, gm, "Usa quotidianamente", "HTTPS / browser")
+Rel(manager, gm, "Consulta report", "HTTPS / browser")
+Rel(gm, erp, "Import ordini", "File CSV via share di rete")
+Rel(gm, fattura, "Invio dati fattura", "SOAP/XML")
+Rel(gm, corriere, "Richiesta tracking", "REST/JSON")
+Rel(gm, smtp, "Invio email", "SMTP/TLS")
+Rel(erp, gm, "Export catalogo", "File CSV")
+
+@enduml
+#+end_src
+
+** Sistemi nel perimetro
+
+| Sistema           | Tecnologia      | Ruolo                                 | Note                    |
+|-------------------+-----------------+---------------------------------------+-------------------------|
+| GestioneMagazzino | PHP 7.4 / MySQL | Gestione ordini, scorte, reportistica | Oggetto dell'assessment |
+| Database MySQL    | MySQL 5.7       | Persistenza dati                      | 47 tabelle, ~2 GB dati  |
+| Apache HTTP       | Apache 2.4      | Web server, mod_php                   | Virtual host dedicato   |
+| Crontab           | Sistema Linux   | Schedulazione job PHP                 | 2 job attivi            |
+
+** Sistemi esterni rilevanti
+
+| Sistema           | Tipo           | Direzione | Note                                 |
+|-------------------+----------------+-----------+--------------------------------------|
+| SAP Business One  | ERP            | IN/OUT    | CSV su share di rete, import manuale |
+| FatturaPA Service | SaaS esterno   | OUT       | SOAP sincrono, certificato client    |
+| API Corriere BRT  | REST API       | OUT       | Polling tracking, no webhook         |
+| Server SMTP       | Infrastruttura | OUT       | Relay interno, autenticazione PLAIN  |
+
+** Mappa delle dipendenze
+
+*** Matrice di dipendenze
+
+|                   | GestioneMagaz. | SAP B1 | FatturaPA | BRT API | SMTP |
+|-------------------+----------------+--------+-----------+---------+------|
+| GestioneMagazzino | —              | BI     | OUT       | OUT     | OUT  |
+| SAP Business One  | BI             | —      | --        | --      | --   |
+| FatturaPA Service | IN             | --     | —         | --      | --   |
+| API Corriere BRT  | IN             | --     | --        | —       | --   |
+| Server SMTP       | IN             | --     | --        | --      | —    |
+
+Legenda: IN = riceve da, OUT = invia a, BI = bidirezionale, -- = nessuna dipendenza.
+
+*** Flussi principali cross-sistema
+
+#+begin_src plantuml :file enterprise-flows.png :exports results
+@startuml
+title Flussi principali cross-sistema
+
+participant "SAP B1" as sap
+participant "GestioneMagazzino" as gm
+participant "BRT API" as brt
+participant "FatturaPA" as fp
+participant "SMTP" as smtp
+
+sap -> gm : Export CSV ordini\n(via share di rete)
+activate gm
+
+gm -> gm : Elaborazione ordine\n(picking, packing)
+gm -> brt : POST /shipment\n(richiesta spedizione)
+brt --> gm : tracking_number
+
+gm -> fp : SOAP inviaFattura\n(dati DDT + importi)
+fp --> gm : id_fattura + stato
+
+gm -> smtp : Email conferma\n(operatore + cliente)
+deactivate gm
+
+note over gm : Job notturno
+gm -> gm : Controllo scorte minime
+gm -> smtp : Email allarme\n(scorte sotto soglia)
+
+@enduml
+#+end_src
+
+
+* Parte II — Architettura per componente
+
+** GestioneMagazzino — Architettura applicativa
+
+*** Introduzione e panoramica
+
+GestioneMagazzino è un'applicazione web monolitica PHP sviluppata internamente
+dal 2014. Segue un pattern MVC artigianale senza framework, con routing basato
+su parametri GET (~?module=ordini&action=lista~).
+
+L'applicazione è composta da 4 moduli funzionali:
+1. *Catalogo Prodotti* — anagrafica articoli e gestione SKU
+2. *Gestione Ordini* — ciclo di vita dell'ordine dall'ingresso all'evasione
+3. *Monitoraggio Scorte* — giacenze in tempo reale e movimentazione
+4. *Reportistica* — dashboard KPI e generazione report PDF/CSV
+
+*** Contesto e scope
+
+#+begin_src plantuml :file gm-context.png :exports results
+@startuml
+!include <C4/C4_Context>
+
+title GestioneMagazzino — Contesto (C4 L1)
+
+Person(operatore, "Operatore", "CRUD ordini, stampa bolle")
+Person(manager, "Manager", "Consulta dashboard e report")
+
+System(gm, "GestioneMagazzino", "PHP 7.4 / MySQL 5.7\nApplicazione web monolitica")
+
+System_Ext(sap, "SAP B1", "Import/export CSV")
+System_Ext(brt, "BRT API", "Tracking spedizioni")
+System_Ext(smtp, "SMTP", "Notifiche email")
+
+Rel(operatore, gm, "HTTPS")
+Rel(manager, gm, "HTTPS")
+Rel_R(gm, sap, "CSV via NFS")
+Rel_R(gm, brt, "REST/JSON")
+Rel_D(gm, smtp, "SMTP/TLS")
+
+@enduml
+#+end_src
+
+*** Vincoli
+
+| Vincolo                      | Tipo           | Impatto                                     |
+|------------------------------+----------------+---------------------------------------------|
+| PHP 7.4 (EOL dicembre 2022)  | Tecnico        | Nessuna patch di sicurezza disponibile      |
+| MySQL 5.7 (EOL ottobre 2023) | Tecnico        | Vulnerabilità note non corrette             |
+| Nessun framework PHP         | Tecnico        | Codice custom per routing, auth, templating |
+| Server fisico singolo        | Infrastruttura | Single point of failure                     |
+| Team di 1 sviluppatore       | Organizzativo  | Bus factor = 1, nessun code review          |
+| Budget IT limitato           | Organizzativo  | Modernizzazione solo incrementale           |
+
+*** Strategia di soluzione
+
+L'applicazione adotta un'architettura MVC artigianale con le seguenti scelte
+progettuali (ricostruite dal codice):
+
+| Aspetto               | Scelta attuale                   | Motivazione ricostruita            |
+|-----------------------+----------------------------------+------------------------------------|
+| Persistenza           | Query SQL dirette (mysqli)       | Semplicità, assenza di ORM         |
+| Autenticazione        | Sessioni PHP + tabella ~users~   | Implementazione minimale           |
+| Templating            | PHP inline (file .php con HTML)  | Nessuna separazione netta          |
+| Routing               | ~index.php~ + parametri GET      | Pattern classico PHP pre-framework |
+| Dipendenze esterne    | Inclusione manuale (no Composer) | Progetto nato prima di Composer    |
+| Generazione documenti | TCPDF per PDF, fputcsv per CSV   | Librerie standalone                |
+
+*** Blocchi costruttivi
+
+#+begin_src plantuml :file gm-containers.png :exports results
+@startuml
+!include <C4/C4_Container>
+
+title GestioneMagazzino — Container (C4 L2)
+
+Person(user, "Utente", "Operatore / Manager")
+
+System_Boundary(gm, "GestioneMagazzino") {
+    Container(web, "Applicazione Web", "PHP 7.4 / Apache", "Moduli: Catalogo,\nOrdini, Scorte,\nReport")
+    Container(cron, "Job schedulati", "PHP CLI / crontab", "Allarme scorte,\nReport mensile")
+    ContainerDb(db, "Database", "MySQL 5.7", "47 tabelle\n~2 GB dati")
+    Container(files, "File storage", "Filesystem locale", "PDF generati,\nCSV import/export")
+}
+
+System_Ext(sap, "SAP B1", "")
+System_Ext(brt, "BRT API", "")
+System_Ext(smtp, "SMTP", "")
+
+Rel(user, web, "HTTPS")
+Rel(web, db, "mysqli", "TCP/3306")
+Rel(cron, db, "mysqli", "TCP/3306")
+Rel(web, files, "fopen/fwrite")
+Rel(cron, files, "fwrite")
+Rel(web, sap, "CSV via NFS share")
+Rel(web, brt, "REST/JSON")
+Rel(web, smtp, "SMTP/TLS")
+Rel(cron, smtp, "SMTP/TLS")
+
+@enduml
+#+end_src
+
+*Struttura directory del codice:*
+
+#+begin_example
+/var/www/gestionemagazzino/
+├── index.php                  # Entry point, routing
+├── config.php                 # Credenziali DB, parametri
+├── includes/
+│   ├── db.php                 # Connessione mysqli
+│   ├── auth.php               # Sessioni e login
+│   ├── functions.php          # Utility condivise
+│   └── mail.php               # Wrapper PHPMailer
+├── modules/
+│   ├── catalogo/
+│   │   ├── controller.php
+│   │   ├── model.php
+│   │   └── views/
+│   ├── ordini/
+│   │   ├── controller.php
+│   │   ├── model.php
+│   │   └── views/
+│   ├── scorte/
+│   │   ├── controller.php
+│   │   ├── model.php
+│   │   └── views/
+│   └── report/
+│       ├── controller.php
+│       ├── model.php
+│       └── views/
+├── jobs/
+│   ├── allarme_scorte.php     # Cron: controllo scorte minime
+│   └── report_mensile.php     # Cron: report vendite mensile
+├── lib/
+│   ├── tcpdf/                 # Libreria PDF
+│   ├── phpmailer/             # Libreria email
+│   └── jquery/                # jQuery 3.5.1
+├── assets/
+│   ├── css/
+│   └── js/
+└── storage/
+    ├── pdf/                   # PDF generati
+    ├── csv/                   # CSV import/export
+    └── logs/                  # Log applicativi
+#+end_example
+
+*** Runtime Behavior
+
+**** Flusso: Evasione ordine
+
+Flusso principale dell'applicazione — dalla ricezione dell'ordine alla
+spedizione. Coinvolge l'operatore di magazzino e interagisce con il corriere
+BRT per il tracking.
+
+***** Casi d'uso
+
+#+begin_src plantuml :file uc-evasione-ordine.png :exports results
+@startuml
+title Casi d'uso — Evasione ordine
+
+actor "Operatore magazzino" as op
+actor "Corriere BRT" as brt
+
+rectangle "GestioneMagazzino" {
+    usecase "Visualizza ordini\nin coda" as UC1
+    usecase "Avvia picking" as UC2
+    usecase "Registra packing" as UC3
+    usecase "Genera bolla PDF" as UC4
+    usecase "Richiedi spedizione" as UC5
+    usecase "Stampa etichetta" as UC6
+}
+
+op --> UC1
+op --> UC2
+op --> UC3
+op --> UC4
+op --> UC5
+UC5 --> brt : tracking number
+op --> UC6
+
+UC1 ..> UC2 : <<precedes>>
+UC2 ..> UC3 : <<precedes>>
+UC3 ..> UC4 : <<precedes>>
+UC4 ..> UC5 : <<precedes>>
+UC5 ..> UC6 : <<precedes>>
+
+@enduml
+#+end_src
+
+L'operatore accede alla lista ordini in coda, seleziona un ordine e avvia la
+fase di picking (prelievo articoli). Al termine del picking, registra il
+packing, genera la bolla di trasporto in PDF e richiede la spedizione tramite
+l'API BRT, ottenendo il tracking number. Infine stampa l'etichetta per il collo.
+
+***** Sequenza
+
+#+begin_src plantuml :file seq-evasione-ordine.png :exports results
+@startuml
+title Sequenza — Evasione ordine
+
+actor "Operatore" as op
+participant "ordini/controller" as ctrl
+participant "ordini/model" as model
+database "MySQL" as db
+participant "BRT API" as brt
+participant "TCPDF" as pdf
+participant "PHPMailer" as mail
+
+op -> ctrl : GET ?module=ordini&action=dettaglio&id=1234
+ctrl -> model : getOrdine(1234)
+model -> db : SELECT * FROM ordini WHERE id=1234
+db --> model : row
+model --> ctrl : array ordine
+ctrl --> op : HTML dettaglio ordine
+
+op -> ctrl : POST ?module=ordini&action=avvia_picking
+ctrl -> model : updateStato(1234, 'picking')
+model -> db : UPDATE ordini SET stato='picking'
+ctrl -> model : getArticoliOrdine(1234)
+model -> db : SELECT * FROM ordine_righe WHERE ordine_id=1234
+db --> model : rows
+ctrl --> op : HTML lista picking
+
+op -> ctrl : POST ?module=ordini&action=completa_picking
+ctrl -> model : updateStato(1234, 'packing')
+model -> db : UPDATE ordini SET stato='packing'
+ctrl -> model : decrementaGiacenze(righe)
+model -> db : UPDATE prodotti SET giacenza = giacenza - qty
+
+op -> ctrl : POST ?module=ordini&action=genera_bolla
+ctrl -> pdf : generaBolla(ordine, righe)
+pdf --> ctrl : /storage/pdf/bolla_1234.pdf
+ctrl -> model : updateStato(1234, 'spedizione')
+
+ctrl -> brt : POST /shipment {peso, destinazione, colli}
+brt --> ctrl : {tracking: "BRT123456789"}
+ctrl -> model : salvaTracking(1234, "BRT123456789")
+
+ctrl -> mail : inviaConferma(cliente_email, tracking)
+mail --> ctrl : ok
+
+ctrl --> op : HTML conferma + link tracking
+
+@enduml
+#+end_src
+
+**** Flusso: Job allarme scorte minime
+
+Job eseguito ogni notte alle 02:00 via crontab. Controlla tutti i prodotti con
+giacenza inferiore alla scorta minima configurata e invia un'email riepilogativa
+al responsabile magazzino.
+
+***** Casi d'uso
+
+#+begin_src plantuml :file uc-allarme-scorte.png :exports results
+@startuml
+title Casi d'uso — Allarme scorte minime
+
+actor "Crontab" as cron
+actor "Responsabile" as resp
+
+rectangle "Job Allarme Scorte" {
+    usecase "Interroga giacenze\nsotto soglia" as UC1
+    usecase "Genera report\nallarme" as UC2
+    usecase "Invia email\nriepilogativa" as UC3
+}
+
+cron --> UC1
+UC1 ..> UC2 : <<precedes>>
+UC2 ..> UC3 : <<precedes>>
+UC3 --> resp : email
+
+@enduml
+#+end_src
+
+Il job non ha interazione utente. Se non ci sono prodotti sotto soglia, termina
+silenziosamente senza inviare email (evita allarmi vuoti).
+
+***** Sequenza
+
+#+begin_src plantuml :file seq-allarme-scorte.png :exports results
+@startuml
+title Sequenza — Job allarme scorte (cron, 02:00)
+
+participant "allarme_scorte.php" as job
+database "MySQL" as db
+participant "PHPMailer" as mail
+
+[-> job : crontab trigger
+
+job -> db : SELECT p.sku, p.nome, p.giacenza, p.scorta_minima\n  FROM prodotti p\n  WHERE p.giacenza < p.scorta_minima\n    AND p.attivo = 1
+db --> job : rows (prodotti sotto soglia)
+
+alt Nessun prodotto sotto soglia
+    job -> job : exit(0) — nessuna azione
+else Prodotti trovati
+    job -> job : Formatta tabella HTML\n(SKU, nome, giacenza, scorta minima, delta)
+    job -> mail : inviaAllarme(\n  to: "magazzino@logisticanord.it",\n  subject: "Allarme scorte — N prodotti sotto soglia",\n  body: tabella HTML\n)
+    mail --> job : ok
+    job -> db : INSERT INTO log_allarmi\n  (data, tipo, dettaglio, num_prodotti)
+end
+
+@enduml
+#+end_src
+
+**** Flusso: Job report mensile vendite
+
+Job eseguito il primo giorno di ogni mese alle 06:00. Genera un report PDF con
+le statistiche di vendita del mese precedente e lo invia via email al management.
+
+***** Casi d'uso
+
+#+begin_src plantuml :file uc-report-mensile.png :exports results
+@startuml
+title Casi d'uso — Report vendite mensile
+
+actor "Crontab" as cron
+actor "Management" as mgmt
+
+rectangle "Job Report Mensile" {
+    usecase "Calcola statistiche\nmese precedente" as UC1
+    usecase "Genera PDF\nreport" as UC2
+    usecase "Invia email\ncon allegato" as UC3
+    usecase "Archivia PDF" as UC4
+}
+
+cron --> UC1
+UC1 ..> UC2 : <<precedes>>
+UC2 ..> UC3 : <<precedes>>
+UC2 ..> UC4
+UC3 --> mgmt : email + PDF
+
+@enduml
+#+end_src
+
+***** Sequenza
+
+#+begin_src plantuml :file seq-report-mensile.png :exports results
+@startuml
+title Sequenza — Job report vendite mensile (cron, 1° del mese, 06:00)
+
+participant "report_mensile.php" as job
+database "MySQL" as db
+participant "TCPDF" as pdf
+participant "PHPMailer" as mail
+
+[-> job : crontab trigger
+
+job -> db : SELECT COUNT(*), SUM(totale)\n  FROM ordini\n  WHERE stato = 'completato'\n    AND MONTH(data_evasione) = mese_prec
+db --> job : totale_ordini, fatturato
+
+job -> db : SELECT p.nome, SUM(r.quantita) as qty,\n  SUM(r.quantita * r.prezzo) as valore\n  FROM ordine_righe r\n  JOIN prodotti p ON r.prodotto_id = p.id\n  JOIN ordini o ON r.ordine_id = o.id\n  WHERE o.stato = 'completato'\n    AND MONTH(o.data_evasione) = mese_prec\n  GROUP BY p.id ORDER BY qty DESC LIMIT 20
+db --> job : top_20_prodotti
+
+job -> db : SELECT DATE(data_evasione) as giorno,\n  COUNT(*) as ordini_giorno\n  FROM ordini\n  WHERE stato = 'completato'\n    AND MONTH(data_evasione) = mese_prec\n  GROUP BY giorno
+db --> job : distribuzione_giornaliera
+
+job -> pdf : Genera report\n(KPI, top prodotti,\nandamento giornaliero)
+pdf --> job : /storage/pdf/report_2026_02.pdf
+
+job -> mail : inviaReport(\n  to: ["direzione@logisticanord.it",\n       "logistica@logisticanord.it"],\n  subject: "Report vendite Febbraio 2026",\n  attachment: report_2026_02.pdf\n)
+mail --> job : ok
+
+job -> db : INSERT INTO log_report\n  (data, tipo, path_file)
+
+@enduml
+#+end_src
+
+*** Deployment
+
+#+begin_src plantuml :file gm-deployment.png :exports results
+@startuml
+!include <C4/C4_Deployment>
+
+title GestioneMagazzino — Deployment
+
+Deployment_Node(dc, "Datacenter Logistica Nord", "Rack dedicato") {
+    Deployment_Node(srv, "srv-magazzino", "Ubuntu 20.04 LTS\n8 CPU / 16 GB RAM / 500 GB SSD") {
+        Deployment_Node(apache, "Apache 2.4", "mod_php, porta 443") {
+            Container(app, "GestioneMagazzino", "PHP 7.4", "Applicazione web")
+        }
+        Deployment_Node(mysql, "MySQL 5.7", "porta 3306, bind 127.0.0.1") {
+            ContainerDb(db, "gm_production", "", "47 tabelle, ~2 GB")
+        }
+        Deployment_Node(cron, "Crontab", "root") {
+            Container(jobs, "Job schedulati", "PHP CLI", "2 job attivi")
+        }
+        Deployment_Node(fs, "Filesystem", "/var/www/gestionemagazzino/storage/") {
+            Container(storage, "File storage", "", "PDF, CSV, log")
+        }
+    }
+}
+
+Deployment_Node(net, "Rete interna", "VLAN 10") {
+    Deployment_Node(nfs, "NAS", "Synology DS920+") {
+        Container(share, "Share SAP", "NFS", "CSV import/export")
+    }
+}
+
+Rel(app, db, "mysqli", "TCP localhost:3306")
+Rel(jobs, db, "mysqli", "TCP localhost:3306")
+Rel(app, storage, "fopen/fwrite")
+Rel(jobs, storage, "fwrite")
+Rel(app, share, "NFS mount\n/mnt/sap-share")
+
+@enduml
+#+end_src
+
+*** Matrice di responsabilità
+
+| Componente / Layer         | Responsabile  | Note                                          |
+|----------------------------+---------------+-----------------------------------------------|
+| Codice PHP applicativo     | Marco Bianchi | Unico sviluppatore, in azienda dal 2014       |
+| Database MySQL             | Marco Bianchi | Schema gestito via script SQL manuali         |
+| Server Linux / Apache      | Paolo Neri    | Amministrazione sistemistica                  |
+| Backup e disaster recovery | Paolo Neri    | Backup DB giornaliero su NAS, no test restore |
+| Rete e firewall            | Paolo Neri    | VLAN dedicata, NAT per uscita internet        |
+| Requisiti e priorità       | Laura Verdi   | Raccoglie richieste dagli operatori           |
+
+*** Rischi identificati
+
+| ID    | Rischio                                    | Probabilità | Impatto | Livello | Mitigazione proposta                            |
+|-------+--------------------------------------------+-------------+---------+---------+-------------------------------------------------|
+| R-001 | PHP 7.4 EOL — vulnerabilità non patchate   | Alta        | Alto    | Critico | Upgrade a PHP 8.2+ entro Q3 2026                |
+| R-002 | MySQL 5.7 EOL — stesso problema            | Alta        | Alto    | Critico | Upgrade a MySQL 8.0 coordinato con PHP          |
+| R-003 | Bus factor = 1 (Marco Bianchi)             | Media       | Alto    | Alto    | Documentazione + onboarding secondo dev         |
+| R-004 | Nessun test automatico significativo       | Alta        | Medio   | Alto    | Introdurre PHPUnit sui flussi critici           |
+| R-005 | Single point of failure (server unico)     | Bassa       | Alto    | Medio   | Valutare replica DB + load balancer             |
+| R-006 | Backup mai testato (no restore test)       | Media       | Alto    | Alto    | Schedulare test di restore trimestrale          |
+| R-007 | Credenziali DB in config.php in chiaro     | Media       | Alto    | Alto    | Migrare a variabili d'ambiente                  |
+| R-008 | SQL injection potenziale (no prepared st.) | Media       | Alto    | Alto    | Audit codice + migrazione a prepared statements |
+| R-009 | jQuery 3.5.1 con CVE note                  | Media       | Basso   | Medio   | Aggiornamento a versione corrente               |
+| R-010 | Log applicativi senza rotazione            | Alta        | Basso   | Medio   | Configurare logrotate                           |
+
+*** Domande aperte
+
+| #  | Domanda                                                      | Contesto                        | Stato                                    |
+|----+--------------------------------------------------------------+---------------------------------+------------------------------------------|
+| Q1 | Esistono altri script PHP non documentati eseguiti via cron? | Trovato commento in crontab     | Chiusa — confermato: solo 2 job attivi   |
+| Q2 | Il backup DB include anche lo storage PDF/CSV?               | Non chiaro dalla configurazione | Chiusa — solo DB, non file               |
+| Q3 | Esiste un ambiente di disaster recovery?                     | Non menzionato nelle interviste | Chiusa — no, non esiste                  |
+| Q4 | Le credenziali API BRT sono condivise o per ambiente?        | config.php ha un solo set       | Chiusa — stesse credenziali prod/staging |
+
+
+* Parte III — Specifiche funzionali
+
+** Panoramica funzionale
+
+Il sistema GestioneMagazzino copre quattro aree funzionali principali,
+sviluppate incrementalmente dal 2014 al 2022. Le specifiche seguenti sono state
+ricostruite interamente dal codice sorgente e validate tramite interviste con
+gli utenti.
+
+** Aree funzionali
+
+*** Catalogo Prodotti
+
+**** Gestione anagrafica prodotto
+
+***** Scopo
+Consente la creazione, modifica e disattivazione dei prodotti a catalogo.
+Ogni prodotto è identificato univocamente da un codice SKU e contiene le
+informazioni necessarie per la gestione logistica (peso, dimensioni, scorta
+minima, fornitore).
+
+***** Input
+
+| Campo           | Tipo di dato | Vincoli                              | Sorgente  |
+|-----------------+--------------+--------------------------------------+-----------|
+| SKU             | Stringa      | Univoco, formato ~[A-Z]{2}-[0-9]{5}~ | Operatore |
+| Nome prodotto   | Stringa      | Max 200 caratteri, obbligatorio      | Operatore |
+| Descrizione     | Testo        | Opzionale, max 2000 caratteri        | Operatore |
+| Categoria       | Enum         | Da tabella ~categorie~               | Operatore |
+| Prezzo unitario | Decimale     | >= 0.01, 2 decimali                  | Operatore |
+| Peso (kg)       | Decimale     | >= 0, 3 decimali                     | Operatore |
+| Scorta minima   | Intero       | >= 0, default 10                     | Operatore |
+| Fornitore       | FK           | Da tabella ~fornitori~               | Operatore |
+| Attivo          | Booleano     | Default true                         | Sistema   |
+
+***** Output
+
+| Output              | Formato     | Destinatario  |
+|---------------------+-------------+---------------|
+| Conferma operazione | Pagina HTML | Operatore     |
+| Log modifica        | Record DB   | Audit interno |
+
+***** Regole di business
+- Un prodotto disattivato non appare nelle ricerche ma resta nel database per storico ordini
+- Il codice SKU non è modificabile dopo la creazione
+- La scorta minima determina la soglia per il job di allarme notturno
+- Non è possibile eliminare un prodotto con ordini associati (solo disattivare)
+
+***** Regole di validazione
+- SKU: regex ~/^[A-Z]{2}-[0-9]{5}$/~, unicità verificata lato DB (UNIQUE constraint)
+- Prezzo: conversione a centesimi interi per i calcoli, visualizzato con 2 decimali
+- Categoria e fornitore: validati come FK esistenti
+
+**** Import catalogo da SAP
+
+***** Scopo
+Importazione massiva di prodotti da file CSV generato da SAP Business One.
+L'operatore carica manualmente il file tramite form web. I prodotti già
+esistenti (match su SKU) vengono aggiornati; i nuovi vengono creati.
+
+***** Input
+
+| Campo    | Tipo di dato | Vincoli                           | Sorgente |
+|----------+--------------+-----------------------------------+----------|
+| File CSV | File upload  | Max 5 MB, encoding UTF-8 o Latin1 | SAP B1   |
+
+Formato CSV atteso (header obbligatorio):
+
+#+begin_example
+SKU;Nome;Categoria;Prezzo;Peso;ScortaMinima;Fornitore
+EL-00123;Cavo HDMI 2m;Cavi;12.50;0.150;20;TechCavi Srl
+#+end_example
+
+***** Output
+
+| Output           | Formato     | Destinatario |
+|------------------+-------------+--------------|
+| Riepilogo import | Pagina HTML | Operatore    |
+| Dettaglio errori | Tabella     | Operatore    |
+| Log import       | Record DB   | Audit        |
+
+***** Regole di business
+- Separatore: punto e virgola (~;~)
+- Encoding: auto-detect Latin1 → conversione a UTF-8
+- Righe con errore vengono saltate, non bloccano l'import
+- Il riepilogo mostra: N inseriti, N aggiornati, N errori, dettaglio errori per riga
+
+*** Gestione Ordini
+
+**** Ciclo di vita dell'ordine
+
+***** Scopo
+Gestisce l'intero ciclo di vita di un ordine, dalla ricezione alla spedizione.
+Gli ordini possono essere inseriti manualmente o importati da SAP.
+
+***** Stati dell'ordine
+
+| Stato      | Descrizione                        | Transizioni possibili          |
+|------------+------------------------------------+--------------------------------|
+| nuovo      | Ordine appena inserito             | picking, annullato             |
+| picking    | Prelievo articoli in corso         | packing, nuovo (rollback)      |
+| packing    | Imballo e verifica completezza     | spedizione, picking (rollback) |
+| spedizione | Bolla generata, tracking assegnato | completato                     |
+| completato | Consegnato e confermato            | (stato finale)                 |
+| annullato  | Ordine cancellato                  | (stato finale)                 |
+
+***** Input
+
+| Campo           | Tipo di dato | Vincoli                            | Sorgente  |
+|-----------------+--------------+------------------------------------+-----------|
+| Cliente         | FK           | Da tabella ~clienti~, obbligatorio | Operatore |
+| Indirizzo sped. | Testo        | Obbligatorio                       | Operatore |
+| Righe ordine    | Array        | Almeno 1 riga                      | Operatore |
+| — Prodotto      | FK           | Prodotto attivo con giacenza > 0   | Operatore |
+| — Quantità      | Intero       | >= 1                               | Operatore |
+| — Prezzo        | Decimale     | Precompilato da anagrafica         | Sistema   |
+| Note            | Testo        | Opzionale, max 500 caratteri       | Operatore |
+
+***** Regole di business
+- La giacenza viene decrementata al passaggio in stato ~packing~ (non prima)
+- Il rollback da ~packing~ a ~picking~ ripristina le giacenze
+- La bolla PDF viene generata al passaggio in stato ~spedizione~
+- Il tracking BRT viene richiesto automaticamente dopo la generazione bolla
+- L'email di conferma al cliente viene inviata dopo l'assegnazione del tracking
+- Un ordine ~annullato~ non può essere riaperto (creare nuovo ordine)
+
+*** Monitoraggio Scorte
+
+**** Dashboard giacenze
+
+***** Scopo
+Visualizzazione in tempo reale delle giacenze con filtri per categoria,
+fornitore e stato di allarme. Evidenzia visivamente (rosso) i prodotti sotto
+scorta minima.
+
+***** Input
+
+| Campo        | Tipo di dato | Vincoli           | Sorgente  |
+|--------------+--------------+-------------------+-----------|
+| Filtro cat.  | Enum         | Opzionale         | Operatore |
+| Filtro forn. | FK           | Opzionale         | Operatore |
+| Solo allarme | Booleano     | Default false     | Operatore |
+| Ordinamento  | Enum         | nome/giacenza/sku | Operatore |
+
+***** Output
+
+| Output            | Formato    | Destinatario |
+|-------------------+------------+--------------|
+| Tabella giacenze  | HTML       | Operatore    |
+| Export giacenze   | CSV        | Operatore    |
+| Conteggio allarmi | Badge HTML | Dashboard    |
+
+**** Movimentazione manuale
+
+***** Scopo
+Permette rettifiche manuali della giacenza (inventario fisico, rotture,
+resi). Ogni movimentazione è tracciata con causale obbligatoria.
+
+***** Input
+
+| Campo    | Tipo di dato | Vincoli                                      | Sorgente  |
+|----------+--------------+----------------------------------------------+-----------|
+| Prodotto | FK           | Prodotto attivo                              | Operatore |
+| Quantità | Intero       | != 0 (positivo = carico, negativo = scarico) | Operatore |
+| Causale  | Enum         | inventario / rottura / reso / altro          | Operatore |
+| Note     | Testo        | Obbligatorio se causale = "altro"            | Operatore |
+
+***** Regole di business
+- La giacenza non può scendere sotto zero (validazione lato applicativo)
+- Ogni movimentazione genera un record nella tabella ~movimenti~ con timestamp e utente
+- Le movimentazioni sono irreversibili (per correzione, creare movimentazione opposta)
+
+*** Reportistica
+
+**** Dashboard KPI
+
+***** Scopo
+Pagina principale visibile al login per il profilo manager. Mostra i KPI
+operativi in tempo reale.
+
+***** KPI visualizzati
+
+| KPI                     | Calcolo                                           | Aggiornamento |
+|-------------------------+---------------------------------------------------+---------------|
+| Ordini in coda          | ~COUNT(*) WHERE stato IN ('nuovo', 'picking')~    | Tempo reale   |
+| Ordini evasi oggi       | ~COUNT(*) WHERE stato='completato' AND data=oggi~ | Tempo reale   |
+| Tempo medio evasione    | ~AVG(data_evasione - data_creazione)~ ultimi 30gg | Giornaliero   |
+| Prodotti sotto scorta   | ~COUNT(*) WHERE giacenza < scorta_minima~         | Tempo reale   |
+| Fatturato mese corrente | ~SUM(totale) WHERE stato='completato' AND mese~   | Tempo reale   |
+| Top 5 prodotti venduti  | Per quantità, mese corrente                       | Tempo reale   |
+
+**** Generazione report PDF
+
+***** Scopo
+Generazione on-demand di report PDF con intervallo date personalizzabile.
+Disponibile per il profilo manager.
+
+***** Input
+
+| Campo       | Tipo di dato | Vincoli                    | Sorgente |
+|-------------+--------------+----------------------------+----------|
+| Data inizio | Data         | Obbligatoria, <= data fine | Manager  |
+| Data fine   | Data         | Obbligatoria, <= oggi      | Manager  |
+| Tipo report | Enum         | vendite / scorte / ordini  | Manager  |
+
+***** Output
+
+| Output     | Formato | Destinatario |
+|------------+---------+--------------|
+| Report     | PDF     | Manager      |
+| Copia file | PDF     | storage/pdf/ |
+
+** Entità di dominio
+
+*** Prodotto
+
+| Attributo       | Tipo          | Vincoli                     | Note             |
+|-----------------+---------------+-----------------------------+------------------|
+| id              | INT, PK, AI   | Not null                    |                  |
+| sku             | VARCHAR(10)   | Unique, not null            | Formato AA-99999 |
+| nome            | VARCHAR(200)  | Not null                    |                  |
+| descrizione     | TEXT          | Nullable                    |                  |
+| categoria_id    | INT, FK       | References categorie(id)    |                  |
+| prezzo_unitario | DECIMAL(10,2) | Not null, >= 0.01           | In euro          |
+| peso_kg         | DECIMAL(8,3)  | Default 0                   |                  |
+| scorta_minima   | INT           | Default 10                  | Soglia allarme   |
+| fornitore_id    | INT, FK       | References fornitori(id)    |                  |
+| attivo          | TINYINT(1)    | Default 1                   | Soft delete      |
+| created_at      | DATETIME      | Not null                    |                  |
+| updated_at      | DATETIME      | On update CURRENT_TIMESTAMP |                  |
+
+*** Ordine
+
+| Attributo       | Tipo          | Vincoli                                      | Note                 |
+|-----------------+---------------+----------------------------------------------+----------------------|
+| id              | INT, PK, AI   | Not null                                     |                      |
+| cliente_id      | INT, FK       | References clienti(id)                       |                      |
+| indirizzo_sped  | TEXT          | Not null                                     |                      |
+| stato           | ENUM          | nuovo/picking/packing/spediz./compl./annull. |                      |
+| totale          | DECIMAL(12,2) | Calcolato da righe                           |                      |
+| tracking_number | VARCHAR(50)   | Nullable                                     | Assegnato da BRT     |
+| note            | TEXT          | Nullable                                     |                      |
+| data_creazione  | DATETIME      | Not null                                     |                      |
+| data_evasione   | DATETIME      | Nullable                                     | Set al completamento |
+
+*** Diagramma ER generale
+
+#+begin_src plantuml :file er-diagram.png :exports results
+@startuml
+title Diagramma ER — GestioneMagazzino
+
+entity "prodotti" as prod {
+    * id : INT <<PK>>
+    --
+    * sku : VARCHAR(10) <<UQ>>
+    * nome : VARCHAR(200)
+    descrizione : TEXT
+    * categoria_id : INT <<FK>>
+    * prezzo_unitario : DECIMAL(10,2)
+    peso_kg : DECIMAL(8,3)
+    scorta_minima : INT
+    * fornitore_id : INT <<FK>>
+    attivo : TINYINT(1)
+}
+
+entity "ordini" as ord {
+    * id : INT <<PK>>
+    --
+    * cliente_id : INT <<FK>>
+    * indirizzo_sped : TEXT
+    * stato : ENUM
+    totale : DECIMAL(12,2)
+    tracking_number : VARCHAR(50)
+    note : TEXT
+    * data_creazione : DATETIME
+    data_evasione : DATETIME
+}
+
+entity "ordine_righe" as righe {
+    * id : INT <<PK>>
+    --
+    * ordine_id : INT <<FK>>
+    * prodotto_id : INT <<FK>>
+    * quantita : INT
+    * prezzo : DECIMAL(10,2)
+}
+
+entity "clienti" as cli {
+    * id : INT <<PK>>
+    --
+    * ragione_sociale : VARCHAR(200)
+    * email : VARCHAR(100)
+    telefono : VARCHAR(20)
+    indirizzo : TEXT
+}
+
+entity "categorie" as cat {
+    * id : INT <<PK>>
+    --
+    * nome : VARCHAR(100) <<UQ>>
+}
+
+entity "fornitori" as forn {
+    * id : INT <<PK>>
+    --
+    * ragione_sociale : VARCHAR(200)
+    * email : VARCHAR(100)
+    telefono : VARCHAR(20)
+}
+
+entity "movimenti" as mov {
+    * id : INT <<PK>>
+    --
+    * prodotto_id : INT <<FK>>
+    * quantita : INT
+    * causale : ENUM
+    note : TEXT
+    * utente_id : INT <<FK>>
+    * created_at : DATETIME
+}
+
+entity "users" as usr {
+    * id : INT <<PK>>
+    --
+    * username : VARCHAR(50) <<UQ>>
+    * password_hash : VARCHAR(255)
+    * ruolo : ENUM
+    * attivo : TINYINT(1)
+}
+
+entity "log_allarmi" as log_a {
+    * id : INT <<PK>>
+    --
+    * data : DATETIME
+    * tipo : VARCHAR(50)
+    dettaglio : TEXT
+    num_prodotti : INT
+}
+
+entity "log_report" as log_r {
+    * id : INT <<PK>>
+    --
+    * data : DATETIME
+    * tipo : VARCHAR(50)
+    * path_file : VARCHAR(255)
+}
+
+prod }o--|| cat : categoria_id
+prod }o--|| forn : fornitore_id
+ord }o--|| cli : cliente_id
+righe }o--|| ord : ordine_id
+righe }o--|| prod : prodotto_id
+mov }o--|| prod : prodotto_id
+mov }o--|| usr : utente_id
+
+@enduml
+#+end_src
+
+** Punti di integrazione
+
+*** Import ordini da SAP Business One
+
+| Attributo       | Valore                                         |
+|-----------------+------------------------------------------------|
+| Sistema esterno | SAP Business One                               |
+| Direzione       | IN (SAP → GestioneMagazzino)                   |
+| Protocollo      | File CSV su share NFS ~/mnt/sap-share/ordini/~ |
+| Frequenza       | Manuale (operatore carica da interfaccia)      |
+| Autenticazione  | Nessuna (accesso filesystem)                   |
+| Timeout         | N/A                                            |
+| Retry           | N/A (operazione manuale)                       |
+
+**** Formato scambio
+
+#+begin_example
+NumeroOrdine;Cliente;Indirizzo;SKU;Quantita;PrezzoUnitario
+ORD-2026-0145;Ferramenta Rossi Srl;Via Roma 1, Milano;EL-00123;5;12.50
+ORD-2026-0145;Ferramenta Rossi Srl;Via Roma 1, Milano;ME-00456;2;45.00
+ORD-2026-0146;Tecnoforniture SpA;Via Verdi 8, Torino;EL-00789;10;8.90
+#+end_example
+
+Un ordine multi-riga appare su più righe CSV con lo stesso ~NumeroOrdine~.
+L'import raggruppa automaticamente le righe per numero ordine.
+
+*** API Corriere BRT — Richiesta spedizione
+
+| Attributo       | Valore                                  |
+|-----------------+-----------------------------------------|
+| Sistema esterno | BRT Corriere Espresso                   |
+| Direzione       | OUT (GestioneMagazzino → BRT)           |
+| Protocollo      | REST/JSON over HTTPS                    |
+| Endpoint        | ~https://api.brt.it/v1/shipment~        |
+| Frequenza       | On-demand (alla generazione bolla)      |
+| Autenticazione  | API Key in header ~X-BRT-ApiKey~        |
+| Timeout         | 30 secondi                              |
+| Retry           | Nessuno (errore mostrato all'operatore) |
+
+**** Formato scambio
+
+Richiesta:
+#+begin_src json
+{
+  "sender": {
+    "name": "Logistica Nord Srl",
+    "address": "Via Industria 15, 20100 Milano"
+  },
+  "recipient": {
+    "name": "Ferramenta Rossi Srl",
+    "address": "Via Roma 1, 20121 Milano"
+  },
+  "packages": [
+    { "weight_kg": 2.5, "dimensions": "30x20x15" }
+  ],
+  "reference": "ORD-1234"
+}
+#+end_src
+
+Risposta:
+#+begin_src json
+{
+  "shipment_id": "BRT-2026-987654",
+  "tracking_number": "BRT123456789",
+  "label_url": "https://api.brt.it/labels/BRT-2026-987654.pdf",
+  "estimated_delivery": "2026-03-21"
+}
+#+end_src
+
+*** Invio fattura a FatturaPA
+
+| Attributo       | Valore                                             |
+|-----------------+----------------------------------------------------|
+| Sistema esterno | FatturaPA Service (fornitore esterno)              |
+| Direzione       | OUT (GestioneMagazzino → FatturaPA)                |
+| Protocollo      | SOAP/XML over HTTPS                                |
+| Endpoint        | ~https://fatturapa-service.example.com/ws/invoice~ |
+| Frequenza       | On-demand (alla conferma spedizione)               |
+| Autenticazione  | Certificato client X.509 + credenziali SOAP        |
+| Timeout         | 60 secondi                                         |
+| Retry           | 1 retry automatico dopo 5 secondi                  |
+
+
+* Parte IV — Censimento infrastrutturale
+
+** Inventario
+
+| Host / Servizio          | Ruolo                   | OS / Runtime     | Versione | Ambiente   | Responsabile  |
+|--------------------------+-------------------------+------------------+----------+------------+---------------|
+| srv-magazzino            | Application + DB server | Ubuntu 20.04 LTS |  20.04.6 | Produzione | Paolo Neri    |
+| srv-magazzino            | Web server              | Apache HTTP      |   2.4.54 | Produzione | Paolo Neri    |
+| srv-magazzino            | Runtime applicativo     | PHP (mod_php)    |   7.4.33 | Produzione | Marco Bianchi |
+| srv-magazzino            | Database                | MySQL            |   5.7.41 | Produzione | Marco Bianchi |
+| srv-staging              | Application + DB server | Ubuntu 20.04 LTS |  20.04.6 | Staging    | Paolo Neri    |
+| nas-01 (Synology DS920+) | File storage            | Synology DSM     |      7.1 | Produzione | Paolo Neri    |
+
+** Vista di deployment
+
+#+begin_src plantuml :file infra-deployment.png :exports results
+@startuml
+title Deployment infrastrutturale — GestioneMagazzino
+
+node "srv-magazzino\nUbuntu 20.04" as srv {
+    component "Apache 2.4\n:443 (HTTPS)" as apache
+    component "PHP 7.4\n(mod_php)" as php
+    database "MySQL 5.7\n:3306 (localhost)" as mysql
+    component "crontab" as cron
+    folder "/var/www/.../storage/" as storage
+}
+
+node "srv-staging\nUbuntu 20.04" as stg {
+    component "Apache 2.4" as apache_s
+    component "PHP 7.4" as php_s
+    database "MySQL 5.7" as mysql_s
+}
+
+node "nas-01\nSynology DS920+" as nas {
+    folder "/volume1/sap-share" as share
+}
+
+cloud "Internet" as inet {
+    component "BRT API" as brt
+    component "FatturaPA" as fpa
+}
+
+node "Rete interna\nVLAN 10" as lan {
+    component "SMTP relay\n:25" as smtp
+}
+
+apache --> php
+php --> mysql : TCP 3306
+cron --> php : PHP CLI
+php --> storage : fopen/fwrite
+php --> share : NFS mount
+php --> brt : HTTPS
+php --> fpa : HTTPS
+php --> smtp : SMTP/TLS
+
+apache_s --> php_s
+php_s --> mysql_s
+
+@enduml
+#+end_src
+
+** Dipendenze infrastrutturali
+
+| Dipendenza         | Tipo        | Porta / Protocollo | Direzione | Obbligatoria?  |
+|--------------------+-------------+--------------------+-----------+----------------|
+| MySQL locale       | Database    | 3306 / TCP         | Interna   | Sì             |
+| NFS share SAP      | File system | 2049 / NFS         | Interna   | No (import)    |
+| SMTP relay         | Email       | 25 / SMTP+TLS      | Uscita    | No (notifiche) |
+| BRT API            | REST API    | 443 / HTTPS        | Uscita    | No (tracking)  |
+| FatturaPA Service  | SOAP        | 443 / HTTPS        | Uscita    | No (fatture)   |
+| NTP (pool.ntp.org) | Sincroniz.  | 123 / UDP          | Uscita    | Sì             |
+
+** Configurazione rilevante
+
+| Parametro                     | Valore osservato      | Impatto                       | Note                               |
+|-------------------------------+-----------------------+-------------------------------+------------------------------------|
+| PHP memory_limit              | 128M                  | Sufficiente per uso corrente  | Import CSV grandi potrebbe fallire |
+| PHP max_execution_time        | 30s                   | Timeout su report complessi   | Già riscontrato da utenti          |
+| PHP upload_max_filesize       | 5M                    | Limite import CSV             | Adeguato                           |
+| MySQL max_connections         | 151 (default)         | Mai raggiunto                 | OK per singolo server app          |
+| MySQL innodb_buffer_pool_size | 128M                  | Sotto-dimensionato per 2GB DB | Consigliato almeno 1GB             |
+| Apache MaxRequestWorkers      | 150                   | Mai raggiunto                 |                                    |
+| Crontab (allarme scorte)      | ~0 2 * * *~           | Ogni giorno alle 02:00        |                                    |
+| Crontab (report mensile)      | ~0 6 1 * *~           | Primo del mese alle 06:00     |                                    |
+| Backup MySQL                  | mysqldump giornaliero | Solo DB, no file              | Su NAS via script bash             |
+| SSL/TLS                       | Let's Encrypt         | Rinnovo automatico certbot    | Scade ogni 90 giorni               |
+
+** Ambienti
+
+| Ambiente   | Endpoint                                  | Versione app | Differenze rispetto a produzione                   |
+|------------+-------------------------------------------+--------------+----------------------------------------------------|
+| Produzione | https://magazzino.logisticanord.local     |        3.8.2 | (riferimento)                                      |
+| Staging    | https://magazzino-stg.logisticanord.local |        3.8.2 | DB con dati anonimizzati, no accesso BRT/FatturaPA |
+
+** Domande aperte infrastruttura
+
+| #  | Domanda                                            | Stato                                 |
+|----+----------------------------------------------------+---------------------------------------|
+| I1 | Firewall rules: quali porte in uscita sono aperte? | Chiusa — 25, 443, 2049                |
+| I2 | Backup retention: quanti giorni vengono mantenuti? | Chiusa — 7 giorni, rotazione          |
+| I3 | Monitoring: Munin copre anche MySQL?               | Chiusa — solo CPU/RAM/disco, no MySQL |
+
+
+* Parte V — Requisiti non funzionali e rischi
+
+** Scenari di qualità
+
+*** QS-001: Tempo di risposta interfaccia web
+
+| Attributo       | Valore                                                       |
+|-----------------+--------------------------------------------------------------|
+| Qualità         | Performance                                                  |
+| Contesto        | Operatore accede alla lista ordini durante orario lavorativo |
+| Stimolo         | Richiesta GET pagina lista ordini con filtri                 |
+| Risposta attesa | Pagina renderizzata completamente                            |
+| Misura          | Tempo di risposta < 2 secondi per il 95° percentile          |
+| Priorità        | Alta                                                         |
+| Fonte           | Intervista I-02 (Laura Verdi)                                |
+
+*Stato attuale*: rispettato nella maggior parte dei casi. Criticità riscontrata
+sulla pagina report con intervallo date > 6 mesi (timeout PHP a 30 secondi).
+
+*** QS-002: Disponibilità del servizio
+
+| Attributo       | Valore                                   |
+|-----------------+------------------------------------------|
+| Qualità         | Disponibilità                            |
+| Contesto        | Orario lavorativo (08:00-18:00, lun-ven) |
+| Stimolo         | Richiesta HTTP da parte dell'operatore   |
+| Risposta attesa | Servizio raggiungibile e funzionante     |
+| Misura          | Uptime >= 99% durante orario lavorativo  |
+| Priorità        | Alta                                     |
+| Fonte           | Intervista I-03 (Paolo Neri)             |
+
+*Stato attuale*: nessun SLA formale. Da intervista, negli ultimi 12 mesi ci
+sono stati 3 downtime non pianificati (2 per aggiornamento Apache, 1 per disco
+pieno su storage/logs).
+
+*** QS-003: Integrità dati giacenze
+
+| Attributo       | Valore                                                             |
+|-----------------+--------------------------------------------------------------------|
+| Qualità         | Integrità                                                          |
+| Contesto        | Operazioni concorrenti su stesso prodotto                          |
+| Stimolo         | Due operatori completano picking per ordini diversi con stesso SKU |
+| Risposta attesa | Giacenza decrementata correttamente per entrambi                   |
+| Misura          | Zero discrepanze tra giacenza logica e conteggio fisico            |
+| Priorità        | Critica                                                            |
+| Fonte           | Intervista I-01 (Marco Bianchi)                                    |
+
+*Stato attuale*: *non garantito*. Le query di decremento giacenza non usano
+transazioni né ~SELECT ... FOR UPDATE~. In caso di accesso concorrente è
+possibile una race condition. Rischio R-011 nel registro rischi.
+
+** Livelli di servizio
+
+| Servizio / Componente | Metrica     | Valore osservato     | Valore atteso | Fonte      |
+|-----------------------+-------------+----------------------+---------------+------------|
+| Applicazione web      | Uptime      | ~99.2%               | >= 99%        | Munin      |
+| Applicazione web      | p95 latenza | ~800ms               | < 2s          | Log Apache |
+| MySQL                 | RTO         | ~2h (stima)          | < 4h          | I-03       |
+| MySQL                 | RPO         | 24h (backup daily)   | < 24h         | I-03       |
+| Job cron              | Esecuzione  | 100% (ultimi 6 mesi) | 100%          | syslog     |
+| Report PDF            | Generazione | 5-45 secondi         | < 30s         | I-02       |
+
+** Vincoli architetturali
+
+*** Vincoli tecnici
+
+| Vincolo                        | Descrizione                       | Impatto                              | Componenti     | Fonte |
+|--------------------------------+-----------------------------------+--------------------------------------+----------------+-------|
+| No framework PHP               | MVC artigianale senza Composer    | Manutenzione costosa, no community   | Tutti          | I-01  |
+| MySQL 5.7 come versione minima | Compatibilità con query esistenti | Blocca uso di CTE e window functions | Tutti          | I-01  |
+| mod_php (no PHP-FPM)           | PHP eseguito come modulo Apache   | Performance e isolamento limitati    | Web server     | I-03  |
+| Server fisico dedicato         | No virtualizzazione, no container | Scaling solo verticale               | Infrastruttura | I-03  |
+
+*** Vincoli organizzativi
+
+| Vincolo                     | Descrizione                                   | Impatto                              | Fonte |
+|-----------------------------+-----------------------------------------------+--------------------------------------+-------|
+| Team singolo sviluppatore   | Marco Bianchi è l'unico che conosce il codice | Bus factor = 1                       | I-01  |
+| Deploy manuale via SSH      | ~git pull~ + restart Apache                   | Nessuna pipeline CI/CD, errore umano | I-01  |
+| Change management informale | Nessun processo di approvazione modifiche     | Rischio di regressione               | I-03  |
+
+** Registro dei rischi
+
+| ID    | Rischio                                | Componenti     | Probabilità | Impatto | Livello | Mitigazione proposta                          | Owner         |
+|-------+----------------------------------------+----------------+-------------+---------+---------+-----------------------------------------------+---------------|
+| R-001 | PHP 7.4 EOL — vulnerabilità note       | App web        | Alta        | Alto    | Critico | Upgrade PHP 8.2+ entro Q3 2026                | Marco Bianchi |
+| R-002 | MySQL 5.7 EOL — vulnerabilità note     | Database       | Alta        | Alto    | Critico | Upgrade MySQL 8.0 coordinato con PHP          | Marco Bianchi |
+| R-003 | Bus factor = 1                         | Tutti          | Media       | Alto    | Alto    | Documentazione + onboarding secondo dev       | Management    |
+| R-004 | Nessun test automatico significativo   | App web        | Alta        | Medio   | Alto    | PHPUnit sui flussi critici (ordini, giacenze) | Marco Bianchi |
+| R-005 | Single point of failure server         | Infrastruttura | Bassa       | Alto    | Medio   | Replica DB + valutazione load balancer        | Paolo Neri    |
+| R-006 | Backup mai testato con restore         | Database       | Media       | Alto    | Alto    | Test di restore trimestrale                   | Paolo Neri    |
+| R-007 | Credenziali in chiaro in config.php    | App web        | Media       | Alto    | Alto    | Migrare a variabili d'ambiente                | Marco Bianchi |
+| R-008 | SQL injection (no prepared statements) | App web        | Media       | Alto    | Alto    | Audit + migrazione a prepared statements      | Marco Bianchi |
+| R-009 | jQuery 3.5.1 con CVE note              | Frontend       | Media       | Basso   | Medio   | Aggiornamento a versione corrente             | Marco Bianchi |
+| R-010 | Log senza rotazione (disco pieno)      | Infrastruttura | Alta        | Basso   | Medio   | Configurare logrotate                         | Paolo Neri    |
+| R-011 | Race condition su giacenze             | Modulo scorte  | Media       | Alto    | Alto    | Transazioni DB + SELECT FOR UPDATE            | Marco Bianchi |
+| R-012 | Nessun WAF o rate limiting             | Web server     | Bassa       | Medio   | Medio   | mod_security o reverse proxy con rate limit   | Paolo Neri    |

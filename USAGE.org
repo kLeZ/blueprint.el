@@ -636,13 +636,29 @@ Parti del master che NON sono sincronizzate automaticamente:
 
 /Quando: per le review intermedie con il cliente e per la consegna finale./
 
+** Export in ODT
+
+#+begin_src
+M-x blueprint-export-odt  (oppure: C-c b O)
+#+end_src
+
+Usa =org-odt-export-to-odt= (export nativo di org, nessuna dipendenza
+esterna). Rispetta =#+ODT_STYLES_FILE:= impostato in =master.org=: è il modo
+per applicare un template aziendale (intestazione/stili del cliente), a
+differenza del PDF via LaTeX che non ha un meccanismo equivalente. Il backend
+di default resta =pdf= (valore di pacchetto, condiviso da ogni progetto/
+utente Blueprint); per farne =odt= il proprio default personale, impostare
+=blueprint-export-backend= nella propria configurazione (=:custom= nel
+=use-package blueprint=), non nel pacchetto.
+
 ** Export in Word (.docx)
 
 #+begin_src
-M-x blueprint-export-docx  (oppure: C-c b e d)
+M-x blueprint-export-docx
 #+end_src
 
-Usa la pipeline: =org-mode → pandoc → .docx=.
+Usa la pipeline: =org-mode → pandoc → .docx=. Richiede il pacchetto
+=ox-pandoc=.
 
 Se il cliente ha un template Word aziendale (header, footer, stili, logo),
 salvarlo come =.blueprint/templates/reference.docx= prima di eseguire l'export.
@@ -651,10 +667,25 @@ Blueprint lo usa come reference document per pandoc.
 ** Export in PDF
 
 #+begin_src
-M-x blueprint-export-pdf  (oppure: C-c b e p)
+M-x blueprint-export-pdf  (oppure: C-c b P)
 #+end_src
 
-Usa la pipeline: =org-mode → LaTeX → PDF= (via Emacs org-export) oppure pandoc.
+Usa la pipeline: =org-mode → LaTeX → PDF= (via Emacs org-export). Non applica
+=#+ODT_STYLES_FILE:= né un template Word: per un template aziendale, preferire
+ODT o DOCX.
+
+** Scegliere il formato a runtime
+
+#+begin_src
+M-x blueprint-export-dispatch  (oppure: C-c b v)
+#+end_src
+
+Apre =master.org= e passa il controllo al menu standard di org
+(=org-export-dispatch=): qualunque backend org conosca (ODT, PDF, HTML,
+ASCII, ...) e qualunque opzione per-file già supportata da org
+(=#+ODT_STYLES_FILE:=, =#+LATEX_CLASS:=, ecc.) è scelta lì, invece di essere
+fissata in anticipo da =blueprint-export-backend=. =M-x blueprint-export=
+(=C-c b E=) resta la scorciatoia che usa sempre il backend di default.
 
 ** CI headless
 

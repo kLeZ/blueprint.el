@@ -74,17 +74,43 @@
   "Generate #+INCLUDE: directives for arc42.org in all components, sorted by name."
   (blueprint--generate-includes-for "arc42.org"))
 
+(defun blueprint--component-display-name (name dir filename)
+  "Return a human-readable display name for component NAME.
+Reads the #+TITLE: keyword from FILENAME inside DIR, if present, and
+returns the text before the first \" -- \" separator (the convention
+used by Blueprint's own component templates, e.g. \"Portale --
+Architettura (arc42)\").  Falls back to the unparsed title, and to NAME
+capitalized, if FILENAME is unreadable or has no #+TITLE: line."
+  (let ((file (expand-file-name filename dir)))
+    (or (when (file-exists-p file)
+          (with-temp-buffer
+            (insert-file-contents file)
+            (goto-char (point-min))
+            (when (re-search-forward "^#\\+TITLE:[ \t]*\\(.*\\)$" nil t)
+              (let ((title (string-trim (match-string 1))))
+                (cond
+                 ((string-empty-p title) nil)
+                 ((string-match "\\`\\(.*?\\)[ \t]+--[ \t]+" title)
+                  (match-string 1 title))
+                 (t title))))))
+        (capitalize name))))
+
 (defun blueprint--generate-includes-for (filename)
   "Generate #+INCLUDE: directives for FILENAME in component directories.
 Only includes components that actually have FILENAME in their directory.
-Components are sorted alphabetically by name.  Returns an empty string
-when no matching files are found."
+Components are sorted alphabetically by name.  Each include is preceded
+by a level-2 headline naming the component (see
+`blueprint--component-display-name'), so the assembled master.org marks
+where one component's section ends and the next begins; the include
+itself uses :minlevel 3 to nest under that headline.  Returns an empty
+string when no matching files are found."
   (let ((names (sort (hash-table-keys (blueprint--components)) #'string<))
         (lines '()))
     (dolist (name names)
       (let ((dir (gethash name (blueprint--components))))
         (when (file-exists-p (expand-file-name filename dir))
-          (push (format "#+INCLUDE: \".blueprint/components/%s/%s\" :minlevel 2"
+          (push (format "** %s\n#+INCLUDE: \".blueprint/components/%s/%s\" :minlevel 3"
+                        (blueprint--component-display-name name dir filename)
                         name filename)
                 lines))))
     (mapconcat #'identity (nreverse lines) "\n")))
@@ -109,8 +135,12 @@ cannot interfere."
           (when end
             (delete-region (1+ start) (line-beginning-position))
             (goto-char (1+ start))
+            ;; (1+ start) already sits at the beginning of the line right
+            ;; after start-marker, so no extra leading newline is needed
+            ;; before CONTENT (it used to produce a spurious blank line
+            ;; between the marker and the synced content on every sync).
             (unless (string= "" content)
-              (insert "\n" content "\n"))))))))
+              (insert content "\n"))))))))
 
 ;;;###autoload
 (defun blueprint-sync ()

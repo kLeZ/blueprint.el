@@ -28,7 +28,8 @@
 ;;   - Glossary, references, and open questions management
 ;;   - Master file sync with #+INCLUDE: directives
 ;;   - Linter with CI/headless support
-;;   - Org-native export (PDF, HTML, DOCX)
+;;   - Org-native export (PDF, ODT, HTML, DOCX); interactive dispatch to
+;;     pick a backend/template at runtime instead of a fixed default
 ;;   - Auto-tangle and watch mode
 ;;   - Rule-based risk suggestions
 ;;   - AI-assisted snippets via Ollama (optional)
@@ -116,8 +117,10 @@
     ("D" "diff" blueprint-template-diff)
     ("M" "migrate" blueprint-template-migrate)]
    ["Export"
-    ("E" "export" blueprint-export)
+    ("E" "export (default backend)" blueprint-export)
     ("P" "export PDF" blueprint-export-pdf)
+    ("O" "export ODT" blueprint-export-odt)
+    ("v" "export... (choose format)" blueprint-export-dispatch)
     ("T" "async tangle" blueprint-async-tangle)]
    ["Search & ADR"
     ("/" "search" blueprint-search)
@@ -151,6 +154,8 @@
     (define-key map (kbd "M") #'blueprint-template-migrate)
     (define-key map (kbd "S") #'blueprint-sync)
     (define-key map (kbd "E") #'blueprint-export)
+    (define-key map (kbd "O") #'blueprint-export-odt)
+    (define-key map (kbd "v") #'blueprint-export-dispatch)
     (define-key map (kbd "Q") #'blueprint-add-question)
     (define-key map (kbd "Y") #'blueprint-glossary-list)
     (define-key map (kbd "Z") #'blueprint-reference-list)

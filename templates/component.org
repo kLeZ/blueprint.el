@@ -19,9 +19,9 @@ monitoring → interviste → documentazione preesistente.
 ** Esempio: intestazione e dipendenze
 
 #+BEGIN_SRC org
-  ,#+BLUEPRINT_DEPENDS: order-service notification-service
-  ,#+BLUEPRINT_OWNER: team-payments
-  ,#+BLUEPRINT_TECH: Java 17 / Spring Boot 3 / PostgreSQL 15
+#+BLUEPRINT_DEPENDS: order-service notification-service
+#+BLUEPRINT_OWNER: team-payments
+#+BLUEPRINT_TECH: Java 17 / Spring Boot 3 / PostgreSQL 15
 #+END_SRC
 
 ** Esempio: tabella utenti e ruoli
@@ -212,7 +212,7 @@ transazionalità, autenticazione, autorizzazione.
 | Gestione errori |                    |      |
 | Transazionalità |                    |      |
 
-* Risks                                                   :important:meeting:
+* Risks
 <<{{ID}}-risks>>
 [DA VALIDARE]
 
@@ -221,8 +221,6 @@ Vedere anche: [[file:../../nfr/risks.org][Registro rischi trasversale]]
 
 | Rischio | Probabilità | Impatto | Livello | Mitigazione |
 |---------+-------------+---------+---------+-------------|
-
-- [ ] parlare di questo capitolo più approfonditamente per vagliare l'ipotesi di espanderlo o eliminarlo
 
 * Open Questions
 <<{{ID}}-questions>>

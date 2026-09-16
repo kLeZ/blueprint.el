@@ -116,8 +116,12 @@ enough to show a client during a review session.
   the master document
 - **Linter** — validation rules (missing headings, excessive unresolved markers,
   dangling dependencies, empty content) with headless/CI support
-- **Org-native export** — PDF, HTML, and DOCX export using the Org exporter
-  (DOCX requires `ox-pandoc`)
+- **Org-native export** — PDF, ODT, HTML, and DOCX export using the Org
+  exporter (DOCX requires `ox-pandoc`); ODT respects a per-file
+  `#+ODT_STYLES_FILE:` corporate template. `blueprint-export-dispatch` hands
+  off to Org's own `org-export-dispatch` menu to pick a backend/template
+  interactively instead of using the fixed default (`blueprint-export-backend`,
+  `pdf` unless overridden)
 - **Async tangle/export** — background processing via Emacs 29+ threads to avoid
   blocking the UI
 - **Auto-tangle on save** — minor mode for automatic `org-babel-tangle` when
@@ -518,7 +522,7 @@ All customization options are in the `blueprint` customize group
 | `blueprint-template-dir`          | `templates/` in package directory | System-level templates directory |
 | `blueprint-user-template-dir`     | `~/.config/blueprint/templates`   | User-level templates directory   |
 | `blueprint-lint-marker-threshold` | `5`                               | Marker count before lint warns   |
-| `blueprint-export-backend`        | `pdf`                             | Default export format            |
+| `blueprint-export-backend`        | `pdf`                              | Default export format            |
 | `blueprint-graph-backend`         | `plantuml`                        | Dependency graph renderer        |
 | `blueprint-watch-auto-sync`       | `nil`                             | Auto-sync master on save         |
 | `blueprint-watch-auto-c4`         | `nil`                             | Auto-regenerate C4 on save       |
@@ -588,7 +592,7 @@ blueprint.el/
 ├── blueprint-references.el  # Reference tracking
 ├── blueprint-sync.el        # Master file synchronization (3 sections)
 ├── blueprint-search.el      # Ripgrep/grep project search
-├── blueprint-export.el      # Org-native export (PDF, HTML, DOCX)
+├── blueprint-export.el      # Org-native export (PDF, ODT, HTML, DOCX)
 ├── blueprint-async.el       # Background threads for export/tangle
 ├── blueprint-watch.el       # Auto-tangle and watch minor modes
 ├── blueprint-graph.el       # Dependency graph (PlantUML/Graphviz)

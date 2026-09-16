@@ -36,6 +36,13 @@ jobs:
             -l blueprint-risks.el \
             -l blueprint-ai.el \
             -l blueprint-migrate.el \
+            -l blueprint-functional.el \
+            -l blueprint-runtime.el \
+            -l blueprint-nfr.el \
+            -l blueprint-delivery.el \
+            -l blueprint-export.el \
+            -l blueprint-dashboard.el \
+            -l blueprint-watch.el \
             -l test/blueprint-test-helpers.el \
             -l test/blueprint-test-core.el \
             -l test/blueprint-test-health.el \
@@ -46,5 +53,13 @@ jobs:
             -l test/blueprint-test-content.el \
             -l test/blueprint-test-risks.el \
             -l test/blueprint-test-ai.el \
+            -l test/blueprint-test-functional.el \
+            -l test/blueprint-test-runtime.el \
+            -l test/blueprint-test-nfr.el \
+            -l test/blueprint-test-delivery.el \
+            -l test/blueprint-test-dashboard.el \
+            -l test/blueprint-test-migrate.el \
+            -l test/blueprint-test-watch.el \
             -l test/blueprint-test-e2e.el \
+            -l test/blueprint-test-export.el \
             -f ert-run-tests-batch-and-exit

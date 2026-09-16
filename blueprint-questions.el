@@ -50,7 +50,11 @@ Returns the position where new content should be inserted, or nil."
                            (line-beginning-position)))))
                   (goto-char (or next-heading (point-max)))
                   (unless (bolp) (insert "\n"))
-                  (insert (format "- QUESTION %s\n" question))))
+                  (insert (format "- QUESTION %s\n" question))
+                  ;; Restore the blank line separating this section from the
+                  ;; next heading, which the insertion above just consumed.
+                  (when (and next-heading (eq (char-after) ?*))
+                    (insert "\n"))))
             (goto-char (point-max))
             (insert (format "\n* Open Questions\n\n- QUESTION %s\n" question)))))
       (save-buffer))

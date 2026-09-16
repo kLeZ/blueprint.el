@@ -47,14 +47,14 @@ ora persa.
 
 Presentare la struttura:
 
-| Parte | Contenuto sintetico        | Chi la legge                 |
-|-------+----------------------------+------------------------------|
-| 0     | Premesse, glossario        | Tutti                        |
-| I     | Come i sistemi si parlano  | Dirigenti, architetti senior |
-| II    | Come funziona ogni sistema | Architetti, sviluppatori     |
-| III   | Cosa fa il software        | Analisti, product owner, BU  |
-| IV    | Dove gira il software      | IT operations, sistemisti    |
-| V     | Come deve comportarsi      | Architetti, management IT    |
+| Parte | Titolo                      | Contenuto                                       | Audience primaria               |
+|-------+-----------------------------+-------------------------------------------------+---------------------------------|
+| 0     | Premesse                    | Scopo, perimetro, metodo di raccolta, glossario | Tutti                           |
+| I     | Architettura enterprise     | Vista aggregata, dipendenze cross-sistema       | Dirigenti, architetti senior    |
+| II    | Architettura per componente | arc42 selettivo per ogni sistema                | Architetti, sviluppatori senior |
+| III   | Specifiche funzionali       | Business rules, formule, logica di dominio      | Analisti, product owner, BU     |
+| IV    | Censimento infrastrutturale | Inventario, deployment, dipendenze infra        | IT operations, sistemisti       |
+| V     | NFR e vincoli               | Scenari di qualita', vincoli, rischi tecnici    | Architetti, management IT       |
 
 - Chiarire che e' un unico documento ma organizzato per consentire lettura
   selettiva per ruolo.

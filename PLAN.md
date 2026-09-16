@@ -83,7 +83,14 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
 
 ### ~~4.1 Org-native export (`blueprint-export.el`)~~ ✅
 
-- ~~PDF, HTML, DOCX (con ox-pandoc)~~
+- ~~PDF, ODT, HTML, DOCX (con ox-pandoc)~~
+- ~~`blueprint-export-dispatch`: hand-off al menu standard `org-export-dispatch`
+  su master.org, per scegliere backend/template a runtime invece che via
+  `blueprint-export-backend` fisso~~
+- ~~Default backend resta `pdf` (valore di pacchetto); un utente che preferisce
+  `odt` (es. per un template aziendale via `#+ODT_STYLES_FILE:`, che il PDF
+  via LaTeX non applica) lo imposta nella propria config (`:custom` nel
+  `use-package blueprint`), non nel pacchetto~~
 
 ### ~~4.2 Async tangle/export (`blueprint-async.el`)~~ ✅
 
@@ -166,13 +173,24 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
 
 ### 8.1 Fix noti e tech debt
 
-- [ ] `blueprint-questions.el`: `blueprint--find-heading` non gestisce heading
-      con TODO keyword o tag (`:raw-value` esclude il tag ma
-      `re-search-forward "^\\* "` usato subito dopo per trovare il prossimo
-      heading può matchare heading nested al livello sbagliato)
-- [ ] `blueprint-sync.el`: `blueprint--sync-section` inserisce `\n` prima del
-      content dopo il char già presente alla fine del marker, producendo una
-      riga vuota extra a ogni sync (cosmetic, non funzionale)
+- [x] `blueprint-questions.el`: investigato il presunto bug di
+      `blueprint--find-heading` con heading a TODO keyword/tag — verificato
+      via probe diretto su `org-element-parse-buffer` che `:raw-value` esclude
+      correttamente sia il TODO keyword sia i tag, quindi il matching
+      dell'heading funziona già bene in quel caso. Trovato invece un bug reale
+      e indipendente dal TODO/tag in `blueprint-add-question`: quando esiste
+      già un heading successivo, l'inserimento della nuova QUESTION consuma la
+      riga vuota che separava la sezione "Open Questions" dall'heading
+      successivo, incollandoli. **fix**: dopo l'insert, se il carattere
+      immediatamente successivo è `*` (heading senza riga vuota), viene
+      reinserita la riga vuota. Test di regressione:
+      `blueprint-test-questions/preserves-blank-line-before-next-heading`.
+- [x] `blueprint-sync.el`: `blueprint--sync-section` inseriva `\n` prima del
+      content anche se `(1+ start)` è già posizionato a inizio riga subito
+      dopo lo start-marker, producendo una riga vuota extra a ogni sync
+      (cosmetic, non funzionale). **fix**: rimosso il `\n` iniziale ridondante
+      da `(insert "\n" content "\n")` → `(insert content "\n")`. Test di
+      regressione: `blueprint-test-sync/sync-section-no-spurious-blank-line`.
 - [x] `blueprint-wizard.el`: `blueprint-wizard-component` popola
       `#+BLUEPRINT_OWNER:` e `#+BLUEPRINT_TECH:` (presenti nel template
       `component.org`) ma nessun altro modulo li leggeva — **fix**: aggiunte
@@ -182,13 +200,88 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
       "creating it if needed" ma la funzione segnala `user-error` senza creare
       nulla. **fix**: docstring corretto; messaggio di errore aggiornato a "run
       blueprint-init or blueprint-sync first".
+- [x] `blueprint-export.el`: `#+TITLE` è una keyword "cumulativa" per
+      org-export (`parse` behaviour in `org-export-options-alist`, concatena
+      valori multipli). Ogni file satellite incluso in `master.org` via
+      `#+INCLUDE` porta il proprio `#+TITLE` (utile per editing standalone), e
+      org lo mantiene nel buffer espanso: il titolo del documento esportato
+      (ODT/PDF/HTML/DOCX) diventava la concatenazione di tutti i titoli inclusi
+      invece del solo titolo del master. Rilevato su un progetto reale
+      (progetto pilota, 17 file satellite inclusi). **fix**: nuova
+      `blueprint--strip-duplicate-titles`, agganciata a
+      `org-export-before-parsing-functions` al caricamento del pacchetto —
+      gira dopo l'espansione degli `#+INCLUDE` e prima che org raccolga le
+      keyword del documento, rimuove ogni `#+TITLE` tranne il primo. Vale per
+      qualunque backend e per l'export ODT nativo di org (non gestito da
+      `blueprint-export.el`), perché agisce su una variabile hook globale.
+      Implementata con `org-element` (non regex): individua solo i nodi
+      keyword reali, così un `#+TITLE:` mostrato come testo di esempio dentro
+      un blocco `example`/`src` (pattern comune nei file org tutorial-style)
+      resta intatto. Test di regressione: `test/blueprint-test-export.el`.
+- [ ] `#+ODT_STYLES_FILE` con un template aziendale "grezzo" (un `.ott`
+      scritto in Writer, non derivato dall'export di org) produce un export
+      ODT rotto **senza alcun errore o warning**: quel file sostituisce
+      integralmente `styles.xml`, che di norma contiene anche gli stili
+      interni di cui org ha bisogno (`OrgDisplayImage`, `OrgTable*`,
+      `OrgCode`, `OrgBulletedList`/`OrgNumberedList`, ecc. — verificati 13+
+      nomi diversi in un caso reale). Un template aziendale normale non li
+      conosce: il documento risulta "quasi giusto" (gli stili standard come
+      Heading/Text body hanno un fallback implicito in LibreOffice) ma le
+      immagini a paragrafo (ogni diagramma PlantUML incluso via
+      `#+begin_src plantuml :file x.svg`) si sovrappongono al contenuto
+      successivo invece di riservare lo spazio verticale, perché
+      `OrgDisplayImage` — che imposta `wrap="none"` — non esiste da nessuna
+      parte. Rilevato su un progetto reale (progetto pilota,
+      `template-aziendale.ott`), segnalato dall'utente come "problema col
+      documento finale" senza altro contesto: diagnosticato confrontando
+      ogni `style-name` referenziato in `content.xml` con quelli definiti in
+      `content.xml`+`styles.xml` esportati. Fix applicato manualmente in
+      quel progetto (unione degli stili mancanti, presi da
+      `OrgOdtStyles.xml`, dentro lo `styles.xml` del template aziendale) ma
+      **nel pacchetto manca tuttora qualunque controllo**: proposta —
+      un check in `blueprint-ci-validate` (o funzione dedicata) che, dato un
+      `#+ODT_STYLES_FILE`, estragga gli stili referenziati da un export di
+      prova e segnali quelli assenti dal file styles.xml risultante, prima
+      che l'utente scopra il difetto solo aprendo il documento finale.
+- [x] L'export via `emacs -Q --batch` (necessario per riproducibilità/CI,
+      fuori dalla sessione Emacs interattiva dell'utente) **perdeva in
+      silenzio tutti i diagrammi PlantUML** senza impostare esplicitamente
+      `org-confirm-babel-evaluate` (nil), `org-plantuml-exec-mode`
+      (`'plantuml`, eseguibile invece del jar) e `org-babel-do-load-languages`
+      con `(plantuml . t)`: senza questi, ogni blocco `#+begin_src plantuml`
+      veniva esportato come listato di codice sorgente al posto
+      dell'immagine, senza errori né warning. Il problema non è specifico di
+      ODT: riguarda ogni backend che passa dal meccanismo Babel-in-export di
+      Org (PDF, HTML, DOCX inclusi). **fix**: nuova macro
+      `blueprint--with-plantuml-export` in `blueprint-export.el`, usata da
+      tutte e quattro le funzioni di export (`blueprint-export-pdf/-odt/-html/
+      -docx`). Imposta i tre valori solo per la durata della chiamata di
+      export (`let`, non `setq`) e solo se la variabile è ancora al suo
+      default di libreria (`org-confirm-babel-evaluate` = `t`,
+      `org-plantuml-exec-mode` = `'jar`): una configurazione già presente
+      nell'`init.el` dell'utente non viene mai toccata. `ob-plantuml` è ora
+      richiesto a livello di file (non dentro la macro) perché altrimenti
+      `org-plantuml-exec-mode` non è ancora dichiarata "special" quando un
+      `let` prova a bindarla, con conseguente `void-variable` o
+      `"Defining as dynamic an already lexical var"` a runtime (lexical
+      binding). Test di regressione: `blueprint-test-export/plantuml-export-*`
+      in `test/blueprint-test-export.el`.
 
 ### 8.2 Miglioramenti ai test
 
-- [ ] Aggiungere test per `blueprint-dashboard.el` (buffer entries, focus mode)
-- [ ] Aggiungere test per `blueprint-migrate.el` (diff e migrazione
-      non-distruttiva)
-- [ ] Aggiungere test per `blueprint-watch.el` (hook install/remove)
+- [x] Aggiungere test per `blueprint-dashboard.el` (buffer entries, focus
+      mode, colonne Owner/Tech, status classification) —
+      `test/blueprint-test-dashboard.el`
+- [x] Aggiungere test per `blueprint-migrate.el` (diff e migrazione
+      non-distruttiva) — `test/blueprint-test-migrate.el`. Nota: il test del
+      diff deve neutralizzare `kill-buffer-query-functions` prima di ripulire
+      il buffer `*diff*`, perché `blueprint-template-diff` lancia `diff` come
+      sottoprocesso asincrono via `compilation-start` e altrimenti
+      `kill-buffer` chiede conferma leggendo da stdin, che in `--batch`
+      fallisce con `end-of-file`.
+- [x] Aggiungere test per `blueprint-watch.el` (hook install/remove,
+      `blueprint--in-project-p`, invalidazione cache) —
+      `test/blueprint-test-watch.el`
 - [ ] Test negativi più sistematici (input invalido, file corrotti)
 
 ---
@@ -284,6 +377,109 @@ dashboard mostrerebbe una vista aggregata multi-sistema.
 
 Minor mode che apre un buffer laterale con l'anteprima SVG del grafico delle
 dipendenze, aggiornata in tempo reale al salvataggio dei file.
+
+### 9.11 Milestone/cronoprogramma nella dashboard
+
+Trovato pilotando il pacchetto sul progetto pilota: la dashboard
+(`blueprint-dashboard.el`) ha solo metriche per componente (Questions/TBD/
+FIXME/Status); non esiste alcun concetto di scadenza o milestone a livello
+di progetto. Un progetto reale ha quasi sempre un cronoprogramma con
+consegne parziali, e sapere "quanto manca alla prossima" è informazione
+che vale la pena avere a colpo d'occhio quanto l'health score.
+
+Proposta minimale: per convenzione, se esistono `CRONOPROGRAMMA.org` e/o
+`TODO.org` nella root del progetto, `blueprint-dashboard-refresh` aggiunge
+alla header-line la prossima milestone aperta (prima riga con keyword
+`TODO`/non completata sotto un heading o tabella riconosciuta come
+milestone) e il conteggio degli item `TODO` aperti nel progetto. Nessun
+nuovo formato da imporre: si riusa Org standard (keyword TODO/DONE,
+tabelle) già presente nei progetti pilota. Non implementato: da valutare
+se vale la generalizzazione o resta specifico del progetto pilota.
+
+### 9.12 Evoluzione del meccanismo Open Questions (`blueprint-questions.el`)
+
+Trovato progettando una skill di tracking domande sul progetto
+pilota. `blueprint-add-question`/`blueprint-list-questions` gestiscono
+solo una lista piatta (`- QUESTION <testo>`) per componente: nessun
+tag/area, nessuna cronologia di risoluzione (chi ha risposto, quando,
+con quale fonte), nessun modo di marcare una domanda come chiusa senza
+cancellarla (perderebbe la storia). Il progetto pilota ha dovuto
+costruire una sovrastruttura esterna (`DOMANDE.org`, con tag di area e
+proiezione selettiva verso `QUESTION` per le domande con un componente
+di casa) perché il meccanismo nativo non basta a un assessment con
+molte domande cross-componente e con interviste diluite nel tempo.
+
+Proposta (non specificata in dettaglio, da validare se generalizzabile):
+- Estendere la riga `QUESTION` con proprietà opzionali (tag/area,
+  stato `OPEN`/`ANSWERED`, riferimento alla fonte della risposta),
+  mantenendo la sintassi retrocompatibile per chi usa solo il flusso
+  attuale.
+- `blueprint-list-questions` con filtro per tag/stato, non solo elenco
+  piatto.
+- Valutare se ha senso un concetto di domanda "senza componente" (oggi
+  `blueprint-add-question` richiede sempre un componente).
+
+### 9.13 `blueprint-delete-component` non ripulisce i riferimenti esterni
+
+Trovato rimodulando il perimetro del progetto pilota (un
+componente contrattuale è stato ridimensionato ad area
+funzionale di un altro componente e va rimosso come componente
+blueprint). `blueprint-delete-component` (`blueprint-core.el`) cancella
+solo la directory del componente: non tocca le righe `#+INCLUDE` che lo
+referenziano in `master.org` (tre, una per arc42/functional/
+infrastructure), non aggiorna `BLUEPRINT_DEPENDS` negli altri componenti
+che lo citassero, e non rimuove i mirror `QUESTION` residui altrove.
+Usarla oggi lascerebbe `master.org` con `#+INCLUDE` verso file
+inesistenti (errore di export silenzioso o rumoroso a seconda del
+backend). Nel progetto pilota si è scelto di non usarla e di lasciare il
+componente fisicamente presente finché il contenuto non viene fuso a
+mano nel componente di destinazione (vedi ADR 0005 del progetto).
+
+Proposta (non specificata in dettaglio): `blueprint-delete-component`
+dovrebbe, prima di cancellare la directory, cercare e rimuovere le righe
+`#+INCLUDE` che puntano al componente in `master.org` (dentro le sezioni
+`@@blueprint-sync-*-start/end@@`, coerentemente con come `blueprint-sync`
+le gestisce) e segnalare (non rimuovere automaticamente, serve giudizio
+umano) le occorrenze del nome componente in `BLUEPRINT_DEPENDS` altrove
+nel progetto.
+
+### ~~9.14 Le sezioni sync-managed di `master.org` non separano i componenti con un titolo~~ ✅
+
+Trovato rileggendo l'export finale del progetto pilota: le
+tre sezioni gestite da `blueprint-sync` (Parte II arc42, Parte III
+functional, Parte IV infrastructure) generavano solo una lista piatta
+di `#+INCLUDE` (`blueprint--generate-includes-for`), senza alcun
+headline che nominasse il componente prima di ciascun file incluso. Nel
+documento esportato, ogni componente iniziava con `* Introduction` (o
+un altro headline generico riusato da tutti i componenti): non c'era
+modo per il lettore di sapere da un headline che si era passati da un
+componente al successivo -- l'unico segnale era la riga `#+TITLE:` del
+file incluso, che però org non renderizza mai come separatore a metà
+documento (le concatena tutte in un titolo unico, comportamento
+*diverso* ma altrettanto inutile a questo scopo). Non era un problema
+di export: era strutturale, presente probabilmente fin dalla prima
+generazione di `master.org` per qualunque progetto blueprint.el con più
+di un componente. Un primo workaround manuale nel progetto pilota
+(headline scritti a mano tra i marker sync) si è rivelato fragile: un
+resync dopo l'aggiunta/rimozione di un componente cancellava gli
+headline aggiunti a mano.
+
+Risolto in `blueprint-sync.el`: `blueprint--generate-includes-for` ora
+genera, per ciascun componente, un headline di livello 2 (`**
+<NomeComponente>`) subito prima del relativo `#+INCLUDE`, con
+`:minlevel 3` invece di 2 perché l'include si annidi correttamente
+sotto quel headline. Il nome mostrato viene da una nuova funzione,
+`blueprint--component-display-name`, che legge il `#+TITLE:` del file
+incluso e ne prende il testo prima del primo `" -- "` (la convenzione
+già usata dai template dei componenti, es. "Portale -- Architettura
+(arc42)"); se il file non è leggibile o il titolo non segue quella
+convenzione, usa il titolo per intero o, in ultima istanza, il nome del
+componente capitalizzato. Tre nuovi test in `blueprint-test-sync.el`
+coprono l'headline generato, l'estrazione dal `#+TITLE:` e il fallback;
+aggiornati i due test esistenti che assumevano `:minlevel 2` e un solo
+match di riga per componente. Nessuna migrazione richiesta per i
+progetti pilota esistenti: il prossimo `blueprint-sync` rigenera la
+sezione con gli headline corretti automaticamente.
 
 ---
 

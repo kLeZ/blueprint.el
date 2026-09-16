@@ -135,6 +135,25 @@
       (should (string-match-p "Question one" content))
       (should (string-match-p "Question two" content)))))
 
+(ert-deftest blueprint-test-questions/preserves-blank-line-before-next-heading ()
+  "Adding a question keeps the next heading separated by a blank line,
+even when the Open Questions heading itself carries a TODO keyword
+and a tag."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "mycomp"
+     (concat "#+TITLE: mycomp\n\n"
+             "* TODO Open Questions :draft:\n\n"
+             "- QUESTION existing one\n\n"
+             "* DONE Building Blocks :arch:\n\n"
+             "Some content that must survive untouched.\n"))
+    (blueprint-add-question "mycomp" "New question here")
+    (let ((content (blueprint-test--read-file
+                    (blueprint--component-file "mycomp"))))
+      (should (string-match-p "New question here" content))
+      (should-not (string-match-p "New question here\n\\* DONE" content))
+      (should (string-match-p "must survive untouched" content)))))
+
 (ert-deftest blueprint-test-questions/unknown-component-errors ()
   "Adding a question to a non-existent component raises an error."
   (blueprint-test--with-project
