@@ -14,6 +14,7 @@
 ;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-lint
 ;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-validate
 ;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-export
+;;   Emacs -Q --batch -l blueprint.el -f blueprint-ci-check-odt-styles
 
 ;;; Code:
 
@@ -23,6 +24,7 @@
 
 (declare-function blueprint-sync "blueprint-sync" ())
 (declare-function blueprint-export "blueprint-export" ())
+(declare-function blueprint--check-odt-styles-missing "blueprint-export" ())
 
 ;;;###autoload
 (defun blueprint-ci-lint ()
@@ -109,6 +111,31 @@ Exits with code 0 (pass), 1 (warnings), or 2 (errors)."
         (when noninteractive (kill-emacs 0)))
     (error
      (message "Blueprint CI export: FAIL — %s" (error-message-string err))
+     (when noninteractive (kill-emacs 2)))))
+
+;;;###autoload
+(defun blueprint-ci-check-odt-styles ()
+  "Run `blueprint--check-odt-styles-missing' in batch mode.
+Opt-in, unlike `blueprint-ci-validate': it requires an actual ODT
+export and a #+ODT_STYLES_FILE:, so most CI pipelines have no reason
+to run it on every push -- add it to your own workflow only if
+master.org sets a corporate ODT_STYLES_FILE.  Exits 0 (no missing
+styles) or 2 (missing styles found)."
+  (require 'blueprint-export)
+  (condition-case err
+      (let* ((result (blueprint--check-odt-styles-missing))
+             (missing (car result)))
+        (if (null missing)
+            (progn
+              (message "Blueprint CI check-odt-styles: PASS")
+              (when noninteractive (kill-emacs 0)))
+          (message "Blueprint CI check-odt-styles: %d missing style(s)"
+                   (length missing))
+          (dolist (s missing)
+            (message "  %s" s))
+          (when noninteractive (kill-emacs 2))))
+    (error
+     (message "Blueprint CI check-odt-styles: FAIL — %s" (error-message-string err))
      (when noninteractive (kill-emacs 2)))))
 
 (provide 'blueprint-ci)

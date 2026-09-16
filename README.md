@@ -122,6 +122,10 @@ enough to show a client during a review session.
   off to Org's own `org-export-dispatch` menu to pick a backend/template
   interactively instead of using the fixed default (`blueprint-export-backend`,
   `pdf` unless overridden)
+- **ODT styles check** — `blueprint-check-odt-styles` catches a corporate
+  `#+ODT_STYLES_FILE:` template that silently drops an Org-internal style
+  (images overlapping text with no error anywhere); CI entry point
+  `blueprint-ci-check-odt-styles`
 - **Async tangle/export** — background processing via Emacs 29+ threads to avoid
   blocking the UI
 - **Auto-tangle on save** — minor mode for automatic `org-babel-tangle` when
@@ -294,6 +298,7 @@ logical groups:
 |                  | `P` | export PDF            |
 |                  | `O` | export ODT            |
 |                  | `v` | export... (choose)    |
+|                  | `k` | check ODT styles      |
 |                  | `T` | async tangle          |
 | **Search & ADR** | `/` | search                |
 |                  | `N` | new ADR               |
@@ -522,6 +527,11 @@ emacs -Q --batch -l blueprint.el -f blueprint-ci-validate
 
 # Export (exit 0=pass, 2=error)
 emacs -Q --batch -l blueprint.el -f blueprint-ci-export
+
+# ODT styles check (exit 0=pass, 2=missing styles found) -- opt-in, not
+# part of blueprint-ci-validate: only meaningful when master.org sets a
+# corporate #+ODT_STYLES_FILE:, and requires a real ODT export plus unzip
+emacs -Q --batch -l blueprint.el -f blueprint-ci-check-odt-styles
 ```
 
 ### AI-assisted snippets

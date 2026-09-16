@@ -16,6 +16,7 @@
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'blueprint-c4)
 (require 'ox)
 (require 'ox-odt)
 (require 'ob-plantuml)
@@ -147,6 +148,144 @@ Requires the ox-pandoc package to be installed."
     ('html (blueprint-export-html))
     ('docx (blueprint-export-docx))
     (_ (user-error "Unknown export backend: %s" blueprint-export-backend))))
+
+(defconst blueprint--odt-style-reference-regexp
+  "\\b[a-zA-Z]+:style-name=\"\\([^\"]+\\)\""
+  "Matches any ODT XML attribute that *uses* a style, e.g.
+text:style-name=\"OrgCode\" or draw:style-name=\"OrgDisplayImage\".
+Group 1 is the style name.")
+
+(defconst blueprint--odt-style-definition-regexp
+  "\\bstyle:name=\"\\([^\"]+\\)\""
+  "Matches any ODT XML attribute that *defines* a style, whichever
+element it sits on (`<style:style style:name=...>',
+`<text:list-style style:name=...>', `<style:default-style
+style:name=...>', ...  the attribute name is always `style:name').
+Group 1 is the style name.")
+
+(defun blueprint--odt-style-names (xml-string regexp)
+  "Return the deduplicated list of style names REGEXP captures in
+XML-STRING (group 1)."
+  (let (names)
+    (with-temp-buffer
+      (insert xml-string)
+      (goto-char (point-min))
+      (while (re-search-forward regexp nil t)
+        (push (match-string 1) names)))
+    (delete-dups names)))
+
+(defun blueprint--odt-zip-entry (odt member)
+  "Return the contents of MEMBER inside the ODT zip archive as a string.
+ODT is a plain zip file (the OpenDocument container format); MEMBER is
+a path inside it, e.g. \"content.xml\"."
+  (with-temp-buffer
+    (let ((status (call-process "unzip" nil t nil "-p" odt member)))
+      (unless (zerop status)
+        (user-error "Could not read %s from %s (unzip exit %s)"
+                    member odt status)))
+    (buffer-string)))
+
+(defun blueprint--check-odt-styles-missing ()
+  "Export master.org to ODT and return the list of Org-internal style
+names its #+ODT_STYLES_FILE: silently fails to define.
+Pure with respect to the editor: it exports (a real file-write side
+effect, unavoidable since the check depends on real export output),
+prints nothing, and never exits Emacs.  `blueprint-check-odt-styles'
+and `blueprint-ci-check-odt-styles' both build on this and present the
+result differently, the same split as `blueprint--lint-component' vs.
+`blueprint-lint'/`blueprint-ci-lint'.
+
+Returns (MISSING . (CUSTOM-STYLES-FILE . ODT)) so callers can report
+which style file and which exported .odt the result is about.
+Signals a user-error if `unzip' is unavailable or master.org has no
+#+ODT_STYLES_FILE: set -- see `blueprint-check-odt-styles' for why
+this check exists and how it avoids false positives."
+  (unless (executable-find "unzip")
+    (user-error "unzip not found; required to inspect the exported .odt"))
+  (let* ((file (blueprint--master-or-error))
+         (custom-styles-file (blueprint--org-keyword file "ODT_STYLES_FILE")))
+    (unless custom-styles-file
+      (user-error "No #+ODT_STYLES_FILE: set in master.org; nothing to check"))
+    (with-current-buffer (find-file-noselect file)
+      (blueprint--with-plantuml-export
+        (org-odt-export-to-odt)))
+    (let* ((odt (concat (file-name-sans-extension file) ".odt"))
+           (baseline-xml
+            (with-temp-buffer
+              (insert-file-contents
+               (expand-file-name "OrgOdtStyles.xml" org-odt-styles-dir))
+              (buffer-string)))
+           (baseline-defined
+            (blueprint--odt-style-names
+             baseline-xml blueprint--odt-style-definition-regexp))
+           (content-xml (blueprint--odt-zip-entry odt "content.xml"))
+           (styles-xml (blueprint--odt-zip-entry odt "styles.xml"))
+           (referenced
+            (blueprint--odt-style-names
+             content-xml blueprint--odt-style-reference-regexp))
+           (defined
+            (append (blueprint--odt-style-names
+                     styles-xml blueprint--odt-style-definition-regexp)
+                    (blueprint--odt-style-names
+                     content-xml blueprint--odt-style-definition-regexp)))
+           (missing (cl-remove-if
+                     (lambda (s) (or (not (member s baseline-defined))
+                                     (member s defined)))
+                     referenced)))
+      (cons missing (cons custom-styles-file odt)))))
+
+;;;###autoload
+(defun blueprint-check-odt-styles ()
+  "Check that #+ODT_STYLES_FILE: does not silently drop styles Org needs.
+A #+ODT_STYLES_FILE: pointing at a corporate .ott template not derived
+from Org's own export replaces `styles.xml' wholesale, including the
+internal styles Org's ODT backend relies on (`OrgDisplayImage',
+`OrgTable*', `OrgCode', `OrgBulletedList'/`OrgNumberedList', and more
+-- defined in the bundled OrgOdtStyles.xml at `org-odt-styles-dir').
+A plain corporate template does not know about these: well-known
+names like \"Heading\"/\"Text body\" have an implicit LibreOffice
+fallback so the document looks \"almost right\", but Org-specific
+ones do not -- a PlantUML diagram included via
+`#+begin_src plantuml :file x.svg' overlaps the following paragraph
+instead of reserving space for it, because `OrgDisplayImage' (which
+sets wrap=\"none\") is not defined anywhere.  No error or warning
+appears anywhere in this chain; the defect only shows up once someone
+opens the final document.
+
+This exports master.org to ODT, then compares every style the
+resulting content.xml actually references against what
+`#+ODT_STYLES_FILE:' (styles.xml) and content.xml's own
+automatic-styles define.  Only a style also present in the bundled
+OrgOdtStyles.xml is reported: some references (e.g. \"Sect1\", part of
+Org's own table-of-contents scaffolding) have no explicit definition
+even in a stock, unmodified export and are harmless -- flagging every
+undefined reference indiscriminately would make this check noisy on a
+perfectly healthy document.
+
+Signals a user-error if `unzip' is unavailable (required to inspect
+the exported .odt) or if master.org has no #+ODT_STYLES_FILE: set.
+For batch/CI use, see `blueprint-ci-check-odt-styles' in
+blueprint-ci.el instead."
+  (interactive)
+  (let* ((result (blueprint--check-odt-styles-missing))
+         (missing (car result))
+         (custom-styles-file (car (cdr result)))
+         (odt (cdr (cdr result))))
+    (if (null missing)
+        (message "blueprint-check-odt-styles: %s — no missing Org-internal styles"
+                 custom-styles-file)
+      (with-current-buffer (get-buffer-create "*Blueprint ODT Styles*")
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format
+                   "%s: %d style(s) this document needs are missing from styles.xml\n\n"
+                   custom-styles-file (length missing)))
+          (dolist (s (sort missing #'string<))
+            (insert (format "  • %s\n" s)))
+          (insert (format "\nSource file: %s\n" odt)))
+        (goto-char (point-min))
+        (special-mode)
+        (switch-to-buffer (current-buffer))))))
 
 ;;;###autoload
 (defun blueprint-export-dispatch ()

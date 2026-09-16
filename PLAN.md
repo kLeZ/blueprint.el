@@ -218,31 +218,48 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
       keyword reali, così un `#+TITLE:` mostrato come testo di esempio dentro
       un blocco `example`/`src` (pattern comune nei file org tutorial-style)
       resta intatto. Test di regressione: `test/blueprint-test-export.el`.
-- [ ] `#+ODT_STYLES_FILE` con un template aziendale "grezzo" (un `.ott`
-      scritto in Writer, non derivato dall'export di org) produce un export
-      ODT rotto **senza alcun errore o warning**: quel file sostituisce
+- [x] `#+ODT_STYLES_FILE` con un template aziendale "grezzo" (un `.ott`
+      scritto in Writer, non derivato dall'export di org) produceva un
+      export ODT rotto **senza alcun errore o warning**: quel file sostituiva
       integralmente `styles.xml`, che di norma contiene anche gli stili
       interni di cui org ha bisogno (`OrgDisplayImage`, `OrgTable*`,
       `OrgCode`, `OrgBulletedList`/`OrgNumberedList`, ecc. — verificati 13+
       nomi diversi in un caso reale). Un template aziendale normale non li
-      conosce: il documento risulta "quasi giusto" (gli stili standard come
+      conosce: il documento risultava "quasi giusto" (gli stili standard come
       Heading/Text body hanno un fallback implicito in LibreOffice) ma le
       immagini a paragrafo (ogni diagramma PlantUML incluso via
-      `#+begin_src plantuml :file x.svg`) si sovrappongono al contenuto
+      `#+begin_src plantuml :file x.svg`) si sovrapponevano al contenuto
       successivo invece di riservare lo spazio verticale, perché
-      `OrgDisplayImage` — che imposta `wrap="none"` — non esiste da nessuna
+      `OrgDisplayImage` — che imposta `wrap="none"` — non esisteva da nessuna
       parte. Rilevato su un progetto reale (progetto pilota,
       `template-aziendale.ott`), segnalato dall'utente come "problema col
       documento finale" senza altro contesto: diagnosticato confrontando
       ogni `style-name` referenziato in `content.xml` con quelli definiti in
       `content.xml`+`styles.xml` esportati. Fix applicato manualmente in
       quel progetto (unione degli stili mancanti, presi da
-      `OrgOdtStyles.xml`, dentro lo `styles.xml` del template aziendale) ma
-      **nel pacchetto manca tuttora qualunque controllo**: proposta —
-      un check in `blueprint-ci-validate` (o funzione dedicata) che, dato un
-      `#+ODT_STYLES_FILE`, estragga gli stili referenziati da un export di
-      prova e segnali quelli assenti dal file styles.xml risultante, prima
-      che l'utente scopra il difetto solo aprendo il documento finale.
+      `OrgOdtStyles.xml`, dentro lo `styles.xml` del template aziendale).
+      **fix**: `blueprint-check-odt-styles` (`blueprint-export.el`, tasto
+      "k") esporta master.org in ODT e confronta ogni style-name che
+      content.xml referenzia con quelli definiti in styles.xml (il file
+      custom) e nell'automatic-styles di content.xml. Per evitare falsi
+      positivi (alcuni riferimenti, es. `Sect1` dello scaffolding TOC di
+      org, non hanno una definizione esplicita nemmeno in un export
+      standard non modificato) sono segnalati solo gli stili che
+      compaiono ANCHE nel file bundled `OrgOdtStyles.xml`
+      (`org-odt-styles-dir`) — cioè quelli che Org normalmente fornisce
+      lui stesso e che il template custom ha sostituito senza saperlo.
+      Logica pura estratta in `blueprint--check-odt-styles-missing`
+      (nessun `message`/buffer/`kill-emacs`), usata sia dal comando
+      interattivo sia dal nuovo entry point CI `blueprint-ci-check-odt-styles`
+      in `blueprint-ci.el` — non incluso in `blueprint-ci-validate` perché
+      richiede un `#+ODT_STYLES_FILE` opt-in e un export reale, non
+      qualcosa da eseguire di default su ogni push. Test:
+      `blueprint-test-export/odt-styles-check-*` in
+      `test/blueprint-test-export.el`, con fixture basate sul vero
+      `OrgOdtStyles.xml` bundled (una copia integra come caso "sano", una
+      con `OrgDisplayImage` rimosso come caso "rotto") e un'immagine SVG
+      statica invece di un diagramma PlantUML reale, per non dipendere
+      dall'eseguibile `plantuml` nell'ambiente di test/CI.
 - [x] L'export via `emacs -Q --batch` (necessario per riproducibilità/CI,
       fuori dalla sessione Emacs interattiva dell'utente) **perdeva in
       silenzio tutti i diagrammi PlantUML** senza impostare esplicitamente

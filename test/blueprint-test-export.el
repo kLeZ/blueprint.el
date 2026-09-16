@@ -158,5 +158,98 @@ block silently exports as a code listing instead of a diagram."
   (blueprint--with-plantuml-export
     (should (assq 'plantuml org-babel-load-languages))))
 
+;;; --- blueprint-check-odt-styles ---
+
+(defun blueprint-test--tiny-svg (dir)
+  "Write a trivial valid SVG file under DIR and return its path.
+Referencing this from Org content is enough to make the ODT export
+emit an `OrgDisplayImage'-styled image frame, without needing a real
+PlantUML render (no babel, no external `plantuml' dependency)."
+  (let ((file (expand-file-name "tiny.svg" dir)))
+    (with-temp-file file
+      (insert "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\">"
+              "<rect width=\"10\" height=\"10\"/></svg>"))
+    file))
+
+(defun blueprint-test--odt-styles-copy (dir &optional drop-style)
+  "Copy Org's own bundled OrgOdtStyles.xml into DIR and return its path.
+When DROP-STYLE is non-nil, strip that style's
+`<style:style style:name=\"...\">...</style:style>' block first, to
+build a fixture that mimics a corporate .ott template silently
+missing an Org-internal style."
+  (let ((dest (expand-file-name "styles.xml" dir)))
+    (copy-file (expand-file-name "OrgOdtStyles.xml" org-odt-styles-dir) dest)
+    (when drop-style
+      (with-current-buffer (find-file-noselect dest)
+        (goto-char (point-min))
+        (re-search-forward
+         (format "  <style:style style:name=\"%s\"[^\n]*\n\\(?:.*\n\\)*?  </style:style>\n"
+                 (regexp-quote drop-style)))
+        (replace-match "")
+        (save-buffer)
+        (kill-buffer)))
+    dest))
+
+(defun blueprint-test--write-odt-master (proj styles-file)
+  "Write a minimal master.org under PROJ referencing STYLES-FILE and a
+tiny SVG image, and return its path."
+  (let ((master (expand-file-name "master.org" proj))
+        (svg (blueprint-test--tiny-svg proj)))
+    (with-temp-file master
+      (insert (format "#+TITLE: Assessment Master\n#+ODT_STYLES_FILE: %S\n\n"
+                      styles-file)
+              "* Section\n\nSome text.\n\n"
+              (format "[[file:%s]]\n\n" svg)
+              "More text after the image.\n"))
+    master))
+
+(ert-deftest blueprint-test-export/odt-styles-check-errors-without-keyword ()
+  "Signals a user-error when master.org has no #+ODT_STYLES_FILE:."
+  (blueprint-test--with-project
+    (with-temp-file (expand-file-name "master.org" default-directory)
+      (insert "#+TITLE: Assessment Master\n\n* Section\n\nText.\n"))
+    (should-error (blueprint-check-odt-styles) :type 'user-error)))
+
+(ert-deftest blueprint-test-export/odt-styles-check-errors-without-unzip ()
+  "Signals a user-error when `unzip' is not available."
+  (blueprint-test--with-project
+    (blueprint-test--write-odt-master default-directory "/nonexistent-styles.xml")
+    (cl-letf (((symbol-function 'executable-find) (lambda (_) nil)))
+      (should-error (blueprint-check-odt-styles) :type 'user-error))))
+
+(ert-deftest blueprint-test-export/odt-styles-check-detects-missing-style ()
+  "Flags OrgDisplayImage when the custom styles file drops it and the
+document actually references it (via an embedded image)."
+  (blueprint-test--with-project
+    (let* ((proj default-directory)
+           (styles (blueprint-test--odt-styles-copy proj "OrgDisplayImage")))
+      (blueprint-test--write-odt-master proj styles)
+      (let ((buffers-before (buffer-list)))
+        (unwind-protect
+            (progn
+              (blueprint-check-odt-styles)
+              (with-current-buffer "*Blueprint ODT Styles*"
+                (should (string-match-p "OrgDisplayImage" (buffer-string)))))
+          (let ((kill-buffer-query-functions nil))
+            (dolist (buf (buffer-list))
+              (unless (memq buf buffers-before)
+                (kill-buffer buf)))))))))
+
+(ert-deftest blueprint-test-export/odt-styles-check-no-false-positive ()
+  "Reports nothing missing when the custom styles file is the real,
+unmodified OrgOdtStyles.xml -- regression test for the \"Sect1\"-style
+false positive: some references (Org's own table-of-contents
+scaffolding) have no explicit definition even in a stock export, and
+must not be flagged just because they lack a definition."
+  (blueprint-test--with-project
+    (let* ((proj default-directory)
+           (styles (blueprint-test--odt-styles-copy proj)))
+      (blueprint-test--write-odt-master proj styles)
+      (let (captured)
+        (cl-letf (((symbol-function 'message)
+                   (lambda (fmt &rest args) (setq captured (apply #'format fmt args)))))
+          (blueprint-check-odt-styles))
+        (should (string-match-p "no missing" captured))))))
+
 (provide 'blueprint-test-export)
 ;;; blueprint-test-export.el ends here

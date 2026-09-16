@@ -698,6 +698,30 @@ utente Blueprint); per farne =odt= il proprio default personale, impostare
 =blueprint-export-backend= nella propria configurazione (=:custom= nel
 =use-package blueprint=), non nel pacchetto.
 
+** Verificare un template =#+ODT_STYLES_FILE:= aziendale
+
+Un template =.ott= aziendale "grezzo" (scritto in LibreOffice Writer, non
+derivato da un export di org) sostituisce integralmente =styles.xml=,
+incluso gli stili interni di cui org ha bisogno (=OrgDisplayImage=,
+=OrgTable*=, =OrgCode=, =OrgBulletedList=/=OrgNumberedList=, ecc.). Il
+documento risulta "quasi giusto" — nessun errore, nessun warning — ma le
+immagini a paragrafo (ogni diagramma incluso via
+=#+begin_src plantuml :file x.svg=) si sovrappongono al contenuto
+successivo invece di riservare lo spazio verticale.
+
+#+begin_src
+M-x blueprint-check-odt-styles  (oppure: C-c b k)
+#+end_src
+
+Esporta =master.org= in ODT e confronta gli stili che il documento
+referenzia con quelli definiti nel template custom, segnalando solo quelli
+che org normalmente fornisce lui stesso (dal file bundled
+=OrgOdtStyles.xml=) e che il template ha silenziosamente eliminato.
+Richiede =unzip= per ispezionare l'=.odt= generato. Eseguire prima di
+consegnare un documento con un template aziendale nuovo o modificato, non
+solo alla prima configurazione: un aggiornamento del template puo'
+reintrodurre lo stesso problema.
+
 ** Export in Word (.docx)
 
 #+begin_src

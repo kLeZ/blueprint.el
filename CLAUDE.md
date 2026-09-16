@@ -199,7 +199,7 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | `blueprint-test-watch.el`      | Minor mode hook install/remove, invalidazione cache |
 | `blueprint-test-capture.el`    | Target del template org-capture glossario (regression, non full coverage) |
 | `blueprint-test-e2e.el`        | Lifecycle completo di un progetto             |
-| `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless |
+| `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless, check stili ODT |
 
 ## Blueprint init: full project structure
 
@@ -247,6 +247,23 @@ Missing marker pairs are silently skipped (backward compatible).
 `blueprint--generate-includes-for` only emits includes for components that
 actually have the file (prevents spurious includes for partially migrated
 projects).
+
+## ODT styles check
+
+`blueprint-check-odt-styles` (`blueprint-export.el`) exports master.org to
+ODT, then diffs every style `content.xml` references against what
+`#+ODT_STYLES_FILE:` (styles.xml) and content.xml's own automatic-styles
+define. Only a style also present in the bundled `OrgOdtStyles.xml`
+(`org-odt-styles-dir`) is reported, to avoid false positives from
+references that have no explicit definition even in a stock export (e.g.
+`Sect1`, part of Org's own table-of-contents scaffolding). The pure
+computation lives in `blueprint--check-odt-styles-missing` (no
+message/buffer/`kill-emacs`); `blueprint-check-odt-styles` (interactive
+buffer) and `blueprint-ci-check-odt-styles` (`blueprint-ci.el`, batch exit
+code) both build on it, the same split as `blueprint--lint-component` vs.
+`blueprint-lint`/`blueprint-ci-lint`. Requires `unzip`. Not part of
+`blueprint-ci-validate`: opt-in, since it needs a real ODT export and only
+applies to a project with a corporate `#+ODT_STYLES_FILE:`.
 
 ## Assessment methodology
 

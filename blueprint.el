@@ -123,6 +123,7 @@
     ("P" "export PDF" blueprint-export-pdf)
     ("O" "export ODT" blueprint-export-odt)
     ("v" "export... (choose format)" blueprint-export-dispatch)
+    ("k" "check ODT styles" blueprint-check-odt-styles)
     ("T" "async tangle" blueprint-async-tangle)]
    ["Search & ADR"
     ("/" "search" blueprint-search)
@@ -161,6 +162,7 @@
     (define-key map (kbd "E") #'blueprint-export)
     (define-key map (kbd "O") #'blueprint-export-odt)
     (define-key map (kbd "v") #'blueprint-export-dispatch)
+    (define-key map (kbd "k") #'blueprint-check-odt-styles)
     (define-key map (kbd "Q") #'blueprint-add-question)
     (define-key map (kbd "Y") #'blueprint-glossary-list)
     (define-key map (kbd "Z") #'blueprint-reference-list)
