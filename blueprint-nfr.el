@@ -31,10 +31,16 @@
 (defun blueprint--nfr-insert-row-in-section (section-heading row)
   "Append ROW after the last org-table line under SECTION-HEADING.
 Works on the current buffer.  If the section is absent, appends both
-the heading and the row at the end of the buffer."
+the heading and the row at the end of the buffer.  SECTION-HEADING is
+matched anchored to the start of a line, not as a bare substring: a
+:noexport: compilation guide can contain a deeper heading whose text
+contains SECTION-HEADING starting at one of its own leading stars
+(see `blueprint--references-insert-row-in-section' for a concrete
+case of this in references.org), which an unanchored search would
+match instead of the real section."
   (goto-char (point-min))
   (let ((last-pipe-pos nil))
-    (when (re-search-forward (regexp-quote section-heading) nil t)
+    (when (re-search-forward (concat "^" (regexp-quote section-heading)) nil t)
       (let ((section-end (save-excursion
                            (if (re-search-forward "^\\*" nil t)
                                (match-beginning 0)
@@ -52,7 +58,8 @@ the heading and the row at the end of the buffer."
 (defcustom blueprint-nfr-quality-attributes
   '("Performance" "Sicurezza" "Affidabilità" "Disponibilità"
     "Manutenibilità" "Scalabilità" "Portabilità" "Interoperabilità")
-  "Predefined quality attributes offered for completion in `blueprint-nfr-add-quality-scenario'."
+  "Predefined quality attributes offered for completion in
+`blueprint-nfr-add-quality-scenario'."
   :type '(repeat string)
   :group 'blueprint)
 
@@ -143,16 +150,27 @@ TYPE is one of \"tecnico\", \"organizzativo\", \"normativo\"."
 ;;; --- Risks ---
 
 (defun blueprint--nfr-next-risk-id ()
-  "Return the next risk ID (R-NNN) based on existing entries in nfr/risks.org."
+  "Return the next risk ID (R-NNN) based on existing entries in nfr/risks.org.
+Scans only within the \"* Registro dei rischi\" section (the same
+boundary `blueprint--nfr-insert-row-in-section' uses), not the whole
+file: the :noexport: compilation guide above it shows R-001/R-002 as
+worked examples, and without this boundary they are indistinguishable
+from real entries, so a fresh project's first real risk would be
+numbered R-003 instead of R-001."
   (let ((file (blueprint--nfr-file "risks.org"))
         (max-num 0))
     (when (file-exists-p file)
       (with-temp-buffer
         (insert-file-contents file)
         (goto-char (point-min))
-        (while (re-search-forward "| R-\\([0-9]\\{3\\}\\)" nil t)
-          (let ((n (string-to-number (match-string 1))))
-            (when (> n max-num) (setq max-num n))))))
+        (when (re-search-forward "^\\* Registro dei rischi" nil t)
+          (let ((section-end (save-excursion
+                               (if (re-search-forward "^\\*" nil t)
+                                   (match-beginning 0)
+                                 (point-max)))))
+            (while (re-search-forward "| R-\\([0-9]\\{3\\}\\)" section-end t)
+              (let ((n (string-to-number (match-string 1))))
+                (when (> n max-num) (setq max-num n))))))))
     (format "R-%03d" (1+ max-num))))
 
 (defun blueprint--nfr-risk-level (probability impact)

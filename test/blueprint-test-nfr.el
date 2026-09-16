@@ -70,6 +70,15 @@
         (insert "* Registro dei rischi\n| ID | Rischio |\n|-\n| R-003 | foo |\n| R-001 | bar |\n")))
     (should (equal "R-004" (blueprint--nfr-next-risk-id)))))
 
+(ert-deftest blueprint-test-nfr-risk-id/ignores-guide-examples ()
+  "Returns R-001 on the real template, even though its :noexport:
+compilation guide already shows R-001/R-002 as worked examples.
+Regression test: a whole-file scan with no section boundary would
+mistake those for real entries and return R-003 instead."
+  (blueprint-test--with-project
+    (blueprint-test--setup-nfr)
+    (should (equal "R-001" (blueprint--nfr-next-risk-id)))))
+
 ;;; --- blueprint-nfr-add-quality-scenario ---
 
 (ert-deftest blueprint-test-nfr-quality/creates-heading ()
@@ -176,17 +185,20 @@
         (should (string-match-p "Nessun backup strategy" content))))))
 
 (ert-deftest blueprint-test-nfr-risk/auto-numbering ()
-  "First risk gets ID R-001."
+  "First risk gets ID R-001, paired with its own description.
+Asserting the bare substring \"R-001\" would trivially pass even on
+the guide-example collision bug: the :noexport: guide already
+contains that substring regardless of what ID gets assigned."
   (blueprint-test--with-project
     (let ((proj default-directory))
       (blueprint-test--setup-nfr)
       (blueprint-nfr-add-risk "Primo rischio" "" "Media" "Medio")
       (let ((content (blueprint-test--read-file
                       (expand-file-name "nfr/risks.org" proj))))
-        (should (string-match-p "R-001" content))))))
+        (should (string-match-p "| R-001 | Primo rischio" content))))))
 
 (ert-deftest blueprint-test-nfr-risk/sequential-ids ()
-  "Multiple risks get sequential IDs."
+  "Multiple risks get sequential IDs, each paired with its own description."
   (blueprint-test--with-project
     (let ((proj default-directory))
       (blueprint-test--setup-nfr)
@@ -194,8 +206,8 @@
       (blueprint-nfr-add-risk "Rischio B" "comp" "Media" "Medio")
       (let ((content (blueprint-test--read-file
                       (expand-file-name "nfr/risks.org" proj))))
-        (should (string-match-p "R-001" content))
-        (should (string-match-p "R-002" content))))))
+        (should (string-match-p "| R-001 | Rischio A" content))
+        (should (string-match-p "| R-002 | Rischio B" content))))))
 
 (ert-deftest blueprint-test-nfr-risk/level-calculated ()
   "Risk level is calculated from probability × impact."

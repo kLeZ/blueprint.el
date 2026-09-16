@@ -12,6 +12,7 @@
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'blueprint-glossary)
 (require 'org-capture)
 
 (defun blueprint--notes-file ()
@@ -33,7 +34,12 @@
          (file ,(blueprint--notes-file))
          "* QUESTION %?\n:PROPERTIES:\n:COMPONENT: \n:CREATED: %U\n:END:\n")
         ("bg" "Blueprint glossary term" entry
-         (file ,(expand-file-name ".blueprint/glossary.org" root))
+         ;; `blueprint--ensure-glossary' (not a hardcoded .blueprint/glossary.org
+         ;; literal): the real glossary.org at the project root -- the same
+         ;; file `blueprint-init' creates and `master.org' includes -- created
+         ;; from the template if this is the first glossary write in the
+         ;; project, same as `blueprint--notes-file' above.
+         (file ,(blueprint--ensure-glossary))
          "* %^{Term}\n:PROPERTIES:\n:SOURCE: %^{Source}\n:END:\n%?")))))
 
 ;;;###autoload

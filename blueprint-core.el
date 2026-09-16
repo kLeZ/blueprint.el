@@ -39,7 +39,7 @@ Signals an error if not inside a Blueprint project."
       (user-error "Not in a Blueprint project (no .blueprint directory found)")))
 
 (defun blueprint--init-file (path template-name replacements)
-  "Create PATH from TEMPLATE-NAME applying REPLACEMENTS, unless PATH already exists.
+  "Create PATH from TEMPLATE-NAME applying REPLACEMENTS, unless PATH exists.
 REPLACEMENTS is an alist of (PLACEHOLDER . VALUE) string pairs."
   (unless (file-exists-p path)
     (let ((content (blueprint--template template-name)))

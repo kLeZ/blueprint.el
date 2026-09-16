@@ -501,19 +501,24 @@ Il termine viene inserito in =glossary.org= come heading di livello 1 con
 ** Cercare un termine
 
 #+begin_src
-M-x blueprint-glossary-lookup  (oppure: C-c b g l)
+M-x blueprint-glossary-lookup
 #+end_src
+
+Non ha un tasto dedicato nel menu Transient, solo M-x.
 
 ** Aggiungere una fonte
 
 #+begin_src
-M-x blueprint-reference-add  (oppure: C-c b r a)
+M-x blueprint-reference-add  (oppure: C-c b z)
 Title: Intervista con Mario Rossi (Lead Dev)
 Type: interview
 Notes: Walkthrough architettura ordini, 2026-03-10
 #+end_src
 
-I tipi raccomandati: =interview=, =document=, =codebase=, =monitoring=, =ticket=.
+=Type: interview= instrada la fonte come riga nella tabella =* Interviste=;
+qualunque altro tipo (=document=, =codebase=, =monitoring=, =ticket=) la
+instrada in =* Documenti=, dove =Type= diventa il valore della colonna
+"Tipo" di quella tabella. L'ID (=I-NN=/=D-NN=) e' assegnato automaticamente.
 
 ** Principio: tracciabilita' completa
 
@@ -842,11 +847,6 @@ manuali: non penalizzano e non sono cercate da alcun comando dedicato.
 
 I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
 Richiedono gestione manuale fino all'implementazione.
-
-** Tipi di riferimento (documenti vs interviste)
-=blueprint-reference-add= usa un tipo libero. Le sezioni del master distinguono
-riferimenti-documenti da riferimenti-interviste: usare la convenzione di tipo
-=interview= vs =document= e filtrare manualmente.
 
 ** Gestione del perimetro (inclusi/esclusi)
 Non esiste un comando per marcare componenti come "esclusi dal perimetro con

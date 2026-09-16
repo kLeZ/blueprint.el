@@ -1,9 +1,11 @@
+;;; orgfmt.el --- Dev-only Org formatting script  -*- lexical-binding: t; -*-
+
 (defun orgfmt-file (file)
   (with-current-buffer (find-file-noselect file)
     (org-mode)
 
     ;; align tags
-    (org-align-all-tags)
+    (org-align-tags 'all)
 
     ;; align tables
     (org-table-map-tables 'org-table-align)

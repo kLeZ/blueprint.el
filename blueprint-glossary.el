@@ -6,23 +6,32 @@
 
 ;;; Commentary:
 
-;; Structured glossary stored in .blueprint/glossary.org.  Each term is
-;; an Org heading with properties for source attribution.
+;; Structured glossary stored in glossary.org at the project root
+;; (the same file `blueprint-init' creates and `master.org' includes).
+;; Each term is an Org heading with properties for source attribution.
 
 ;;; Code:
 
 (require 'blueprint-core)
 
 (defun blueprint--glossary-file ()
-  "Return the path to the glossary file."
-  (expand-file-name ".blueprint/glossary.org" (blueprint--root)))
+  "Return the path to the glossary file.
+This is `glossary.org' at the project root -- the same file
+`blueprint-init' creates from the glossary.org template and the same
+file `master.org' pulls in via `#+INCLUDE:' (see the Part 0 section).
+Not under `.blueprint/': that directory holds per-component and
+per-ADR data, not project-level deliverable files."
+  (expand-file-name "glossary.org" (blueprint--root)))
 
 (defun blueprint--ensure-glossary ()
-  "Create the glossary file if it does not exist."
+  "Create the glossary file from the template if it does not exist.
+Uses the real glossary.org template (the same one `blueprint-init'
+uses) rather than a bare stub, so a glossary lazily created by the
+first `blueprint-glossary-add' still has the sections and guidance a
+`blueprint-init'-created one has."
   (let ((file (blueprint--glossary-file)))
-    (unless (file-exists-p file)
-      (with-temp-file file
-        (insert "#+TITLE: Glossary\n\n")))
+    (blueprint--init-file
+     file "glossary.org" `(("{{DATE}}" . ,(format-time-string "%Y-%m-%d"))))
     file))
 
 ;;;###autoload

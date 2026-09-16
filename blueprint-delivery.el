@@ -30,7 +30,7 @@
   :group 'blueprint)
 
 (defun blueprint--delivery-count-marker (marker)
-  "Return the total count of MARKER occurrences across all .org files in the project."
+  "Return the total count of MARKER occurrences across all .org files."
   (let ((count 0))
     (dolist (entry (blueprint--scan-marker-occurrences marker))
       (ignore entry)

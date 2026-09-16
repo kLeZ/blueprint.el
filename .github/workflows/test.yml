@@ -43,6 +43,7 @@ jobs:
             -l blueprint-export.el \
             -l blueprint-dashboard.el \
             -l blueprint-watch.el \
+            -l blueprint-capture.el \
             -l test/blueprint-test-helpers.el \
             -l test/blueprint-test-core.el \
             -l test/blueprint-test-health.el \
@@ -60,6 +61,7 @@ jobs:
             -l test/blueprint-test-dashboard.el \
             -l test/blueprint-test-migrate.el \
             -l test/blueprint-test-watch.el \
+            -l test/blueprint-test-capture.el \
             -l test/blueprint-test-e2e.el \
             -l test/blueprint-test-export.el \
             -f ert-run-tests-batch-and-exit

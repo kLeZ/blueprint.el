@@ -24,7 +24,7 @@ emacs -Q --batch \
   -l blueprint-risks.el -l blueprint-ai.el -l blueprint-migrate.el \
   -l blueprint-functional.el -l blueprint-runtime.el \
   -l blueprint-nfr.el -l blueprint-delivery.el -l blueprint-export.el \
-  -l blueprint-dashboard.el -l blueprint-watch.el \
+  -l blueprint-dashboard.el -l blueprint-watch.el -l blueprint-capture.el \
   -l test/blueprint-test-helpers.el \
   -l test/blueprint-test-core.el -l test/blueprint-test-health.el \
   -l test/blueprint-test-lint.el -l test/blueprint-test-c4.el \
@@ -34,7 +34,7 @@ emacs -Q --batch \
   -l test/blueprint-test-runtime.el \
   -l test/blueprint-test-nfr.el -l test/blueprint-test-delivery.el \
   -l test/blueprint-test-dashboard.el -l test/blueprint-test-migrate.el \
-  -l test/blueprint-test-watch.el \
+  -l test/blueprint-test-watch.el -l test/blueprint-test-capture.el \
   -l test/blueprint-test-e2e.el -l test/blueprint-test-export.el \
   -f ert-run-tests-batch-and-exit
 
@@ -159,11 +159,11 @@ no dedicated ERT suite and are not part of the test commands above:
 - `blueprint-graph.el` — dependency graphs in PlantUML/Graphviz (dot)
 - `blueprint-wizard.el` — interactive onboarding/component-creation wizards
 - `blueprint-async.el` — background processing for long-running ops (export, tangle)
-- `blueprint-capture.el` — `org-capture` templates for quick notes
 
 Treat diffs touching these as untested until a suite is added.
-`blueprint-dashboard.el`, `blueprint-migrate.el`, and `blueprint-watch.el` are
-covered (see the Test structure table below).
+`blueprint-dashboard.el`, `blueprint-migrate.el`, `blueprint-watch.el`, and
+`blueprint-capture.el` (one regression test, not full coverage) are covered
+(see the Test structure table below).
 
 ## Test structure
 
@@ -189,6 +189,7 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | `blueprint-test-dashboard.el`  | Entry, status, focus mode, colonne Owner/Tech |
 | `blueprint-test-migrate.el`    | Template diff/migrazione non distruttiva      |
 | `blueprint-test-watch.el`      | Minor mode hook install/remove, invalidazione cache |
+| `blueprint-test-capture.el`    | Target del template org-capture glossario (regression, non full coverage) |
 | `blueprint-test-e2e.el`        | Lifecycle completo di un progetto             |
 | `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless |
 

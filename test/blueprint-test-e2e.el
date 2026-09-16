@@ -177,9 +177,9 @@
     (blueprint-reference-add "CTO Interview" "interview" "Strategic direction")
 
     (let ((glossary (blueprint-test--read-file
-                     (expand-file-name ".blueprint/glossary.org" default-directory)))
+                     (expand-file-name "glossary.org" default-directory)))
           (refs (blueprint-test--read-file
-                 (expand-file-name ".blueprint/references.org" default-directory))))
+                 (expand-file-name "references.org" default-directory))))
       (should (string-match-p "SLA" glossary))
       (should (string-match-p "RTO" glossary))
       (should (string-match-p "Architecture Review Board" refs))

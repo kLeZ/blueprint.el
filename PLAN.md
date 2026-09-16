@@ -266,6 +266,66 @@ per lo sviluppo futuro. Le sezioni con ~~testo barrato~~ sono completate.
       `"Defining as dynamic an already lexical var"` a runtime (lexical
       binding). Test di regressione: `blueprint-test-export/plantuml-export-*`
       in `test/blueprint-test-export.el`.
+- [x] **[trovato durante 10.6]** `blueprint--glossary-file`/
+      `blueprint--references-file` puntavano a `.blueprint/glossary.org` e
+      `.blueprint/references.org`, ma `blueprint-init` crea (e `master.org`
+      include via `#+INCLUDE:`) `glossary.org`/`references.org` alla **root
+      del progetto**. Ogni riferimento/termine aggiunto con
+      `blueprint-glossary-add`/`blueprint-reference-add` finiva quindi in un
+      file orfano, mai incluso nel documento finale — bug silenzioso, nessun
+      errore, nessun warning. Stesso bug anche nel template org-capture "bg"
+      (`blueprint-capture.el`), con lo stesso path hardcoded. **fix**: le tre
+      funzioni ora puntano al path corretto; `blueprint--ensure-glossary`/
+      `blueprint--ensure-references` creano il file lazy dal template reale
+      (`blueprint--init-file`, la stessa funzione usata da `blueprint-init`)
+      invece che da uno stub `#+TITLE: ...` vuoto, così un file creato al
+      primo `add` ha comunque la struttura e la guida di un progetto
+      inizializzato normalmente. I test esistenti asserivano il path
+      *sbagliato* come comportamento atteso — un bug "confermato" dai suoi
+      stessi test. Test aggiornati/aggiunti:
+      `blueprint-test-glossary/*`, `blueprint-test-references/*` in
+      `test/blueprint-test-content.el`; nuovo
+      `test/blueprint-test-capture.el` (prima assente).
+- [x] **[trovato durante 10.6]** `blueprint--nfr-next-risk-id` (e la sua
+      controparte appena scritta per 10.6, `blueprint--references-next-id`)
+      scansionavano l'intero file per l'ID massimo esistente, senza limitarsi
+      alla sezione reale: il template mostra ID di esempio (`R-001`/`R-002`
+      in `nfr-risks.org`; `D-01`/`D-02`/`I-01`/`I-02` in `references.org`)
+      dentro la sezione `* Guida alla compilazione ... :noexport:`, che lo
+      scan whole-file confondeva con voci reali — un progetto appena
+      inizializzato assegnava `R-003` al primo rischio reale invece di
+      `R-001`. Il fix precedente (vedi voce "template nfr-risks.org — riga
+      placeholder" più sotto) aveva spostato l'esempio in una sezione
+      separata ma **non aveva risolto il problema**, perché lo scan non ha
+      mai avuto un confine di sezione: era mascherato dai propri test, che
+      verificavano solo `(string-match-p "R-001" content)` — vero comunque,
+      perché "R-001" compare anche nell'esempio, a prescindere dall'ID
+      realmente assegnato alla nuova riga. **fix**: entrambe le funzioni ora
+      cercano prima l'heading di sezione reale (`* Registro dei rischi`, `*
+      Documenti`, `* Interviste`) e limitano lo scan degli ID a quella
+      sezione. La ricerca dell'heading stesso deve essere ancorata a inizio
+      riga (`^`): in `references.org` la guida contiene una sotto-sezione
+      `** Interviste (esempio)`, la cui seconda `*` seguita da uno spazio fa
+      match con una ricerca non ancorata di `"* Interviste"`, trovando la
+      sezione di esempio invece di quella reale — bug scoperto proprio
+      scrivendo il fix, prima di essere corretto con l'ancoraggio. Stesso
+      ancoraggio applicato per difesa anche a
+      `blueprint--nfr-insert-row-in-section`, anche se lì non c'è (ancora)
+      una sotto-sezione che collida. Test aggiornati per verificare l'ID
+      abbinato alla propria riga (`"| R-001 | Primo rischio"`), non solo la
+      sua presenza nel file, più test di regressione dedicati
+      (`*-ignores-guide-examples` / `*-ids-ignore-guide-examples`).
+- [x] **[trovato durante 10.6]** Il comando Lint documentato in questo stesso
+      file (`emacs --batch ... -f batch-byte-compile *.el`) falliva già sul
+      branch `main`: `blueprint-core.el`, `blueprint-nfr.el`,
+      `blueprint-delivery.el` avevano docstring oltre 80 caratteri
+      (`byte-compile-error-on-warn t` li tratta come errori, non warning);
+      `orgfmt.el` (script di sviluppo per `fmt-docs.sh`, non parte del
+      pacchetto ma comunque incluso dal glob `*.el` del job di lint)
+      mancava del cookie `lexical-binding` e usava la funzione deprecata
+      `org-align-all-tags` invece di `org-align-tags`. La CI di lint era
+      quindi rossa su tutti e tre i leg della matrice Emacs. **fix**:
+      docstring riformattate su più righe; `orgfmt.el` aggiornato.
 
 ### 8.2 Miglioramenti ai test
 
@@ -577,17 +637,63 @@ La metodologia prevede esplicitamente:
 - [x] Test: `blueprint-test-runtime/add-process-*` in
       `test/blueprint-test-runtime.el`
 
-### 10.6 Differenziazione tipo riferimenti (PRIORITÀ BASSA)
+### ~~10.6 Differenziazione tipo riferimenti (PRIORITÀ BASSA)~~ ✅
 
 Il `master.org` distingue logicamente riferimenti-documenti da
 riferimenti-interviste (ancore `references-interviews`, `references-documents`).
-`blueprint-reference-add` usa un tipo libero non strutturato.
+`blueprint-reference-add` usava un tipo libero non strutturato, inserito come
+heading di livello 1 con drawer `:PROPERTIES:` — formato incompatibile con le
+sezioni a tabella (`* Documenti` / `* Interviste` / `* Sistemi e strumenti` /
+`* Ambienti analizzati`) già presenti nel template.
 
-- [ ] Aggiungere sezioni separate in `references.org`:
-  - `* Interviste` per fonti tipo `interview`
-  - `* Documenti` per fonti tipo `document`, `codebase`, `ticket`, `monitoring`
-- [ ] `blueprint-reference-add` ordina automaticamente per tipo nella sezione
-      corretta
+- [x] `blueprint-reference-add` instrada per tipo: `interview` → riga nella
+      tabella `* Interviste` (`<<references-interviews>>`), tutto il resto
+      (`document`/`codebase`/`ticket`/`monitoring`, dove TYPE diventa il
+      valore della colonna "Tipo" della tabella) → `* Documenti`
+      (`<<references-documents>>`). Vocabolario dei tipi riconciliato: la
+      vecchia scelta `"system"` nel `completing-read` non corrispondeva a
+      nessuna colonna delle quattro sezioni del template ed è stata rimossa
+      a favore di `document`/`interview`/`codebase`/`ticket`/`monitoring`.
+      Le altre due sezioni del template, "Sistemi e strumenti" e "Ambienti
+      analizzati", restano compilate solo a mano: nessun comando le
+      targetizza (non richiesto da questa voce di piano).
+- [x] ID auto-incrementali per sezione (`D-NN`/`I-NN`), stesso pattern di
+      `blueprint--nfr-next-risk-id` (`blueprint--references-next-id`,
+      `blueprint--references-insert-row-in-section` in
+      `blueprint-references.el`, che riusa l'approccio di
+      `blueprint--nfr-insert-row-in-section` in `blueprint-nfr.el`).
+      Colonne senza un argomento dedicato (Ruolo per un'intervista, Autore /
+      Owner per un documento) sono valorizzate `[DA VALIDARE]` invece di
+      restare vuote, così emergono in `blueprint-list-unvalidated`.
+- [x] Test: `blueprint-test-references/*` in `test/blueprint-test-content.el`
+      (routing per tipo, numerazione, ignorare gli esempi della guida).
+
+**Nota — analogo debito nel glossario, non risolto qui**: il path bug
+(`.blueprint/glossary.org` invece di `glossary.org`) è stato corretto (vedi
+8.1), ma `blueprint-glossary-add` inserisce ancora un heading di livello 1
+con drawer `:PROPERTIES:` in coda al file, non instradato in una delle
+sezioni strutturate del template (`* Termini di dominio` /
+`* Termini tecnici con uso specifico`, entrambe con heading di livello 2 e
+riga `/Fonte: .../`, non drawer). A differenza di `references.org`, qui non
+c'è un asse di classificazione esplicito (tipo `interview`/`document`) su cui
+instradare: andrebbe deciso se aggiungere un parametro "categoria" a
+`blueprint-glossary-add` o instradare sempre in "Termini di dominio" con
+possibilità di spostare a mano. Non implementato in questa sessione — vedi
+Fase 10.8 sotto.
+
+### 10.8 Instradamento di `blueprint-glossary-add` nelle sezioni del template (PRIORITÀ BASSA)
+
+Stesso problema di formato che aveva `blueprint-reference-add` prima della
+10.6 (vedi nota sopra), non coperto da quella voce di piano perché limitata a
+`references.org`.
+
+- [ ] Decidere l'asse di classificazione (categoria esplicita vs. sempre
+      "Termini di dominio")
+- [ ] `blueprint-glossary-add` instrada come heading di livello 2 con riga
+      `/Fonte: .../` nella sezione corretta, non più livello 1 con drawer
+      `:PROPERTIES:` in coda al file
+- [ ] Aggiornare `blueprint-glossary-lookup` (cerca `^\* <term>`, da
+      adattare a `^\*\* <term>` una volta cambiato il livello dell'heading)
 
 ### 10.7 Gestione perimetro (inclusi/esclusi) (PRIORITÀ BASSA)
 
