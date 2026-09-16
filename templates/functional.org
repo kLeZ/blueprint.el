@@ -272,5 +272,32 @@ realistico con tutti i campi obbligatori valorizzati.
 }
 #+end_src
 
+* Flussi dati
+<<{{ID}}-data-flows>>
+[DA VALIDARE]
+
+Data Flow Diagram (notazione Yourdon/DeMarco) per il data lineage: da dove
+arrivano i dati, quali processi li trasformano, dove vengono persistiti e
+verso quali sistemi escono.  Complementa la tabella di "Punti di
+integrazione" con la vista del percorso del dato, non solo del contratto
+punto-a-punto.  PlantUML non ha una libreria DFD dedicata (a differenza di
+C4): entità esterne come ~rectangle~, processi come ~circle~, data store
+come ~database~.
+
+#+begin_src plantuml :file {{ID}}-data-flows.svg
+@startuml
+left to right direction
+rectangle "[Entità esterna, es. Cliente]" as ext1
+circle "[Processo, es. Elabora ordine]" as p1
+database "[Data store, es. DB Ordini]" as ds1
+rectangle "[Sistema esterno, es. Sistema pagamenti]" as ext2
+
+ext1 --> p1 : [dato in ingresso]
+p1 --> ds1 : [dato persistito]
+p1 --> ext2 : [dato in uscita]
+ext2 --> p1 : [dato di risposta]
+@enduml
+#+end_src
+
 * Open Questions
 - [Elementi non determinabili dal codice che richiedono validazione con domain expert]

@@ -214,11 +214,8 @@ obbligatorie mancanti, file di template assenti.
 
 ** Aprire il file di un componente
 
-Navigare in =.blueprint/components/<nome>/arc42.org= oppure usare:
-
-#+begin_src
-M-x blueprint-open  (oppure: C-c b o)
-#+end_src
+Navigare in =.blueprint/components/<nome>/arc42.org= con =find-file=, o
+partire dalla dashboard (=C-c b B=, poi ~RET~ sul componente).
 
 ** Gestire i flussi runtime
 
@@ -235,6 +232,23 @@ Inserisce nella sezione =* Runtime Behavior= un sotto-heading con:
 - =*** Sequenza= — sequence diagram (per team tecnici)
 
 Entrambi i blocchi contengono PlantUML template da completare.
+
+** Gestire i processi di business
+
+Aggiungere un processo di business multi-attore, come diagramma di attività
+UML con corsie (swimlane) — distinto dai flussi runtime: un flusso descrive
+come i messaggi si scambiano tra componenti di sistema, un processo di
+business descrive quale attore compie ciascun passo:
+
+#+begin_src
+M-x blueprint-runtime-add-process  (oppure: C-c b b)
+Component: order-service
+Process name: gestione reso
+#+end_src
+
+Inserisce nella sezione =* Processi di business= (creata se assente) un
+sotto-heading con un blocco PlantUML swimlane da completare (corsie, passi,
+punto decisionale di esempio).
 
 ** Convenzioni di marcatura durante la compilazione
 
@@ -828,12 +842,6 @@ manuali: non penalizzano e non sono cercate da alcun comando dedicato.
 
 I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
 Richiedono gestione manuale fino all'implementazione.
-
-** Activity diagram e DFD
-La metodologia prevede UML activity diagram con swimlane (per processi di
-business multi-attore) e DFD (per data lineage). Non esistono comandi
-o template dedicati: aggiungere questi diagrammi manualmente nelle sezioni
-appropriate di =arc42.org= o =functional.org=.
 
 ** Tipi di riferimento (documenti vs interviste)
 =blueprint-reference-add= usa un tipo libero. Le sezioni del master distinguono

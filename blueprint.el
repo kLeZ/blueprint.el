@@ -134,7 +134,8 @@
     ("e" "add entity" blueprint-functional-add-entity)
     ("i" "add integration" blueprint-functional-add-integration)]
    ["Runtime"
-    ("r" "add flow" blueprint-runtime-add-flow)]
+    ("r" "add flow" blueprint-runtime-add-flow)
+    ("b" "add business process" blueprint-runtime-add-process)]
    ["NFR"
     ("p" "quality scenario" blueprint-nfr-add-quality-scenario)
     ("c" "constraint" blueprint-nfr-add-constraint)
@@ -170,6 +171,7 @@
     (define-key map (kbd "e") #'blueprint-functional-add-entity)
     (define-key map (kbd "i") #'blueprint-functional-add-integration)
     (define-key map (kbd "r") #'blueprint-runtime-add-flow)
+    (define-key map (kbd "b") #'blueprint-runtime-add-process)
     (define-key map (kbd "p") #'blueprint-nfr-add-quality-scenario)
     (define-key map (kbd "c") #'blueprint-nfr-add-constraint)
     (define-key map (kbd "t") #'blueprint-nfr-add-risk)

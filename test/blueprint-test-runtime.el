@@ -187,5 +187,92 @@
   (blueprint-test--with-project
     (should-error (blueprint-runtime-add-flow "ghost" "Login") :type 'user-error)))
 
+;;; --- blueprint-runtime-add-process ---
+
+(ert-deftest blueprint-test-runtime/add-process-creates-section ()
+  "add-process creates Processi di business section when absent."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc")
+      (blueprint-runtime-add-process "svc" "Onboarding cliente")
+      (let ((content (blueprint-test--read-file
+                      (expand-file-name ".blueprint/components/svc/arc42.org" proj))))
+        (should (string-match-p "\\* Processi di business" content))
+        (should (string-match-p "\\*\\* Processo: Onboarding cliente" content))))))
+
+(ert-deftest blueprint-test-runtime/add-process-under-existing-section ()
+  "add-process appends under an existing Processi di business section."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc"
+        (concat "#+TITLE: svc\n\n"
+                "* Introduction\n\nIntro.\n\n"
+                "* Processi di business\n\n"
+                "* Deployment\n\nDeploy.\n\n"))
+      (blueprint-runtime-add-process "svc" "Reso prodotto")
+      (let ((content (blueprint-test--read-file
+                      (expand-file-name ".blueprint/components/svc/arc42.org" proj))))
+        (should (string-match-p "\\*\\* Processo: Reso prodotto" content))))))
+
+(ert-deftest blueprint-test-runtime/add-process-has-swimlane-plantuml ()
+  "add-process inserts a PlantUML activity diagram with swimlanes."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc")
+      (blueprint-runtime-add-process "svc" "Onboarding")
+      (let ((content (blueprint-test--read-file
+                      (expand-file-name ".blueprint/components/svc/arc42.org" proj))))
+        (should (string-match-p "begin_src plantuml.*process-onboarding\\.svg" content))
+        (should (string-match-p "|Attore 1|" content))
+        (should (string-match-p "|Attore 2|" content))
+        (should (string-match-p "start" content))
+        (should (string-match-p "stop" content))))))
+
+(ert-deftest blueprint-test-runtime/add-process-has-anchor ()
+  "add-process inserts an org anchor based on component-id and process slug."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc")
+      (blueprint-runtime-add-process "svc" "Gestione reso")
+      (let ((content (blueprint-test--read-file
+                      (expand-file-name ".blueprint/components/svc/arc42.org" proj))))
+        (should (string-match-p "<<svc-process-gestione-reso>>" content))))))
+
+(ert-deftest blueprint-test-runtime/add-process-stays-before-next-section ()
+  "add-process inserts before the next level-1 section."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc"
+        (concat "#+TITLE: svc\n\n"
+                "* Processi di business\n\n"
+                "* Deployment\n\nDeploy config.\n\n"))
+      (blueprint-runtime-add-process "svc" "Onboarding")
+      (let ((content (blueprint-test--read-file
+                      (expand-file-name ".blueprint/components/svc/arc42.org" proj))))
+        (let ((pos-proc (string-match "Processo: Onboarding" content))
+              (pos-deploy (string-match "\\* Deployment" content)))
+          (should pos-proc)
+          (should pos-deploy)
+          (should (< pos-proc pos-deploy)))))))
+
+(ert-deftest blueprint-test-runtime/add-process-does-not-touch-runtime-behavior ()
+  "add-process and add-flow use independent sections and do not collide."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc")
+      (blueprint-runtime-add-flow "svc" "Login")
+      (blueprint-runtime-add-process "svc" "Onboarding")
+      (let ((content (blueprint-test--read-file
+                      (expand-file-name ".blueprint/components/svc/arc42.org" proj))))
+        (should (string-match-p "\\* Runtime Behavior" content))
+        (should (string-match-p "\\* Processi di business" content))
+        (should (string-match-p "Flusso: Login" content))
+        (should (string-match-p "Processo: Onboarding" content))))))
+
+(ert-deftest blueprint-test-runtime/add-process-unknown-component ()
+  "add-process signals error for unknown component."
+  (blueprint-test--with-project
+    (should-error (blueprint-runtime-add-process "ghost" "Login") :type 'user-error)))
+
 (provide 'blueprint-test-runtime)
 ;;; blueprint-test-runtime.el ends here

@@ -275,6 +275,9 @@ logical groups:
 | **Quality**      | `H` | health SVG            |
 |                  | `L` | lint                  |
 |                  | `s` | suggest risks         |
+|                  | `d` | pre-delivery check    |
+|                  | `g` | list findings         |
+|                  | `u` | list unvalidated      |
 | **Dashboard**    | `B` | dashboard             |
 |                  | `F` | focus mode            |
 |                  | `.` | daily workflow        |
@@ -288,6 +291,8 @@ logical groups:
 |                  | `M` | migrate               |
 | **Export**       | `E` | export (default)      |
 |                  | `P` | export PDF            |
+|                  | `O` | export ODT            |
+|                  | `v` | export... (choose)    |
 |                  | `T` | async tangle          |
 | **Search & ADR** | `/` | search                |
 |                  | `N` | new ADR               |
@@ -297,13 +302,11 @@ logical groups:
 |                  | `f` | add feature           |
 |                  | `e` | add entity            |
 |                  | `i` | add integration point |
-|                  | `r` | add runtime flow      |
+| **Runtime**      | `r` | add runtime flow      |
+|                  | `b` | add business process  |
 | **NFR**          | `p` | add quality scenario  |
 |                  | `c` | add constraint        |
 |                  | `t` | add risk entry        |
-| **Quality**      | `d` | list findings         |
-| (extended)       | `g` | list unvalidated      |
-|                  | `u` | pre-delivery check    |
 
 ### Initializing a project
 

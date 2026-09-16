@@ -177,6 +177,38 @@ b --> a : risposta
 @enduml
 #+end_src
 
+* Processi di business
+<<{{ID}}-business-processes>>
+[DA VALIDARE]
+
+Processi di business multi-attore rilevanti per questo componente, come
+diagramma di attività UML con corsie (swimlane) per attore.
+
+** Processo: [nome processo]
+<<{{ID}}-process-main>>
+[DA VALIDARE]
+
+Descrizione del processo: obiettivo di business, attori coinvolti e punti
+decisionali rilevanti.
+
+#+begin_src plantuml :file {{ID}}-process-main.svg
+@startuml
+|Attore 1|
+start
+:Attività 1;
+|Attore 2|
+:Attività 2;
+if (Condizione?) then (si)
+  :Attività 3a;
+else (no)
+  :Attività 3b;
+endif
+|Attore 1|
+:Attività 4;
+stop
+@enduml
+#+end_src
+
 * Deployment
 <<{{ID}}-deployment>>
 [DA VALIDARE]

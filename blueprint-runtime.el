@@ -46,11 +46,11 @@ Returns nil if the heading is not found."
       nil t)
     result))
 
-(defun blueprint--runtime-goto-section-end ()
-  "Move point to the insertion position at the end of `* Runtime Behavior'.
+(defun blueprint--runtime-goto-section-end (title)
+  "Move point to the insertion position at the end of level-1 section TITLE.
 Finds the next level-1 heading and positions before it, or at EOF.
 Returns t when the section is found, nil otherwise."
-  (let ((pos (blueprint--runtime-find-heading 1 "Runtime Behavior")))
+  (let ((pos (blueprint--runtime-find-heading 1 title)))
     (when pos
       (goto-char pos)
       (let ((next (save-excursion
@@ -133,7 +133,7 @@ Creates the `* Runtime Behavior\\=' section if absent."
                      "#+end_src\n\n"))
            (buf (find-file-noselect file)))
       (with-current-buffer buf
-        (unless (blueprint--runtime-goto-section-end)
+        (unless (blueprint--runtime-goto-section-end "Runtime Behavior")
           (goto-char (point-max))
           (unless (bolp) (insert "\n"))
           (insert "* Runtime Behavior\n\n"))
@@ -141,6 +141,60 @@ Creates the `* Runtime Behavior\\=' section if absent."
         (save-buffer))
       (switch-to-buffer buf)
       (message "Added flow '%s' to %s" flow-name component))))
+
+;;;###autoload
+(defun blueprint-runtime-add-process (component process-name)
+  "Add business process PROCESS-NAME with a swimlane activity diagram to COMPONENT.
+Inserts a level-2 heading under `* Processi di business' in arc42.org,
+with a PlantUML activity diagram using swimlanes (`|Attore|') to show
+which actor performs each step of a multi-actor business process --
+distinct from `blueprint-runtime-add-flow', whose UC/sequence diagrams
+describe how a single flow's messages move between system components,
+not between business actors over time.
+
+Creates the `* Processi di business\\=' section if absent."
+  (interactive
+   (list (completing-read "Component: "
+                          (hash-table-keys (blueprint--components)) nil t)
+         (read-string "Process name: ")))
+  (let ((file (blueprint--component-file component)))
+    (unless file (user-error "Component %s not found" component))
+    (let* ((dir (gethash component (blueprint--components)))
+           (comp-id (file-name-nondirectory (directory-file-name dir)))
+           (slug (blueprint--runtime-slugify process-name))
+           (anchor (format "%s-process-%s" comp-id slug))
+           (svg-file (format "%s-process-%s.svg" comp-id slug))
+           (content (concat
+                     (format "** Processo: %s\n<<%s>>\n[DA VALIDARE]\n\n" process-name anchor)
+                     "Descrizione del processo: obiettivo di business, attori coinvolti\n"
+                     "e punti decisionali rilevanti.\n\n"
+                     (format "#+begin_src plantuml :file %s\n" svg-file)
+                     "@startuml\n"
+                     "|Attore 1|\n"
+                     "start\n"
+                     ":Attività 1;\n"
+                     "|Attore 2|\n"
+                     ":Attività 2;\n"
+                     "if (Condizione?) then (si)\n"
+                     "  :Attività 3a;\n"
+                     "else (no)\n"
+                     "  :Attività 3b;\n"
+                     "endif\n"
+                     "|Attore 1|\n"
+                     ":Attività 4;\n"
+                     "stop\n"
+                     "@enduml\n"
+                     "#+end_src\n\n"))
+           (buf (find-file-noselect file)))
+      (with-current-buffer buf
+        (unless (blueprint--runtime-goto-section-end "Processi di business")
+          (goto-char (point-max))
+          (unless (bolp) (insert "\n"))
+          (insert "* Processi di business\n\n"))
+        (insert content)
+        (save-buffer))
+      (switch-to-buffer buf)
+      (message "Added business process '%s' to %s" process-name component))))
 
 (provide 'blueprint-runtime)
 ;;; blueprint-runtime.el ends here

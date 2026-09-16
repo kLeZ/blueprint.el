@@ -535,21 +535,47 @@ perimetro e le loro relazioni di alto livello.
       blocco PlantUML
 - [x] Test: `blueprint-test-enterprise-c4/*` in `test/blueprint-test-c4.el`
 
-### 10.5 Template activity diagram e DFD (PRIORITÀ MEDIA)
+### ~~10.5 Template activity diagram e DFD (PRIORITÀ MEDIA)~~ ✅
 
 La metodologia prevede esplicitamente:
 
 - UML activity diagram con swimlane per processi di business multi-attore
 - DFD (Data Flow Diagram Yourdon/DeMarco) per data lineage e integrazioni
 
-Non esistono sezioni nei template correnti per questi diagrammi.
+- [x] Sezione `* Processi di business` in `component.org`, con blocco PlantUML
+      swimlane di esempio (stesse convenzioni di `* Runtime Behavior`:
+      anchor `<<{{ID}}-business-processes>>`, `[DA VALIDARE]`, heading di
+      livello 2 per ogni processo)
+- [x] Sezione `* Flussi dati` in `functional.org` (dopo "Punti di
+      integrazione", prima di "Open Questions"), con blocco PlantUML che
+      simula un DFD Yourdon/DeMarco — PlantUML non ha una libreria DFD
+      dedicata (a differenza di C4): entità esterne come `rectangle`,
+      processi come `circle`, data store come `database`
+- [x] `blueprint-runtime-add-process` (non `blueprint-functional-add-process`
+      come da nota originale — vedi sotto) in `blueprint-runtime.el`, tasto
+      "b" nel menu, analogo a `blueprint-runtime-add-flow`: aggiunge un
+      livello-2 sotto `* Processi di business`, creando la sezione se
+      assente. `blueprint--runtime-goto-section-end` generalizzata con un
+      parametro `title` (prima hardcoded su "Runtime Behavior") per essere
+      condivisa fra le due funzioni.
 
-- [ ] Aggiungere sezione `* Processi di business` a `component.org` con blocco
-      PlantUML swimlane template
-- [ ] Aggiungere sezione `* Flussi dati` a `functional.org` con blocco PlantUML
-      component diagram (simulazione DFD)
-- [ ] `blueprint-functional-add-process` — aggiunge un processo di business con
-      swimlane template (analogo a `blueprint-runtime-add-flow`)
+  **Nota sulla deviazione dal nome pianificato**: tutti gli altri comandi
+  `blueprint-functional-add-*` scrivono su `functional.org`
+  (`blueprint--functional-file`). Il processo di business, come le
+  descrizioni di questa voce di piano richiedevano fin dall'inizio, va
+  invece in `component.org`/`arc42.org` — lo stesso file di
+  `* Runtime Behavior`, con cui condivide le convenzioni di
+  heading/anchor/marker. Chiamarlo `blueprint-functional-add-process`
+  pur scrivendo su arc42.org (e vivendo in `blueprint-runtime.el`, non
+  `blueprint-functional.el`) avrebbe rotto la convenzione
+  prefisso-modulo↔file-target e complicato la voce "Functional" del menu
+  Transient (dove tutti gli altri comandi toccano functional.org). Non è
+  stato aggiunto un comando `blueprint-runtime-list-processes` analogo a
+  `blueprint--runtime-list-flows`: quest'ultimo non è usato da alcun
+  chiamante in produzione (solo dai suoi stessi test), quindi non è un
+  pattern da replicare senza un caso d'uso reale.
+- [x] Test: `blueprint-test-runtime/add-process-*` in
+      `test/blueprint-test-runtime.el`
 
 ### 10.6 Differenziazione tipo riferimenti (PRIORITÀ BASSA)
 
