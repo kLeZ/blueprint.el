@@ -512,18 +512,28 @@ capacità attuali di Blueprint.el. Le voci sono ordinate per priorità.
 - ~~Verifica: health score, [DA VALIDARE], [DA REVISIONARE], lint, master sync~~
 - ~~Report in buffer dedicato con badge OK/ATTENZIONE~~
 
-### 10.4 Vista enterprise auto-generata (PRIORITÀ MEDIA)
+### ~~10.4 Vista enterprise auto-generata (PRIORITÀ MEDIA)~~ ✅
 
 `blueprint-generate-c4` produce un diagramma Container (C4 L2). La metodologia
 prevede anche un diagramma C4 L1 enterprise che mostra tutti i sistemi nel
 perimetro e le loro relazioni di alto livello.
 
-- [ ] `blueprint-generate-enterprise-c4` — genera
-      `enterprise/enterprise-context.org` con un C4 L1 usando i componenti come
+- [x] `blueprint-generate-enterprise-c4` (`blueprint-c4.el`, tasto "V") —
+      genera `enterprise/context.org` con un C4 L1 usando i componenti come
       `System(...)` e le dipendenze come `Rel(...)` (più semplice di C4 L2:
-      nessun Container, solo System)
-- [ ] Aggiornamento del template `enterprise-context.org` per includere ancora
-      org che il comando possa aggiornare
+      nessun Container, solo System). Aggiorna solo la sezione fra i marker
+      `' @@blueprint-enterprise-start@@` / `' @@blueprint-enterprise-end@@`
+      dentro il blocco `#+begin_src plantuml`, riusando
+      `blueprint--sync-section` (già in `blueprint-sync.el`) invece di
+      reimplementare la sostituzione — sistemi esterni, utenti e relazioni
+      verso l'esterno restano scritti a mano fuori dai marker e non vengono
+      mai toccati, esattamente come `blueprint-sync` preserva il contenuto
+      manuale di master.org. Segnala `user-error` se
+      `enterprise/context.org` manca o non ha i marker (progetti creati
+      prima di questa feature vanno rigenerati dal template aggiornato).
+- [x] Aggiornamento del template `enterprise-context.org` con i marker nel
+      blocco PlantUML
+- [x] Test: `blueprint-test-enterprise-c4/*` in `test/blueprint-test-c4.el`
 
 ### 10.5 Template activity diagram e DFD (PRIORITÀ MEDIA)
 

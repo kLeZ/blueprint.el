@@ -110,5 +110,84 @@
                     (expand-file-name "c4.puml" default-directory))))
       (should (string-match-p "newcomp" content)))))
 
+;;; --- blueprint-generate-enterprise-c4 ---
+
+(defun blueprint-test--write-enterprise-context ()
+  "Write a minimal enterprise/context.org with the sync markers in place.
+Mirrors the shape shipped in templates/enterprise-context.org, but
+trimmed to the parts these tests care about."
+  (let ((file (expand-file-name "enterprise/context.org" default-directory)))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file
+      (insert
+       "#+TITLE: Enterprise context\n\n"
+       "#+begin_src plantuml :file enterprise-context.svg\n"
+       "!include <C4/C4_Context>\n"
+       blueprint-enterprise-c4-start-marker "\n"
+       blueprint-enterprise-c4-end-marker "\n"
+       "System_Ext(ext_1, \"External\", \"\")\n"
+       "Rel(ext_1, sys_a, \"calls\")\n"
+       "@enduml\n"
+       "#+end_src\n"))
+    file))
+
+(ert-deftest blueprint-test-enterprise-c4/errors-without-file ()
+  "Signals a user-error when enterprise/context.org does not exist."
+  (blueprint-test--with-project
+    (should-error (blueprint-generate-enterprise-c4) :type 'user-error)))
+
+(ert-deftest blueprint-test-enterprise-c4/errors-without-markers ()
+  "Signals a user-error when the file exists but has no sync markers."
+  (blueprint-test--with-project
+    (let ((file (expand-file-name "enterprise/context.org" default-directory)))
+      (make-directory (file-name-directory file) t)
+      (with-temp-file file (insert "#+TITLE: Enterprise context\n\nNo markers here.\n")))
+    (should-error (blueprint-generate-enterprise-c4) :type 'user-error)))
+
+(ert-deftest blueprint-test-enterprise-c4/adds-system-per-component ()
+  "Every component becomes a System(...) entry between the markers."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-enterprise-context)))
+      (blueprint-test--write-component "svc")
+      (blueprint-generate-enterprise-c4)
+      (let ((content (blueprint-test--read-file file)))
+        (should (string-match-p "System(svc, \"svc\", \"\")" content))))))
+
+(ert-deftest blueprint-test-enterprise-c4/adds-rel-for-dependency ()
+  "BLUEPRINT_DEPENDS becomes a Rel(...) entry between the markers."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-enterprise-context)))
+      (blueprint-test--write-component "frontend")
+      (blueprint-test--write-component
+       "backend"
+       "#+TITLE: backend\n#+BLUEPRINT_DEPENDS: frontend\n\n* Introduction\n\nText.\n")
+      (blueprint-generate-enterprise-c4)
+      (let ((content (blueprint-test--read-file file)))
+        (should (string-match-p "Rel(backend, frontend" content))))))
+
+(ert-deftest blueprint-test-enterprise-c4/preserves-manual-content ()
+  "External systems and manual relations outside the markers survive."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-enterprise-context)))
+      (blueprint-test--write-component "sys_a")
+      (blueprint-generate-enterprise-c4)
+      (let ((content (blueprint-test--read-file file)))
+        (should (string-match-p "System_Ext(ext_1" content))
+        (should (string-match-p "Rel(ext_1, sys_a, \"calls\")" content))))))
+
+(ert-deftest blueprint-test-enterprise-c4/second-call-updates ()
+  "A second call reflects a newly added component and drops removed ones."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-enterprise-context)))
+      (blueprint-test--write-component "old")
+      (blueprint-generate-enterprise-c4)
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+        (blueprint-delete-component "old"))
+      (blueprint-test--write-component "new")
+      (blueprint-generate-enterprise-c4)
+      (let ((content (blueprint-test--read-file file)))
+        (should (string-match-p "System(new, \"new\", \"\")" content))
+        (should-not (string-match-p "System(old, \"old\", \"\")" content))))))
+
 (provide 'blueprint-test-c4)
 ;;; blueprint-test-c4.el ends here

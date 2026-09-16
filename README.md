@@ -269,6 +269,7 @@ logical groups:
 |                  | `X` | delete component      |
 |                  | `l` | list components       |
 | **Architecture** | `C` | generate C4           |
+|                  | `V` | enterprise C4         |
 |                  | `G` | dependency graph      |
 |                  | `S` | sync master           |
 | **Quality**      | `H` | health SVG            |
@@ -381,6 +382,14 @@ Rel(api, auth, "uses")
 ```
 
 Render with PlantUML or a compatible tool.
+
+`blueprint-generate-enterprise-c4` is the simpler, enterprise-wide
+counterpart: it writes a C4 L1 context diagram (`System(...)` per
+component, `Rel(...)` per dependency, no `Container`) into the
+auto-generated section of `enterprise/context.org`, leaving anything you
+wrote by hand outside that section — external systems, users, relations
+to them — untouched on every regeneration, the same way `blueprint-sync`
+preserves manual content in `master.org`.
 
 ### Health scoring
 

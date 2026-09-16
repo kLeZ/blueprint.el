@@ -93,6 +93,7 @@
     ("l" "list components" blueprint-list-components)]
    ["Architecture"
     ("C" "generate C4" blueprint-generate-c4)
+    ("V" "enterprise C4" blueprint-generate-enterprise-c4)
     ("G" "dependency graph" blueprint-dependency-graph)
     ("S" "sync master" blueprint-sync)]
    ["Quality"
@@ -145,6 +146,7 @@
     (define-key map (kbd "I") #'blueprint-init)
     (define-key map (kbd "A") #'blueprint-add-component)
     (define-key map (kbd "C") #'blueprint-generate-c4)
+    (define-key map (kbd "V") #'blueprint-generate-enterprise-c4)
     (define-key map (kbd "G") #'blueprint-dependency-graph)
     (define-key map (kbd "H") #'blueprint-health-svg)
     (define-key map (kbd "L") #'blueprint-lint)

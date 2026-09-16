@@ -35,16 +35,20 @@ relazioni e i sistemi esterni rilevanti.
 
 #+begin_src plantuml :file enterprise-context.svg
 !include <C4/C4_Context>
-' Sistemi nel perimetro
+' @@blueprint-enterprise-start@@
+' Generato da blueprint-generate-enterprise-c4 (tasto "V" nel menu, o
+' M-x blueprint-generate-enterprise-c4): un System(...) per componente
+' e un Rel(...) per ogni #+BLUEPRINT_DEPENDS:. Non modificare a mano fra
+' questi due marker -- verrebbe sovrascritto alla prossima rigenerazione.
 System(sys_a, "Sistema A", "")
 System(sys_b, "Sistema B", "")
-' Sistemi esterni
+Rel(sys_a, sys_b, "uses")
+' @@blueprint-enterprise-end@@
+' Sistemi esterni, utenti e relazioni verso l'esterno: scritti a mano,
+' sempre fuori dai marker, mai toccati dalla rigenerazione.
 System_Ext(ext_1, "Sistema Esterno 1", "")
-' Utenti
 Person(user_1, "Utente 1", "")
-' Relazioni
 Rel(user_1, sys_a, "Usa")
-Rel(sys_a, sys_b, "Invia dati")
 Rel(sys_b, ext_1, "Chiama")
 @enduml
 #+end_src

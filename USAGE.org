@@ -369,37 +369,48 @@ Se gli accessi non sono disponibili, la procedura di fallback (in ordine):
 
 /Quando: dopo aver documentato almeno i componenti principali, per avere una vista aggregata./
 
-La vista enterprise e' la Parte I del documento master. Ha due file:
-- =.blueprint/enterprise/enterprise-context.org= — C4 L1 aggregato
-- =.blueprint/enterprise/enterprise-dependencies.org= — mappa dipendenze
+La vista enterprise e' la Parte I del documento master. Ha due file, entrambi
+nella root del progetto (non dentro =.blueprint/=):
+- =enterprise/context.org= — C4 L1 aggregato
+- =enterprise/dependencies.org= — mappa dipendenze
 
 ** Generare il diagramma C4 container (Parte II)
 
 #+begin_src
-M-x blueprint-generate-c4  (oppure: C-c b c)
+M-x blueprint-generate-c4  (oppure: C-c b C)
 #+end_src
 
 Genera =c4.puml= nella root del progetto con tutti i componenti come Container
 e le loro dipendenze come relazioni =Rel=. Il file e' pronto per il rendering
 con PlantUML.
 
-** Compilare la vista enterprise (manuale)
+** Generare il diagramma C4 enterprise (Parte I)
 
-Aprire =enterprise-context.org= e costruire il diagramma C4 L1 che mostra:
-- Tutti i sistemi nel perimetro come =System(...)=
+#+begin_src
+M-x blueprint-generate-enterprise-c4  (oppure: C-c b V)
+#+end_src
+
+Aggiorna =enterprise/context.org= con un C4 L1: un =System(...)= per ogni
+componente e un =Rel(...)= per ogni =#+BLUEPRINT_DEPENDS:=. A differenza del
+diagramma Container (Parte II), qui non ci sono =Container=, solo =System=.
+
+Il comando tocca solo la sezione fra i marker
+=' @@blueprint-enterprise-start@@= / =' @@blueprint-enterprise-end@@= dentro
+il blocco PlantUML — esattamente come =blueprint-sync= preserva il contenuto
+scritto a mano in =master.org=. Tutto cio' che va oltre i componenti resta da
+compilare manualmente, fuori da quei marker:
 - Sistemi esterni come =System_Ext(...)=
 - Utenti come =Person(...)=
-- Relazioni di alto livello tra sistemi
+- Relazioni verso l'esterno (es. =Rel(utente, sistema, "...")=)
 
-Aprire =enterprise-dependencies.org= e compilare:
+Se =enterprise/context.org= non esiste ancora (progetto inizializzato prima
+di questa feature, o file compilato a mano senza i marker), il comando
+segnala un errore invece di sovrascrivere: rigenerare il file dal template
+=enterprise-context.org= aggiornato.
+
+Aprire =enterprise/dependencies.org= e compilare:
 - La matrice di dipendenze (tabella N×N con IN/OUT/BI/--)
 - I flussi cross-sistema principali (sequence diagram per ogni flusso rilevante)
-
-** Nota
-
-La generazione automatica della vista enterprise a partire da =BLUEPRINT_DEPENDS=
-e' in roadmap. Per ora la vista enterprise e' compilata manualmente partendo
-dall'output di =blueprint-generate-c4= come riferimento.
 
 -----
 
@@ -796,18 +807,20 @@ associato e' un gap attuale dello strumento (vedi Appendice C).
 
 | Marcatura                | Significato                                                 | Tracciata da |
 |--------------------------+-------------------------------------------------------------+--------------|
-| =[DA VALIDARE]=          | Sezione non ancora verificata con referente del cliente     | Manuale      |
-| =[DA REVISIONARE]=       | Sezione prodotta automaticamente, non revisionata           | Manuale      |
-| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso/dichiarato | Manuale      |
+| =[DA VALIDARE]=          | Sezione non ancora verificata con referente del cliente     | Automatica   |
+| =[DA REVISIONARE]=       | Sezione prodotta automaticamente, non revisionata           | Automatica   |
+| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso/dichiarato | Automatica   |
 | =[APPROVATO YYYY-MM-DD]= | Sezione validata dal cliente nella data indicata            | Manuale      |
 | =[FONTE: X]=             | Attribuzione specifica della fonte informativa              | Manuale      |
 | =QUESTION=               | Domanda aperta irrisolta (penalizza health score: -3)       | Automatica   |
 | =TBD=                    | Sezione da completare (penalizza health score: -2)          | Automatica   |
 | =FIXME=                  | Problema identificato da correggere (penalizza h.s.: -4)    | Automatica   |
 
-Le marcature =[DA VALIDARE]=, =[FINDING]=, =[APPROVATO]= non sono attualmente
-tracciate automaticamente dal health score: vanno gestite manualmente nella
-checklist pre-consegna.
+=[DA VALIDARE]= (-1), =[DA REVISIONARE]= (-1) e =[FINDING]= (-2) penalizzano
+il health score esattamente come =QUESTION=/=TBD=/=FIXME=, e compaiono in
+=blueprint-list-findings= / =blueprint-list-unvalidated=
+(=C-c b g= / =C-c b u=). Solo =[APPROVATO]= e =[FONTE: X]= restano puramente
+manuali: non penalizzano e non sono cercate da alcun comando dedicato.
 
 -----
 
@@ -816,26 +829,11 @@ checklist pre-consegna.
 I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
 Richiedono gestione manuale fino all'implementazione.
 
-** NFR management interattivo
-Non esistono comandi interattivi per aggiungere scenari di qualita', vincoli
-e rischi ai file =nfr/*.org=. Le aggiunte vanno fatte a mano direttamente
-nel file.
-
-** Vista enterprise auto-generata
-Il diagramma C4 generato da =blueprint-generate-c4= e' a livello Container.
-La vista enterprise (C4 L1 con tutti i sistemi) va costruita manualmente
-in =enterprise-context.org= partendo dall'output di generazione come riferimento.
-
 ** Activity diagram e DFD
 La metodologia prevede UML activity diagram con swimlane (per processi di
 business multi-attore) e DFD (per data lineage). Non esistono comandi
 o template dedicati: aggiungere questi diagrammi manualmente nelle sezioni
 appropriate di =arc42.org= o =functional.org=.
-
-** Tracciamento marcature metodologiche
-I marcatori =[DA VALIDARE]=, =[FINDING]=, =[APPROVATO]= non sono conteggiati
-dal health score. Monitorare manualmente o con una ricerca org:
-=C-c / m [DA VALIDARE]=
 
 ** Tipi di riferimento (documenti vs interviste)
 =blueprint-reference-add= usa un tipo libero. Le sezioni del master distinguono
