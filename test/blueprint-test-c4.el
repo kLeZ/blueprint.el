@@ -189,5 +189,36 @@ trimmed to the parts these tests care about."
         (should (string-match-p "System(new, \"new\", \"\")" content))
         (should-not (string-match-p "System(old, \"old\", \"\")" content))))))
 
+;;; --- blueprint--component-scope-status ---
+
+(ert-deftest blueprint-test-scope-status/reads-out-of-scope ()
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy"
+     "#+TITLE: legacy\n#+BLUEPRINT_STATUS: out-of-scope\n\n* Introduction\n\n")
+    (should (equal "out-of-scope" (blueprint--component-scope-status "legacy")))))
+
+(ert-deftest blueprint-test-scope-status/reads-tbd ()
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "undecided"
+     "#+TITLE: undecided\n#+BLUEPRINT_STATUS: tbd\n\n* Introduction\n\n")
+    (should (equal "tbd" (blueprint--component-scope-status "undecided")))))
+
+(ert-deftest blueprint-test-scope-status/defaults-in-scope-when-absent ()
+  "A component predating this feature (no #+BLUEPRINT_STATUS:) defaults
+to in-scope."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (should (equal "in-scope" (blueprint--component-scope-status "svc")))))
+
+(ert-deftest blueprint-test-scope-status/defaults-in-scope-when-unrecognized ()
+  "An unrecognized #+BLUEPRINT_STATUS: value falls back to in-scope."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "typo"
+     "#+TITLE: typo\n#+BLUEPRINT_STATUS: outof-scope\n\n* Introduction\n\n")
+    (should (equal "in-scope" (blueprint--component-scope-status "typo")))))
+
 (provide 'blueprint-test-c4)
 ;;; blueprint-test-c4.el ends here

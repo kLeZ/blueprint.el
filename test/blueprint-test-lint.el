@@ -128,6 +128,53 @@
         (should-not (cl-some (lambda (w) (string-match-p "unknown component" w))
                              warnings))))))
 
+;;; --- perimeter status (#+BLUEPRINT_STATUS:) ---
+
+(ert-deftest blueprint-test-lint/in-scope-depending-on-out-of-scope-warns ()
+  "An in-scope component depending on an out-of-scope one is flagged."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy-billing"
+     "#+TITLE: legacy-billing\n#+BLUEPRINT_STATUS: out-of-scope\n\n* Introduction\n\nText.\n")
+    (let ((file (blueprint-test--write-component
+                 "order-service"
+                 (concat "#+TITLE: order-service\n"
+                         "#+BLUEPRINT_DEPENDS: legacy-billing\n"
+                         "#+BLUEPRINT_STATUS: in-scope\n\n"
+                         "* Introduction\n\nText.\n"))))
+      (let ((warnings (blueprint--lint-component "order-service" file)))
+        (should (cl-some (lambda (w) (string-match-p "out-of-scope" w))
+                         warnings))))))
+
+(ert-deftest blueprint-test-lint/out-of-scope-depending-on-out-of-scope-no-warning ()
+  "An out-of-scope component depending on another out-of-scope one is fine."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy-billing"
+     "#+TITLE: legacy-billing\n#+BLUEPRINT_STATUS: out-of-scope\n\n* Introduction\n\nText.\n")
+    (let ((file (blueprint-test--write-component
+                 "legacy-reports"
+                 (concat "#+TITLE: legacy-reports\n"
+                         "#+BLUEPRINT_DEPENDS: legacy-billing\n"
+                         "#+BLUEPRINT_STATUS: out-of-scope\n\n"
+                         "* Introduction\n\nText.\n"))))
+      (let ((warnings (blueprint--lint-component "legacy-reports" file)))
+        (should-not (cl-some (lambda (w) (string-match-p "out-of-scope" w))
+                             warnings))))))
+
+(ert-deftest blueprint-test-lint/missing-status-defaults-in-scope-no-warning ()
+  "A component with no #+BLUEPRINT_STATUS: (pre-existing project) is
+treated as in-scope, but depending on an in-scope component raises no
+out-of-scope warning."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "service-b")
+    (let ((file (blueprint-test--write-component
+                 "service-a"
+                 "#+TITLE: service-a\n#+BLUEPRINT_DEPENDS: service-b\n\n* Introduction\n\nText here.\n")))
+      (let ((warnings (blueprint--lint-component "service-a" file)))
+        (should-not (cl-some (lambda (w) (string-match-p "out-of-scope" w))
+                             warnings))))))
+
 ;;; --- blueprint-lint (interactive) ---
 
 (ert-deftest blueprint-test-lint/no-components-clean ()

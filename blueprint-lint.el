@@ -15,6 +15,7 @@
 
 (require 'blueprint-core)
 (require 'blueprint-health)
+(require 'blueprint-c4)
 
 (defcustom blueprint-lint-marker-threshold 5
   "Number of unresolved markers before the linter emits a warning."
@@ -65,19 +66,27 @@
           (when (zerop content-lines)
             (push (format "%s: file has no content (only headings and keywords)" id)
                   warnings))))
-      ;; Check dangling dependencies
+      ;; Check dangling dependencies, and in-scope -> out-of-scope leaks
       (let* ((deps-str (with-temp-buffer
                          (insert-file-contents file)
                          (goto-char (point-min))
                          (when (re-search-forward
                                 "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
                            (match-string 1))))
-             (all-comps (blueprint--components)))
+             (all-comps (blueprint--components))
+             (own-status (blueprint--component-scope-status id)))
         (when deps-str
           (dolist (dep (split-string deps-str))
-            (unless (gethash dep all-comps)
-              (push (format "%s: depends on unknown component \"%s\"" id dep)
-                    warnings)))))
+            (if (not (gethash dep all-comps))
+                (push (format "%s: depends on unknown component \"%s\"" id dep)
+                      warnings)
+              (when (and (string= own-status "in-scope")
+                         (string= (blueprint--component-scope-status dep)
+                                  "out-of-scope"))
+                (push (format
+                       "%s: in-scope component depends on out-of-scope component \"%s\""
+                       id dep)
+                      warnings))))))
       (nreverse warnings))))
 
 ;;;###autoload

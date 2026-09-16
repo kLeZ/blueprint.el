@@ -134,11 +134,19 @@ the system templates there and shows a prominent message listing every file
 written to the user's home. This ONLY happens interactively (not in batch/tests
 — uses `(called-interactively-p 'interactive)`).
 
-### Key Org keyword
+### Key Org keywords
 
 `#+BLUEPRINT_DEPENDS: comp1 comp2` in a component's `arc42.org` is the sole
 mechanism for declaring inter-component dependencies. C4 diagram generation and
 the dependency graph both parse this keyword.
+
+`#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd` (default `in-scope` when
+absent or unrecognized, via `blueprint--component-scope-status` in
+`blueprint-c4.el`) marks a component's assessment perimeter status.
+`blueprint-lint` warns when an in-scope component depends on an
+out-of-scope one; the dashboard's Scope column and out-of-scope filter
+(`blueprint-out-of-scope-view`, or `O` inside the dashboard buffer) read
+the same keyword.
 
 ## Code conventions
 

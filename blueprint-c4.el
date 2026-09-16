@@ -29,6 +29,22 @@ Returns the keyword value as a string, or nil if not found."
       (when (re-search-forward (format "^#\\+%s:\\s-*\\(.*\\S-\\)" key) nil t)
         (match-string 1)))))
 
+(defconst blueprint--component-scope-values '("in-scope" "out-of-scope" "tbd")
+  "Valid values for the #+BLUEPRINT_STATUS: keyword.")
+
+(defun blueprint--component-scope-status (id)
+  "Return the perimeter status of component ID.
+Reads #+BLUEPRINT_STATUS: from ID's arc42.org, one of
+`blueprint--component-scope-values'.  Defaults to \"in-scope\" when
+the keyword is absent (components created before this feature existed)
+or holds an unrecognized value, so older projects keep behaving as if
+every component were in scope."
+  (let* ((file (blueprint--component-file id))
+         (status (blueprint--org-keyword file "BLUEPRINT_STATUS")))
+    (if (member status blueprint--component-scope-values)
+        status
+      "in-scope")))
+
 ;;;###autoload
 (defun blueprint-generate-c4 ()
   "Generate a PlantUML C4 container diagram from project dependencies.

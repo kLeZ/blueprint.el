@@ -20,6 +20,11 @@
 (defvar blueprint-dashboard-focus nil
   "When non-nil, dashboard shows only components with open markers.")
 
+(defvar blueprint-dashboard-out-of-scope-only nil
+  "When non-nil, dashboard shows only out-of-scope/tbd components.
+Toggled by `blueprint-dashboard-toggle-out-of-scope', for reviewing
+which components were excluded from the assessment perimeter and why.")
+
 (defun blueprint--component-line-count (file)
   "Return the number of lines in FILE."
   (if (and file (file-exists-p file))
@@ -49,12 +54,16 @@
               (fixmes (nth 2 metrics))
               (owner (or (blueprint--org-keyword file "BLUEPRINT_OWNER") ""))
               (tech (or (blueprint--org-keyword file "BLUEPRINT_TECH") ""))
+              (scope (blueprint--component-scope-status id))
               (status (blueprint--component-status questions tbds fixmes))
               (has-markers (> (+ questions tbds fixmes) 0)))
-         (when (or (not blueprint-dashboard-focus) has-markers)
+         (when (and (or (not blueprint-dashboard-focus) has-markers)
+                    (or (not blueprint-dashboard-out-of-scope-only)
+                        (not (string= scope "in-scope"))))
            (push (list id (vector id
                                   owner
                                   tech
+                                  scope
                                   (number-to-string questions)
                                   (number-to-string tbds)
                                   (number-to-string fixmes)
@@ -69,6 +78,7 @@
     (define-key map (kbd "RET") #'blueprint-dashboard-visit)
     (define-key map (kbd "g") #'blueprint-dashboard-refresh)
     (define-key map (kbd "F") #'blueprint-dashboard-toggle-focus)
+    (define-key map (kbd "O") #'blueprint-dashboard-toggle-out-of-scope)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Keymap for `blueprint-dashboard-mode'.")
@@ -79,6 +89,7 @@
         [("Component" 25 t)
          ("Owner" 15 t)
          ("Tech" 15 t)
+         ("Scope" 13 t)
          ("Questions" 10 t)
          ("TBDs" 6 t)
          ("FIXMEs" 8 t)
@@ -100,10 +111,11 @@
   (tabulated-list-print t)
   (let ((score (blueprint-health-score)))
     (setq header-line-format
-          (format " Blueprint Dashboard | Health: %d | Components: %d%s"
+          (format " Blueprint Dashboard | Health: %d | Components: %d%s%s"
                   score
                   (hash-table-count (blueprint--components))
-                  (if blueprint-dashboard-focus " [FOCUS]" "")))))
+                  (if blueprint-dashboard-focus " [FOCUS]" "")
+                  (if blueprint-dashboard-out-of-scope-only " [OUT-OF-SCOPE]" "")))))
 
 (defun blueprint-dashboard-toggle-focus ()
   "Toggle focus mode (show only components with open markers)."
@@ -111,6 +123,15 @@
   (setq blueprint-dashboard-focus (not blueprint-dashboard-focus))
   (blueprint-dashboard-refresh)
   (message "Focus mode %s" (if blueprint-dashboard-focus "ON" "OFF")))
+
+(defun blueprint-dashboard-toggle-out-of-scope ()
+  "Toggle the out-of-scope filter (show only out-of-scope/tbd components)."
+  (interactive)
+  (setq blueprint-dashboard-out-of-scope-only
+        (not blueprint-dashboard-out-of-scope-only))
+  (blueprint-dashboard-refresh)
+  (message "Out-of-scope filter %s"
+           (if blueprint-dashboard-out-of-scope-only "ON" "OFF")))
 
 ;;;###autoload
 (defun blueprint-dashboard ()
@@ -128,6 +149,13 @@
   "Open the Blueprint dashboard in focus mode."
   (interactive)
   (setq blueprint-dashboard-focus t)
+  (blueprint-dashboard))
+
+;;;###autoload
+(defun blueprint-out-of-scope-view ()
+  "Open the Blueprint dashboard filtered to out-of-scope/tbd components."
+  (interactive)
+  (setq blueprint-dashboard-out-of-scope-only t)
   (blueprint-dashboard))
 
 ;;;###autoload

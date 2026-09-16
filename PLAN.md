@@ -695,12 +695,29 @@ Stesso problema di formato che aveva `blueprint-reference-add` prima della
 - [ ] Aggiornare `blueprint-glossary-lookup` (cerca `^\* <term>`, da
       adattare a `^\*\* <term>` una volta cambiato il livello dell'heading)
 
-### 10.7 Gestione perimetro (inclusi/esclusi) (PRIORITÀ BASSA)
+### ~~10.7 Gestione perimetro (inclusi/esclusi) (PRIORITÀ BASSA)~~ ✅
 
-Non esiste un modo strutturato per marcare componenti come "fuori perimetro con
-motivazione". Attualmente va documentato solo nel testo della Parte 0.
+Non esisteva un modo strutturato per marcare componenti come "fuori perimetro
+con motivazione". Andava documentato solo nel testo della Parte 0.
 
-- [ ] Keyword `#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd` in `arc42.org`
-- [ ] `blueprint-lint` avvisa se un componente `in-scope` dipende da uno
-      `out-of-scope`
-- [ ] Dashboard mostra colonna Status con filtro per componenti fuori perimetro
+- [x] Keyword `#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd` in
+      `arc42.org`/`component.org` (default `in-scope` nel template per i
+      nuovi componenti). Helper condiviso
+      `blueprint--component-scope-status` in `blueprint-c4.el` (stesso file
+      di `blueprint--org-keyword`, di cui è un consumer): default
+      `in-scope` anche quando il keyword manca (componenti creati prima di
+      questa feature) o ha un valore non riconosciuto, per non cambiare
+      comportamento ai progetti esistenti.
+- [x] `blueprint-lint` avvisa se un componente `in-scope` dipende da uno
+      `out-of-scope` (non il contrario: un componente `out-of-scope` che
+      dipende da un altro `out-of-scope` non è un problema).
+- [x] Dashboard: colonna "Scope" in `blueprint-dashboard-mode`; filtro
+      `blueprint-dashboard-toggle-out-of-scope` (tasto `O` nel buffer
+      dashboard) che mostra solo i componenti `out-of-scope`/`tbd`, stesso
+      pattern di `blueprint-dashboard-toggle-focus`. Entry point diretto
+      `blueprint-out-of-scope-view` (tasto `o` nel menu principale),
+      analogo a `blueprint-focus`.
+- [x] Test: `blueprint-test-scope-status/*` in `test/blueprint-test-c4.el`;
+      `blueprint-test-lint/*out-of-scope*` in `test/blueprint-test-lint.el`;
+      `blueprint-test-dashboard/*scope*` e `*out-of-scope*` in
+      `test/blueprint-test-dashboard.el`.

@@ -71,6 +71,44 @@
       (should (equal (aref fields 1) "Team Payments"))
       (should (equal (aref fields 2) "Java")))))
 
+(ert-deftest blueprint-test-dashboard/entries-carry-scope-column ()
+  "The Scope column reflects each component's #+BLUEPRINT_STATUS:."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy"
+     "#+TITLE: legacy\n#+BLUEPRINT_STATUS: out-of-scope\n\n* Introduction\n\n")
+    (let* ((blueprint-dashboard-focus nil)
+           (blueprint-dashboard-out-of-scope-only nil)
+           (entry (assoc "legacy" (blueprint--dashboard-entries)))
+           (fields (cadr entry)))
+      (should (equal (aref fields 3) "out-of-scope")))))
+
+(ert-deftest blueprint-test-dashboard/out-of-scope-filter-hides-in-scope ()
+  "With the out-of-scope filter on, in-scope components are hidden."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "clean")
+    (blueprint-test--write-component
+     "legacy"
+     "#+TITLE: legacy\n#+BLUEPRINT_STATUS: out-of-scope\n\n* Introduction\n\n")
+    (let* ((blueprint-dashboard-focus nil)
+           (blueprint-dashboard-out-of-scope-only t)
+           (ids (mapcar #'car (blueprint--dashboard-entries))))
+      (should (member "legacy" ids))
+      (should-not (member "clean" ids)))))
+
+(ert-deftest blueprint-test-dashboard/out-of-scope-filter-off-shows-all ()
+  "With the out-of-scope filter off, every component is listed."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "clean")
+    (blueprint-test--write-component
+     "legacy"
+     "#+TITLE: legacy\n#+BLUEPRINT_STATUS: out-of-scope\n\n* Introduction\n\n")
+    (let* ((blueprint-dashboard-focus nil)
+           (blueprint-dashboard-out-of-scope-only nil)
+           (ids (mapcar #'car (blueprint--dashboard-entries))))
+      (should (member "legacy" ids))
+      (should (member "clean" ids)))))
+
 (ert-deftest blueprint-test-dashboard/line-count-of-missing-file-is-zero ()
   (should (= 0 (blueprint--component-line-count nil)))
   (should (= 0 (blueprint--component-line-count "/nonexistent/path.org"))))

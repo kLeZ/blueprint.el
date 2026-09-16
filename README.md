@@ -280,6 +280,7 @@ logical groups:
 |                  | `u` | list unvalidated      |
 | **Dashboard**    | `B` | dashboard             |
 |                  | `F` | focus mode            |
+|                  | `o` | out-of-scope view     |
 |                  | `.` | daily workflow        |
 | **Content**      | `Q` | add question          |
 |                  | `q` | list questions        |
@@ -356,8 +357,9 @@ directory name and the `{{ID}}` placeholder used in PlantUML diagram IDs.
 
 The `arc42.org` template contains full Arc42 sections (Introduction, Context and
 Scope, Constraints, Solution Strategy, Building Blocks, Runtime Behavior,
-Deployment, Responsibility, Risks, Open Questions, Diagrams), plus
-`#+BLUEPRINT_DEPENDS:`, `#+BLUEPRINT_OWNER:`, and `#+BLUEPRINT_TECH:` keywords.
+Processi di business, Deployment, Responsibility, Risks, Open Questions,
+Diagrams), plus `#+BLUEPRINT_DEPENDS:`, `#+BLUEPRINT_OWNER:`,
+`#+BLUEPRINT_TECH:`, and `#+BLUEPRINT_STATUS:` keywords.
 
 ### Declaring dependencies
 
@@ -368,6 +370,16 @@ In any component's `arc42.org` file, list space-separated dependency names:
 ```
 
 These are parsed by the C4 generator to produce relationship arrows.
+
+### Marking a component out of scope
+
+`#+BLUEPRINT_STATUS: in-scope | out-of-scope | tbd` (defaults to `in-scope`
+when absent) marks a component's assessment perimeter status. `blueprint-lint`
+warns when an `in-scope` component depends on an `out-of-scope` one; the
+dashboard's Scope column and out-of-scope filter (`O`, or
+`blueprint-out-of-scope-view`) read the same keyword. Document the reason a
+component is excluded in Part 0 of `master.org` — the keyword only tracks
+the status, not the rationale.
 
 ### Generating C4 diagrams
 
@@ -423,8 +435,10 @@ Two additional commands list methodology markers project-wide:
 
 `blueprint-dashboard` opens a `tabulated-list-mode` buffer showing all
 components with columns for Owner (`#+BLUEPRINT_OWNER:`), Tech
-(`#+BLUEPRINT_TECH:`), Questions, TBDs, FIXMEs, and Status. Navigation: `RET`
-opens a component, `g` refreshes, `F` toggles focus mode, `q` closes.
+(`#+BLUEPRINT_TECH:`), Scope (`#+BLUEPRINT_STATUS:`), Questions, TBDs,
+FIXMEs, and Status. Navigation: `RET` opens a component, `g` refreshes, `F`
+toggles focus mode, `O` toggles the out-of-scope filter (show only
+`out-of-scope`/`tbd` components), `q` closes.
 
 ### Template management
 

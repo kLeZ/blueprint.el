@@ -106,6 +106,7 @@
    ["Dashboard"
     ("B" "dashboard" blueprint-dashboard)
     ("F" "focus mode" blueprint-focus)
+    ("o" "out-of-scope view" blueprint-out-of-scope-view)
     ("." "daily workflow" blueprint-daily)]]
   [["Content"
     ("Q" "add question" blueprint-add-question)
@@ -153,6 +154,7 @@
     (define-key map (kbd "L") #'blueprint-lint)
     (define-key map (kbd "B") #'blueprint-dashboard)
     (define-key map (kbd "F") #'blueprint-focus)
+    (define-key map (kbd "o") #'blueprint-out-of-scope-view)
     (define-key map (kbd "D") #'blueprint-template-diff)
     (define-key map (kbd "M") #'blueprint-template-migrate)
     (define-key map (kbd "S") #'blueprint-sync)

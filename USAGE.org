@@ -250,6 +250,23 @@ Inserisce nella sezione =* Processi di business= (creata se assente) un
 sotto-heading con un blocco PlantUML swimlane da completare (corsie, passi,
 punto decisionale di esempio).
 
+** Marcare un componente fuori perimetro
+
+Impostare =#+BLUEPRINT_STATUS:= nell'intestazione di =arc42.org= (default
+=in-scope= se assente, per non cambiare comportamento ai componenti creati
+prima di questa feature):
+
+#+begin_src org
+#+BLUEPRINT_STATUS: out-of-scope
+#+end_src
+
+Valori: =in-scope= (default), =out-of-scope=, =tbd=. =blueprint-lint=
+segnala se un componente =in-scope= dipende da uno =out-of-scope=; la
+dashboard mostra la colonna "Scope" e un filtro dedicato (=C-c b o=, o
+tasto =O= dentro il buffer dashboard) per rivedere solo i componenti fuori
+perimetro. La motivazione dell'esclusione va documentata a mano nella
+Parte 0 del master — il keyword traccia solo lo stato, non il motivo.
+
 ** Convenzioni di marcatura durante la compilazione
 
 Usare le marcature definite dalla metodologia:
@@ -848,7 +865,12 @@ manuali: non penalizzano e non sono cercate da alcun comando dedicato.
 I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
 Richiedono gestione manuale fino all'implementazione.
 
-** Gestione del perimetro (inclusi/esclusi)
-Non esiste un comando per marcare componenti come "esclusi dal perimetro con
-motivazione". Documentare la lista degli esclusi direttamente nella Parte 0
-del master.
+** Instradamento del glossario nelle sezioni del template
+=blueprint-glossary-add= inserisce ogni termine come heading di livello 1
+con drawer =:PROPERTIES:= in coda al file, non come heading di livello 2
+con riga =/Fonte: .../= nella sezione "Termini di dominio" o "Termini
+tecnici con uso specifico" del template (a differenza di
+=blueprint-reference-add=, che dalla fase 10.6 instrada correttamente nelle
+sezioni di =references.org=). Aggiungere il termine a mano nella sezione
+corretta, o lasciarlo in coda al file e riorganizzare in seguito. Vedi
+PLAN.md, Fase 10.8.
