@@ -581,6 +581,56 @@ match di riga per componente. Nessuna migrazione richiesta per i
 progetti pilota esistenti: il prossimo `blueprint-sync` rigenera la
 sezione con gli headline corretti automaticamente.
 
+### ~~9.15 Interruzioni di pagina tra i componenti~~ ✅
+
+Richiesta dal progetto pilota: nel documento esportato in
+ODT le sezioni dei componenti (Parti II, III, IV) si susseguono senza
+cambio pagina. Implementato come opzione dichiarata in `master.org`
+(`#+BLUEPRINT_PAGE_BREAK: components`), letta da `blueprint-sync`:
+prima di ogni titolo di componente tranne il primo di ciascuna Parte il
+sync scrive `#+ODT: <text:p text:style-name="PageBreak"/>` e
+`#+LATEX: \clearpage`. Scartata una macro Org: si espande dentro un
+paragrafo e in ODT produrrebbe un `<text:p>` annidato. Aggiunti il
+comando `blueprint-insert-page-break` per interruzioni manuali e
+`PageBreak` fra gli stili che `blueprint-check-odt-styles` verifica
+(`blueprint--odt-extra-required-styles`, non essendo nel baseline di
+OrgOdtStyles.xml). Test in `blueprint-test-sync.el` e
+`blueprint-test-export.el`.
+
+### 9.16 Documentare le funzioni native di Org supportate da Blueprint (PROSSIMA)
+
+Richiesta dal progetto pilota (2026-09-23), insieme alla
+migrazione delle fonti a note a piè di pagina native. Decisione
+dell'utente: per le esigenze di impaginazione e di apparato si
+preferiscono gli strumenti built-in di Org (`ox`, `ox-odt`,
+`ox-latex`, `oc`) a costrutti nuovi dentro Blueprint; Blueprint deve
+però dichiarare ufficialmente cosa del "nativo" supporta e garantisce
+lungo tutta la sua catena (sync, `#+INCLUDE` con `:minlevel`, lint,
+health, export ODT/PDF/DOCX, controllo stili ODT).
+
+Da fare:
+- sezione in `USAGE.org` (e rimando dal README), "Funzioni native di
+  Org supportate", con per ciascuna: sintassi, comportamento per
+  backend, verifiche fatte da Blueprint, limiti noti. Prime voci:
+  - note a piè di pagina (`[fn:: ...]` inline e `[fn:nome]` con
+    definizione), anche dentro celle di tabella e dentro file inclusi
+    con `#+INCLUDE` (numerazione unica nel documento assemblato);
+  - citazioni `oc` con processore `basic` (`[cite:@chiave]`,
+    `#+bibliography:`, `#+print_bibliography:`), se il pilota le adotta;
+  - interruzioni di pagina (9.15), come costrutto Blueprint sopra
+    keyword native `#+ODT:`/`#+LATEX:`;
+  - keyword di export per backend (`#+ODT:`, `#+LATEX:`, `#+HTML:`).
+- test ERT di non regressione: un progetto di prova con note in testo,
+  in tabella e in un file incluso, esportato in ODT; verifica che
+  `content.xml` contenga un `text:note` per ogni nota e che la
+  numerazione non riparta a ogni `#+INCLUDE`;
+- estendere `blueprint--odt-extra-required-styles` se l'export delle
+  note referenzia stili (es. `Footnote`) che un template `.ott`
+  aziendale potrebbe non definire, così che `blueprint-check-odt-styles`
+  li segnali;
+- valutare se `blueprint-lint` debba riconoscere le note come fonte di
+  un'affermazione (oggi non conta nulla del genere).
+
 ---
 
 ## Fase 10 — Allineamento metodologico (gap assessment-framework)

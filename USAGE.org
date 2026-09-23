@@ -722,6 +722,41 @@ consegnare un documento con un template aziendale nuovo o modificato, non
 solo alla prima configurazione: un aggiornamento del template puo'
 reintrodurre lo stesso problema.
 
+** Interruzioni di pagina
+
+Per far partire ogni componente su una pagina nuova nelle Parti gestite
+da =blueprint-sync= (II, III e IV), aggiungere a =master.org=:
+
+#+begin_src org
+,#+BLUEPRINT_PAGE_BREAK: components
+#+end_src
+
+Al =blueprint-sync= successivo, prima di ogni titolo di componente
+tranne il primo di ciascuna Parte, compaiono due righe:
+
+#+begin_src org
+,#+ODT: <text:p text:style-name="PageBreak"/>
+,#+LATEX: \clearpage
+#+end_src
+
+Ogni exporter usa la sua riga e ignora l'altra: ODT va a pagina nuova
+tramite lo stile di paragrafo =PageBreak=, il PDF via LaTeX con
+=\clearpage=. Il primo componente di ogni Parte resta sulla pagina del
+titolo della Parte. Togliendo la parola chiave, il sync successivo
+toglie anche le interruzioni. Un valore diverso da =components= viene
+ignorato con un messaggio.
+
+Per un'interruzione in un punto qualsiasi, fuori dalle sezioni del sync:
+
+#+begin_src
+M-x blueprint-insert-page-break
+#+end_src
+
+Lo stile =PageBreak= deve esistere nel template =#+ODT_STYLES_FILE:=
+(un paragrafo con =fo:break-before="page"=): se manca, LibreOffice
+ignora l'interruzione senza avvisare. =blueprint-check-odt-styles= lo
+segnala insieme agli stili interni di org.
+
 ** Export in Word (.docx)
 
 #+begin_src

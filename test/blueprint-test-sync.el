@@ -64,6 +64,88 @@
         (should (< pos-alpha pos-middle))
         (should (< pos-middle pos-zebra))))))
 
+;;; --- page breaks ---
+
+(ert-deftest blueprint-test-sync/page-breaks-between-components ()
+  "With PAGE-BREAKS `components', a break precedes every headline but the first."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-component "beta")
+    (blueprint-test--write-component "gamma")
+    (let* ((includes (blueprint--generate-includes-for "arc42.org" 'components))
+           (lines (split-string includes "\n")))
+      (should (= 2 (cl-count-if (lambda (l) (string-prefix-p "#+ODT:" l)) lines)))
+      (should (= 2 (cl-count-if (lambda (l) (string-prefix-p "#+LATEX:" l)) lines)))
+      ;; No break before the first component: the section opens with it.
+      (should (string-prefix-p "** " (car lines)))
+      ;; Each break sits right before a component headline.
+      (should (string-match-p
+               (concat (regexp-quote blueprint--page-break-lines) "\n\\*\\* ")
+               includes)))))
+
+(ert-deftest blueprint-test-sync/page-breaks-single-component-none ()
+  "A single component gets no page break."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "solo")
+    (should-not (string-match-p
+                 "#\\+ODT:"
+                 (blueprint--generate-includes-for "arc42.org" 'components)))))
+
+(ert-deftest blueprint-test-sync/page-breaks-off-by-default ()
+  "Without PAGE-BREAKS no break is written."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-component "beta")
+    (should-not (string-match-p "#\\+ODT:"
+                                (blueprint--generate-includes-for "arc42.org")))))
+
+(ert-deftest blueprint-test-sync/page-break-mode-parsing ()
+  "The keyword value is read case-insensitively; unknown values are ignored."
+  (with-temp-buffer
+    (insert "#+TITLE: X\n#+BLUEPRINT_PAGE_BREAK: Components \n")
+    (should (eq 'components (blueprint--page-break-mode))))
+  (with-temp-buffer
+    (insert "#+TITLE: X\n#+BLUEPRINT_PAGE_BREAK: parts\n")
+    (should-not (blueprint--page-break-mode)))
+  (with-temp-buffer
+    (insert "#+TITLE: X\n")
+    (should-not (blueprint--page-break-mode))))
+
+(ert-deftest blueprint-test-sync/sync-honours-page-break-keyword ()
+  "blueprint-sync writes breaks only when master.org declares the keyword."
+  (blueprint-test--with-project
+    (let ((master (expand-file-name "master.org" default-directory)))
+      (blueprint-test--write-component "alpha")
+      (blueprint-test--write-component "beta")
+      (with-temp-file master
+        (insert "#+TITLE: P\n#+BLUEPRINT_PAGE_BREAK: components\n\n"
+                blueprint-sync-start-marker "\n"
+                blueprint-sync-end-marker "\n"))
+      (blueprint-sync)
+      (should (= 1 (cl-count-if
+                    (lambda (l) (string-prefix-p "#+ODT:" l))
+                    (split-string (blueprint-test--read-file master) "\n"))))
+      ;; Removing the keyword and syncing again drops the breaks.
+      (with-temp-file master
+        (insert "#+TITLE: P\n\n"
+                blueprint-sync-start-marker "\n"
+                blueprint-sync-end-marker "\n"))
+      (when (get-file-buffer master)
+        (with-current-buffer (get-file-buffer master)
+          (revert-buffer t t t)))
+      (blueprint-sync)
+      (should-not (string-match-p "#\\+ODT:" (blueprint-test--read-file master))))))
+
+(ert-deftest blueprint-test-sync/insert-page-break ()
+  "`blueprint-insert-page-break' writes the break at the start of the line."
+  (with-temp-buffer
+    (insert "prima\ndopo")
+    (goto-char (point-max))
+    (backward-char 2)
+    (blueprint-insert-page-break)
+    (should (string= (buffer-string)
+                     (concat "prima\n" blueprint--page-break-lines "\ndopo")))))
+
 ;;; --- blueprint-sync ---
 
 (ert-deftest blueprint-test-sync/creates-master-when-absent ()

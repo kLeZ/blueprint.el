@@ -24,6 +24,20 @@
 ;; If a pair of markers is absent from master.org the corresponding
 ;; section is left untouched (backward compatible with projects that
 ;; use only the original arc42 markers).
+;;
+;; Page breaks between components: when master.org declares
+;;
+;;   #+BLUEPRINT_PAGE_BREAK: components
+;;
+;; each synced section also gets a page break before every component
+;; headline except the first, so that in the exported document each
+;; component's section starts on a new page.  The break is written as
+;; one keyword line per export backend (`#+ODT:' and `#+LATEX:'); each
+;; backend emits its own line and ignores the other.  An Org macro
+;; would be simpler to type but cannot work for ODT: it expands inside
+;; a paragraph and would nest a <text:p> inside another.  The ODT line
+;; references the paragraph style "PageBreak", which the
+;; #+ODT_STYLES_FILE: must define (see `blueprint-check-odt-styles').
 
 ;;; Code:
 
@@ -50,6 +64,53 @@
 (defvar blueprint-sync-infra-end-marker
   "# @@blueprint-sync-infra-end@@"
   "Marker that ends the auto-generated infrastructure include section.")
+
+;;; --- Page breaks ---
+
+(defconst blueprint-page-break-keyword "BLUEPRINT_PAGE_BREAK"
+  "Org keyword in master.org that enables automatic page breaks.
+The only supported value is \"components\": a page break before each
+component headline of the synced sections except the first.")
+
+(defconst blueprint--page-break-lines
+  (concat "#+ODT: <text:p text:style-name=\"PageBreak\"/>\n"
+          "#+LATEX: \\clearpage")
+  "Org lines producing a page break in the ODT and LaTeX exports.
+Each line is a backend-specific export keyword, so every backend emits
+only its own and ignores the others.  The ODT line relies on a
+paragraph style named \"PageBreak\" with fo:break-before=\"page\".")
+
+(defun blueprint--page-break-mode ()
+  "Return the page-break mode declared in the current buffer, or nil.
+Reads `blueprint-page-break-keyword' (case-insensitive value).  Returns
+the symbol `components' when the value is \"components\", nil when the
+keyword is absent.  An unrecognized value is reported with a message
+and treated as absent, so a typo never breaks the sync."
+  (save-excursion
+    (goto-char (point-min))
+    (let ((case-fold-search t))
+      (when (re-search-forward
+             (format "^#\\+%s:[ \t]*\\(.*?\\)[ \t]*$"
+                     blueprint-page-break-keyword)
+             nil t)
+        (let ((value (downcase (match-string 1))))
+          (if (string= value "components")
+              'components
+            (message "Unknown #+%s: value %S, ignored"
+                     blueprint-page-break-keyword value)
+            nil))))))
+
+;;;###autoload
+(defun blueprint-insert-page-break ()
+  "Insert a page break at the beginning of the current line.
+Writes `blueprint--page-break-lines', understood by the ODT and LaTeX
+exporters.  Useful in any Org file of the project, outside the
+sections managed by `blueprint-sync' (which inserts breaks between
+components by itself when master.org declares
+#+BLUEPRINT_PAGE_BREAK: components)."
+  (interactive)
+  (beginning-of-line)
+  (insert blueprint--page-break-lines "\n"))
 
 (defun blueprint--master-file ()
   "Return the path to the master.org file."
@@ -95,23 +156,28 @@ capitalized, if FILENAME is unreadable or has no #+TITLE: line."
                  (t title))))))
         (capitalize name))))
 
-(defun blueprint--generate-includes-for (filename)
+(defun blueprint--generate-includes-for (filename &optional page-breaks)
   "Generate #+INCLUDE: directives for FILENAME in component directories.
 Only includes components that actually have FILENAME in their directory.
 Components are sorted alphabetically by name.  Each include is preceded
 by a level-2 headline naming the component (see
 `blueprint--component-display-name'), so the assembled master.org marks
 where one component's section ends and the next begins; the include
-itself uses :minlevel 3 to nest under that headline.  Returns an empty
-string when no matching files are found."
+itself uses :minlevel 3 to nest under that headline.  When
+PAGE-BREAKS is the symbol `components', `blueprint--page-break-lines'
+precede every headline except the first.  Returns an empty string when
+no matching files are found."
   (let ((names (sort (hash-table-keys (blueprint--components)) #'string<))
         (lines '()))
     (dolist (name names)
       (let ((dir (gethash name (blueprint--components))))
         (when (file-exists-p (expand-file-name filename dir))
-          (push (format "** %s\n#+INCLUDE: \".blueprint/components/%s/%s\" :minlevel 3"
-                        (blueprint--component-display-name name dir filename)
-                        name filename)
+          (push (concat
+                 (when (and (eq page-breaks 'components) lines)
+                   (concat blueprint--page-break-lines "\n"))
+                 (format "** %s\n#+INCLUDE: \".blueprint/components/%s/%s\" :minlevel 3"
+                         (blueprint--component-display-name name dir filename)
+                         name filename))
                 lines))))
     (mapconcat #'identity (nreverse lines) "\n")))
 
@@ -147,22 +213,26 @@ cannot interfere."
   "Synchronize the master.org file with current components.
 Updates the three auto-managed sections (arc42, functional, infra)
 between their respective sync markers.  Content outside all markers
-is preserved.  Creates master.org from template if absent."
+is preserved.  Creates master.org from template if absent.  When
+master.org declares #+BLUEPRINT_PAGE_BREAK: components, each section
+gets a page break between consecutive components (see
+`blueprint--page-break-mode')."
   (interactive)
   (let ((file (blueprint--ensure-master)))
     (with-current-buffer (find-file-noselect file)
-      (blueprint--sync-section
-       blueprint-sync-start-marker
-       blueprint-sync-end-marker
-       (blueprint--generate-includes-for "arc42.org"))
-      (blueprint--sync-section
-       blueprint-sync-functional-start-marker
-       blueprint-sync-functional-end-marker
-       (blueprint--generate-includes-for "functional.org"))
-      (blueprint--sync-section
-       blueprint-sync-infra-start-marker
-       blueprint-sync-infra-end-marker
-       (blueprint--generate-includes-for "infrastructure.org"))
+      (let ((breaks (blueprint--page-break-mode)))
+        (blueprint--sync-section
+         blueprint-sync-start-marker
+         blueprint-sync-end-marker
+         (blueprint--generate-includes-for "arc42.org" breaks))
+        (blueprint--sync-section
+         blueprint-sync-functional-start-marker
+         blueprint-sync-functional-end-marker
+         (blueprint--generate-includes-for "functional.org" breaks))
+        (blueprint--sync-section
+         blueprint-sync-infra-start-marker
+         blueprint-sync-infra-end-marker
+         (blueprint--generate-includes-for "infrastructure.org" breaks)))
       (save-buffer))
     (message "Master file synchronized")))
 

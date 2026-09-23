@@ -251,5 +251,16 @@ must not be flagged just because they lack a definition."
           (blueprint-check-odt-styles))
         (should (string-match-p "no missing" captured))))))
 
+(ert-deftest blueprint-test-export/odt-missing-styles-reports-page-break ()
+  "PageBreak is reported when referenced and undefined, even outside Org's baseline."
+  (should (equal '("PageBreak")
+                 (blueprint--odt-missing-styles
+                  '("PageBreak" "Sect1" "OrgCode") '("OrgCode") '("OrgCode")))))
+
+(ert-deftest blueprint-test-export/odt-missing-styles-page-break-defined ()
+  "A defined PageBreak is not reported."
+  (should-not (blueprint--odt-missing-styles
+               '("PageBreak") '("OrgCode") '("PageBreak"))))
+
 (provide 'blueprint-test-export)
 ;;; blueprint-test-export.el ends here

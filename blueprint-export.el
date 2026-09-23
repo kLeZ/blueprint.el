@@ -163,6 +163,26 @@ element it sits on (`<style:style style:name=...>',
 style:name=...>', ...  the attribute name is always `style:name').
 Group 1 is the style name.")
 
+(defconst blueprint--odt-extra-required-styles '("PageBreak")
+  "Styles Blueprint itself references in the ODT output.
+They are not part of Org's bundled OrgOdtStyles.xml, so the baseline
+comparison in `blueprint--odt-missing-styles' would never report them.
+\"PageBreak\" comes from the page breaks written by `blueprint-sync'
+and `blueprint-insert-page-break': without a definition in
+#+ODT_STYLES_FILE: LibreOffice silently ignores the break.")
+
+(defun blueprint--odt-missing-styles (referenced baseline-defined defined)
+  "Return the styles in REFERENCED that must exist but are not DEFINED.
+A referenced style counts as required when it belongs to
+BASELINE-DEFINED (Org's own OrgOdtStyles.xml) or to
+`blueprint--odt-extra-required-styles'; other references (e.g. Org's
+table-of-contents scaffolding) are not reported."
+  (cl-remove-if
+   (lambda (s) (or (not (or (member s baseline-defined)
+                            (member s blueprint--odt-extra-required-styles)))
+                   (member s defined)))
+   referenced))
+
 (defun blueprint--odt-style-names (xml-string regexp)
   "Return the deduplicated list of style names REGEXP captures in
 XML-STRING (group 1)."
@@ -228,10 +248,8 @@ this check exists and how it avoids false positives."
                      styles-xml blueprint--odt-style-definition-regexp)
                     (blueprint--odt-style-names
                      content-xml blueprint--odt-style-definition-regexp)))
-           (missing (cl-remove-if
-                     (lambda (s) (or (not (member s baseline-defined))
-                                     (member s defined)))
-                     referenced)))
+           (missing (blueprint--odt-missing-styles
+                     referenced baseline-defined defined)))
       (cons missing (cons custom-styles-file odt)))))
 
 ;;;###autoload
