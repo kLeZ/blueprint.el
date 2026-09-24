@@ -60,6 +60,27 @@ document keyword; only actual keyword nodes should be stripped."
       (should (string-match-p "#\\+TITLE: Real Title" content))
       (should (string-match-p "#\\+TITLE: Sample Title In Example" content)))))
 
+(ert-deftest blueprint-test-export/strip-question-keywords ()
+  "The QUESTION keyword is removed from list items, the text is kept."
+  (with-temp-buffer
+    (org-mode)
+    (insert "* Open Questions\n\n"
+            "- QUESTION Who owns the refund flow?\n"
+            "- A plain item mentioning QUESTION in the middle\n\n"
+            "#+BEGIN_EXAMPLE\n"
+            "- QUESTION sample inside an example\n"
+            "#+END_EXAMPLE\n")
+    (blueprint--strip-question-keywords 'odt)
+    (let ((content (buffer-string)))
+      (should (string-match-p "^- Who owns the refund flow\\?$" content))
+      (should (string-match-p "mentioning QUESTION in the middle" content))
+      (should (string-match-p "^- QUESTION sample inside an example$" content)))))
+
+(ert-deftest blueprint-test-export/question-hook-registered ()
+  "Loading blueprint-export.el registers the QUESTION-stripping hook."
+  (should (memq #'blueprint--strip-question-keywords
+                org-export-before-parsing-functions)))
+
 (ert-deftest blueprint-test-export/hook-registered ()
   "Loading blueprint-export.el registers the title-stripping hook."
   (should (memq #'blueprint--strip-duplicate-titles

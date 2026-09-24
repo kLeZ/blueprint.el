@@ -597,6 +597,35 @@ comando `blueprint-insert-page-break` per interruzioni manuali e
 OrgOdtStyles.xml). Test in `blueprint-test-sync.el` e
 `blueprint-test-export.el`.
 
+### 9.18 Le didascalie dei diagrammi non arrivano nell'export ODT (DA FARE)
+
+Trovato dal progetto pilota (2026-09-24): nessun
+`#+CAPTION:` messo sopra un blocco `#+begin_src plantuml :file ...`
+compare nel `content.xml` esportato (zero occorrenze di "Figura"),
+mentre le immagini ci sono tutte. Il `#+CAPTION:` resta attaccato al
+blocco sorgente, che non viene esportato; l'immagine esce dal link dei
+risultati, che non ha didascalia. Da verificare se lo stesso vale per
+PDF/LaTeX. Possibile soluzione: al momento dell'export spostare la
+didascalia (e il `#+NAME:`) sul paragrafo dei risultati, con un hook in
+`org-export-before-parsing-functions` come gli altri due, e un test ERT.
+
+### 9.17 Parola chiave QUESTION stampata nel documento esportato (FATTO)
+
+Trovato dal progetto pilota (2026-09-24): le voci
+`- QUESTION ...` inserite da `blueprint-add-question` uscivano
+nell'export ODT/PDF con la parola chiave letterale davanti a ogni
+domanda aperta. La parola serve a lint, health score ed elenco
+domande, non al lettore.
+
+Fatto: `blueprint--strip-question-keywords` in `blueprint-export.el`,
+registrata in `org-export-before-parsing-functions` come
+`blueprint--strip-duplicate-titles`. Toglie la parola chiave solo dalle
+voci di elenco che iniziano con essa; la parola dentro una frase, un
+blocco di esempio o di codice resta. Test ERT in
+`test/blueprint-test-export.el`. TBD e FIXME restano stampati: sono
+lavoro dell'autore, non dovrebbero arrivare a un documento consegnato,
+e il lint li segnala già.
+
 ### 9.16 Documentare le funzioni native di Org supportate da Blueprint (PROSSIMA)
 
 Richiesta dal progetto pilota (2026-09-23), insieme alla

@@ -83,6 +83,32 @@ backward so earlier positions stay valid."
 
 (add-hook 'org-export-before-parsing-functions #'blueprint--strip-duplicate-titles)
 
+(defconst blueprint--question-keyword-regexp "QUESTION[ \t]+"
+  "Keyword that `blueprint-add-question' puts at the start of a list item.")
+
+(defun blueprint--strip-question-keywords (_backend)
+  "Drop the QUESTION keyword from list items in the export buffer.
+The keyword is a tracking marker (lint, health score, question
+listing), not text for the reader: left in place it is printed
+literally in front of every open question of the delivered document.
+Only plain list items whose text starts with the keyword are touched,
+so the word inside a sentence, an example or a source block survives.
+Deletes from the last match backward so earlier positions stay valid."
+  (let (ranges)
+    (org-element-map (org-element-parse-buffer) 'item
+      (lambda (item)
+        (let ((begin (org-element-property :contents-begin item)))
+          (when begin
+            (save-excursion
+              (goto-char begin)
+              (when (looking-at blueprint--question-keyword-regexp)
+                (push (cons begin (match-end 0)) ranges)))))))
+    ;; RANGES is in reverse document order already.
+    (dolist (range ranges)
+      (delete-region (car range) (cdr range)))))
+
+(add-hook 'org-export-before-parsing-functions #'blueprint--strip-question-keywords)
+
 (defun blueprint--master-or-error ()
   "Return the master.org path, or signal an error if it does not exist.
 Run `blueprint-init' or `blueprint-sync' to create master.org first."
