@@ -47,7 +47,7 @@ directory (non-destructive)."
     (dolist (f (directory-files src t "^[^.]"))
       (let ((target (expand-file-name (file-name-nondirectory f) dst)))
         (unless (file-exists-p target)
-          (copy-file f target))))
+          (blueprint--copy-file-writable f target))))
     (message "Templates migrated (non-destructive)")))
 
 ;;; --- Data directory migration ---

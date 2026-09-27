@@ -61,6 +61,49 @@
             (unless (memq buf buffers-before)
               (kill-buffer buf))))))))
 
+(ert-deftest blueprint-test-migrate/copies-are-writable-from-read-only-source ()
+  "Templates copied from a read-only system directory are editable.
+Regression: `copy-file' keeps the source mode, so with the package in a
+read-only store (Nix, a distribution package) every project template
+came out 0444."
+  (let ((src (make-temp-file "blueprint-ro-templates-" t)))
+    (unwind-protect
+        (progn
+          (dolist (f (directory-files blueprint-template-dir t "\\.org\\'"))
+            (let ((dest (expand-file-name (file-name-nondirectory f) src)))
+              (copy-file f dest)
+              (set-file-modes dest #o444)))
+          (let ((blueprint-template-dir (file-name-as-directory src)))
+            (blueprint-test--with-project
+              (blueprint-template-migrate)
+              (dolist (f (directory-files (blueprint--project-template-dir) t "\\.org\\'"))
+                (should (file-writable-p f))))))
+      (dolist (f (directory-files src t "\\.org\\'"))
+        (set-file-modes f #o644))
+      (delete-directory src t))))
+
+(ert-deftest blueprint-test-migrate/provisioned-user-templates-writable ()
+  "User templates provisioned from a read-only system directory are editable."
+  (let ((src (make-temp-file "blueprint-ro-templates-" t))
+        (user (make-temp-file "blueprint-user-templates-" t)))
+    (unwind-protect
+        (progn
+          (dolist (f (directory-files blueprint-template-dir t "\\.org\\'"))
+            (let ((dest (expand-file-name (file-name-nondirectory f) src)))
+              (copy-file f dest)
+              (set-file-modes dest #o444)))
+          (let ((blueprint-template-dir (file-name-as-directory src))
+                (blueprint-user-template-dir user)
+                (inhibit-message t))
+            (blueprint--provision-user-templates)
+            (should (directory-files user nil "\\.org\\'"))
+            (dolist (f (directory-files user t "\\.org\\'"))
+              (should (file-writable-p f)))))
+      (dolist (f (directory-files src t "\\.org\\'"))
+        (set-file-modes f #o644))
+      (delete-directory src t)
+      (delete-directory user t))))
+
 ;;; --- blueprint-migrate-directory ---
 
 (defun blueprint-test-migrate--write (path content)

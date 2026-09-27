@@ -10,6 +10,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # Every Emacs version reports on its own: with fail-fast a failure on
+      # one version cancelled the others and hid their results.
+      fail-fast: false
       matrix:
         emacs-version: ['29.1', '29.4', 'snapshot']
     steps:

@@ -199,16 +199,18 @@ When DROP-STYLE is non-nil, strip that style's
 build a fixture that mimics a corporate .ott template silently
 missing an Org-internal style."
   (let ((dest (expand-file-name "styles.xml" dir)))
-    (copy-file (expand-file-name "OrgOdtStyles.xml" org-odt-styles-dir) dest)
-    (when drop-style
-      (with-current-buffer (find-file-noselect dest)
+    ;; Written from a buffer rather than `copy-file': in CI Org comes from
+    ;; the read-only Nix store, and a copied file keeps its 0444 mode.
+    (with-temp-buffer
+      (insert-file-contents
+       (expand-file-name "OrgOdtStyles.xml" org-odt-styles-dir))
+      (when drop-style
         (goto-char (point-min))
         (re-search-forward
          (format "  <style:style style:name=\"%s\"[^\n]*\n\\(?:.*\n\\)*?  </style:style>\n"
                  (regexp-quote drop-style)))
-        (replace-match "")
-        (save-buffer)
-        (kill-buffer)))
+        (replace-match ""))
+      (write-region nil nil dest nil 'silent))
     dest))
 
 (defun blueprint-test--write-odt-master (proj styles-file)

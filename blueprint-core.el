@@ -147,6 +147,15 @@ REPLACEMENTS is an alist of (PLACEHOLDER . VALUE) string pairs."
       (with-temp-file path
         (insert content)))))
 
+(defun blueprint--copy-file-writable (file newname)
+  "Copy FILE to NEWNAME and make the copy writable by its owner.
+`copy-file' keeps the source's permission bits, and the system
+templates can be read-only (package installed by Nix, a distribution
+package or any read-only store): without this the \"editable\" copies
+in the user or project template directory could not be edited."
+  (copy-file file newname)
+  (set-file-modes newname (logior (or (file-modes newname) #o444) #o200)))
+
 (defun blueprint--provision-user-templates ()
   "Copy system templates to the user template directory if they do not exist.
 
@@ -170,7 +179,7 @@ to the version bundled with the package."
     (dolist (f (directory-files sys-dir t "\\.org\\'"))
       (let ((target (expand-file-name (file-name-nondirectory f) user-dir)))
         (unless (file-exists-p target)
-          (copy-file f target)
+          (blueprint--copy-file-writable f target)
           (push (file-name-nondirectory f) copied))))
     (when copied
       (message

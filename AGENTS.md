@@ -481,6 +481,24 @@ Templates follow the methodology from
   altrimenti la finestra si apre sulla sessione Wayland). Test:
   `blueprint-test-health-svg/*`.
 
+- **Copie in sola lettura da un'installazione read-only (CI rossa da
+  settembre)**: `copy-file` conserva i permessi della sorgente. Con Org o
+  Blueprint installati in uno store in sola lettura (in CI
+  `purcell/setup-emacs` usa Nix, file 0444) le copie restavano 0444:
+  `blueprint-test--odt-styles-copy` apriva `styles.xml` in un buffer
+  read-only e il test `odt-styles-check-detects-missing-style` falliva su
+  tutte le versioni (in locale passava, file 0644). Lo stesso colpiva il
+  pacchetto: `blueprint--provision-user-templates` e
+  `blueprint-template-migrate` producevano template "modificabili" non
+  scrivibili. **Fix**: `blueprint--copy-file-writable` (`blueprint-core.el`)
+  aggiunge il bit di scrittura del proprietario dopo la copia; il fixture
+  di test scrive il file da un buffer. La matrice CI ora ha
+  `fail-fast: false`, perché un fallimento su una versione cancellava le
+  altre. Per provare in locale Emacs 29:
+  `docker run --rm -v "$PWD":/src:ro silex/emacs:29.1 ...`. Test:
+  `blueprint-test-migrate/copies-are-writable-from-read-only-source`,
+  `.../provisioned-user-templates-writable`.
+
 - **Template di componente senza scheletro**: `component.org`,
   `functional.org` e `infrastructure.org` avevano, fuori dalla guida, prosa
   segnaposto, tabelle vuote, diagrammi PlantUML d'esempio e un
