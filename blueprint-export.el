@@ -109,6 +109,63 @@ Deletes from the last match backward so earlier positions stay valid."
 
 (add-hook 'org-export-before-parsing-functions #'blueprint--strip-question-keywords)
 
+(defconst blueprint--result-affiliated-regexp
+  "^[ \t]*#\\+\\(?:CAPTION\\|ATTR_[[:alnum:]_-]+\\)\\(?:\\[.*\\]\\)?:"
+  "Affiliated keyword lines of a src block that belong to its results.
+Only captions and backend attributes (#+ATTR_ODT: :width ...) are
+copied: #+NAME: and #+HEADER: drive Babel itself and stay on the block.")
+
+(defun blueprint--move-result-captions (&rest _)
+  "Copy captions of src blocks exported as results onto their results.
+Babel replaces a block exported with \":exports results\" (the
+ob-plantuml default) by its #+RESULTS: paragraph and deletes the
+block's affiliated keywords with it, so a #+CAPTION: written above
+a diagram block never reached the exported document: the image came
+out of the results link without a caption.  Each such block's
+#+CAPTION: and #+ATTR_*: lines are inserted just before its
+#+RESULTS: line, where Babel still finds the results (it looks for
+the RESULTS line among the next element's affiliated keywords) and
+keeps them when it re-evaluates.  Blocks with no #+RESULTS: yet
+\(never evaluated) and blocks whose results already carry a caption
+are left alone.
+
+Runs as :before advice on `org-babel-exp-process-buffer', the only
+point where #+INCLUDE: files are already expanded (so component files
+included by master.org are covered) and Babel has not run yet: the
+before-processing hook comes before include expansion, the
+before-parsing hook after Babel.  It only ever edits the export copy
+of the buffer."
+  (let (moves)
+    (org-element-map (org-element-parse-buffer) 'src-block
+      (lambda (src)
+        (let ((lines (seq-filter
+                      (lambda (l) (string-match-p blueprint--result-affiliated-regexp l))
+                      (split-string (buffer-substring-no-properties
+                                     (org-element-property :begin src)
+                                     (org-element-property :post-affiliated src))
+                                    "\n" t))))
+          (when lines
+            (save-excursion
+              (goto-char (org-element-property :post-affiliated src))
+              (let* ((info (org-babel-get-src-block-info 'no-eval))
+                     (exports (format "%s" (cdr (assq :exports (nth 2 info))))))
+                (when (string-match-p "\\`results\\b" exports)
+                  (let ((result (org-babel-where-is-src-block-result)))
+                    (when (and result
+                               (not (save-excursion
+                                      (goto-char result)
+                                      (org-element-property
+                                       :caption (org-element-at-point)))))
+                      (push (cons result (concat (mapconcat #'identity lines "\n")
+                                                 "\n"))
+                            moves))))))))))
+    ;; Insert back to front so earlier positions stay valid.
+    (dolist (m (sort moves (lambda (a b) (> (car a) (car b)))))
+      (goto-char (car m))
+      (insert (cdr m)))))
+
+(advice-add 'org-babel-exp-process-buffer :before #'blueprint--move-result-captions)
+
 (defun blueprint--master-or-error ()
   "Return the master.org path, or signal an error if it does not exist.
 Run `blueprint-init' or `blueprint-sync' to create master.org first."

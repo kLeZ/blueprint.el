@@ -21,11 +21,11 @@
 ;;;###autoload
 (defun blueprint-roam-setup ()
   "Configure org-roam to include Blueprint component directories.
-Adds the .blueprint/components directory to `org-roam-directory' search."
+Adds the data directory's components/ directory to `org-roam-directory' search."
   (interactive)
   (unless (blueprint--roam-available-p)
     (user-error "Package org-roam is not installed"))
-  (let ((comp-dir (expand-file-name ".blueprint/components" (blueprint--root))))
+  (let ((comp-dir (blueprint--data-path "components")))
     ;; Ensure components have org-roam IDs
     (maphash
      (lambda (_id dir)

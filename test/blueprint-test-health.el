@@ -267,6 +267,72 @@ arc42.org is blueprint-lint's job, not blueprint-health-score's."
     (with-current-buffer "*Blueprint: Blueprint Findings*"
       (should (string-match-p "discrepanza rilevata" (buffer-string))))))
 
+(ert-deftest blueprint-test-list-findings/ignores-lock-files ()
+  "An Emacs lock file (dangling .#file.org symlink) does not break the scan.
+Regression: any .org file with unsaved changes in the project made
+`blueprint-list-findings' fail with file-missing."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "comp" "#+TITLE: comp\n\n[FINDING] trovato\n")))
+      (make-symbolic-link "user@host.1234:1"
+                          (expand-file-name ".#arc42.org"
+                                            (file-name-directory file)))
+      (should (= 1 (length (blueprint--scan-marker-occurrences "[FINDING]")))))))
+
+;;; --- Markers in non-exported text do not count (PLAN 9.22) ---
+
+(defconst blueprint-test--noexport-body
+  (concat "#+TITLE: svc\n#+STATUS: [DA VALIDARE]\n\n"
+          "* Guida alla compilazione :noexport:\n"
+          "Usare =[FINDING]= per le anomalie.\n"
+          "| Logging | [FINDING] nessuna rotazione | QUESTION |\n\n"
+          "* Introduction\n"
+          "Testo reale. [FINDING] vero. TBD\n"
+          "Si cita =[DA VALIDARE]= e ~FIXME~ in verbatim/code.\n"
+          "#+begin_src org\n[FINDING] esempio QUESTION\n#+end_src\n"
+          "#+begin_example\nTBD [DA REVISIONARE]\n#+end_example\n"
+          "# commento: FIXME\n"
+          "* COMMENT Note interne\n[FINDING] commentato\n"
+          "* Interna :riservato:\nQUESTION fuori export\n"
+          "* Tail\nuna question minuscola e un tbd minuscolo\n")
+  "Component body with markers in exported and non-exported text.")
+
+(ert-deftest blueprint-test-countable/metrics-skip-non-exported ()
+  "Only markers in exported, non-verbatim text are counted."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "svc" blueprint-test--noexport-body)))
+      ;; QUESTION only in :riservato: (exported: counts), TBD in Introduction.
+      (should (equal '(1 1 0) (blueprint--component-metrics file)))
+      ;; #+STATUS: keyword counts; the verbatim mention does not.
+      (should (equal '(1 1 0) (blueprint--methodology-metrics file))))))
+
+(ert-deftest blueprint-test-countable/exclude-tags-keyword ()
+  "Tags listed in #+EXCLUDE_TAGS: are excluded like :noexport:."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "svc" (concat "#+EXCLUDE_TAGS: riservato noexport\n"
+                               blueprint-test--noexport-body))))
+      (should (equal '(0 1 0) (blueprint--component-metrics file))))))
+
+(ert-deftest blueprint-test-countable/scan-skips-non-exported ()
+  "blueprint-list-findings lists only the real finding."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc" blueprint-test--noexport-body)
+    (let ((hits (blueprint--scan-marker-occurrences "[FINDING]")))
+      (should (= 1 (length hits)))
+      (should (string-match-p "vero" (nth 2 (car hits)))))))
+
+(ert-deftest blueprint-test-countable/fresh-template-has-no-findings ()
+  "A component fresh from the system templates has no [FINDING].
+Regression: the fictional example tables in the :noexport: guides
+produced findings and lowered the health score of empty components."
+  (blueprint-test--with-project
+    (blueprint-add-component "svc")
+    (should (null (blueprint--scan-marker-occurrences "[FINDING]")))
+    (should (= 0 (nth 1 (blueprint--methodology-metrics
+                         (blueprint--component-file "svc")))))))
+
 (ert-deftest blueprint-test-list-unvalidated/finds-marker ()
   "[DA VALIDARE] in a component file appears in the results buffer."
   (blueprint-test--with-project
@@ -275,6 +341,42 @@ arc42.org is blueprint-lint's job, not blueprint-health-score's."
     (blueprint-list-unvalidated)
     (with-current-buffer "*Blueprint: Blueprint Sezioni da validare*"
       (should (string-match-p "DA VALIDARE" (buffer-string))))))
+
+;;; --- Health gauge SVG ---
+
+(ert-deftest blueprint-test-health-svg/standalone-document ()
+  "The gauge declares the SVG namespace and paints its own background.
+Regression: without xmlns librsvg, browsers and LibreOffice do not treat
+the file as SVG; with a transparent background the black strokes vanish
+on a dark theme."
+  (let ((svg (blueprint--health-svg-string 87)))
+    (should (string-match-p "xmlns='http://www.w3.org/2000/svg'" svg))
+    (should (string-match-p "<rect [^>]*fill='white'" svg))
+    (should (string-match-p "Health: 87" svg))
+    (with-temp-buffer
+      (insert svg)
+      (should (eq 'svg (car (libxml-parse-xml-region (point-min) (point-max))))))))
+
+(ert-deftest blueprint-test-health-svg/needle-direction ()
+  "Score 0 points the needle left, 100 right, 50 straight up."
+  (let ((needle (lambda (score)
+                  (let ((svg (blueprint--health-svg-string score)))
+                    (string-match "x2='\\([-0-9.]+\\)' y2='\\([-0-9.]+\\)'" svg)
+                    (cons (round (string-to-number (match-string 1 svg)))
+                          (round (string-to-number (match-string 2 svg))))))))
+    (should (equal '(30 . 140) (funcall needle 0)))
+    (should (equal '(270 . 140) (funcall needle 100)))
+    (should (equal '(150 . 20) (funcall needle 50)))))
+
+(ert-deftest blueprint-test-health-svg/writes-file ()
+  "blueprint-health-svg writes health.svg at the project root."
+  (blueprint-test--with-project
+    (let* ((proj default-directory)
+           (out (blueprint-health-svg)))
+      (should (string= (expand-file-name "health.svg" proj) out))
+      (should (string-match-p "Health: 100" (blueprint-test--read-file out)))
+      (when (get-buffer "*Blueprint Health*")
+        (kill-buffer "*Blueprint Health*")))))
 
 (provide 'blueprint-test-health)
 ;;; blueprint-test-health.el ends here

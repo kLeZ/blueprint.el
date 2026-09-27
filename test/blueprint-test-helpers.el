@@ -9,6 +9,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'blueprint-core)
 
 (defmacro blueprint-test--with-project (&rest body)
   "Execute BODY inside a temporary, freshly initialized Blueprint project.
@@ -31,9 +32,12 @@ variable BEFORE such calls if you need the project path afterward:
           (default-directory (file-name-as-directory tmpdir)))
      (unwind-protect
          (save-current-buffer
-           ;; Initialize the project structure
-           (make-directory (expand-file-name ".blueprint/components" tmpdir) t)
-           (make-directory (expand-file-name ".blueprint/adr" tmpdir) t)
+           ;; Initialize the project structure under the configured
+           ;; data directory, so a test can let-bind
+           ;; `blueprint-directory-name' around the macro.
+           (let ((data (expand-file-name blueprint-directory-name tmpdir)))
+             (make-directory (expand-file-name "components" data) t)
+             (make-directory (expand-file-name "adr" data) t))
            ,@body)
        ;; Kill any buffers visiting files inside the temp dir
        (dolist (buf (buffer-list))
@@ -47,8 +51,9 @@ variable BEFORE such calls if you need the project path afterward:
 Requires `default-directory' to be inside a Blueprint project.
 Returns the path to the created arc42.org file."
   (let* ((dir (expand-file-name
-               (concat ".blueprint/components/" name)
-               default-directory))
+               name
+               (expand-file-name "components"
+                                 (blueprint--data-dir default-directory))))
          (file (expand-file-name "arc42.org" dir))
          (body (or content
                    (concat "#+TITLE: " name "\n"

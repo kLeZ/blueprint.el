@@ -49,7 +49,7 @@ jobs:
           mkdir "$PKG_DIR"
           cp *.el "$PKG_DIR/"
           cp -r templates "$PKG_DIR/"
-          cp README.md "$PKG_DIR/" 2>/dev/null || true
+          cp README.org "$PKG_DIR/" 2>/dev/null || true
           tar czf "blueprint-${VERSION}.tar.gz" "$PKG_DIR"
 
       - name: Create GitHub Release

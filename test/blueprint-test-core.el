@@ -233,6 +233,33 @@ blueprint-rename-component does not pass)."
       (should (file-directory-p
                (expand-file-name ".blueprint/components/beta" proj))))))
 
+(ert-deftest blueprint-test-rename-component/hyphenated-dep-untouched ()
+  "Renaming \"auth\" does not rewrite a dependency on \"auth-db\".
+Regression: the old \\b-delimited regex treated the hyphen as a word
+boundary and produced \"identity-db\", a component that does not exist."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "auth")
+    (blueprint-test--write-component "auth-db")
+    (let ((file (blueprint-test--write-component
+                 "api" "#+TITLE: api\n#+BLUEPRINT_DEPENDS: auth-db auth\n\n* Introduction\n")))
+      (blueprint-rename-component "auth" "identity")
+      (should (equal "auth-db identity"
+                     (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))))))
+
+(ert-deftest blueprint-test-rename-component/src-block-example-untouched ()
+  "A DEPENDS line inside a src block example is not rewritten."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (let ((file (blueprint-test--write-component
+                 "beta"
+                 (concat "#+TITLE: beta\n#+BLUEPRINT_DEPENDS: alpha\n\n"
+                         "* Guida :noexport:\n#+BEGIN_SRC org\n"
+                         "#+BLUEPRINT_DEPENDS: alpha other\n#+END_SRC\n"))))
+      (blueprint-rename-component "alpha" "gamma")
+      (let ((content (blueprint-test--read-file file)))
+        (should (string-match-p "^#\\+BLUEPRINT_DEPENDS: gamma$" content))
+        (should (string-match-p "^#\\+BLUEPRINT_DEPENDS: alpha other$" content))))))
+
 (ert-deftest blueprint-test-rename-component/updates-depends ()
   "Renaming updates BLUEPRINT_DEPENDS references in other components."
   (blueprint-test--with-project
@@ -281,6 +308,103 @@ blueprint-rename-component does not pass)."
         (should (string-match-p ".blueprint/templates" resolved))
         (should (string= "PROJECT-LOCAL-TEMPLATE"
                          (blueprint-test--read-file resolved)))))))
+
+;;; --- Configurable data directory (`blueprint-directory-name') ---
+
+(ert-deftest blueprint-test-data-dir/name-validation ()
+  "Only non-empty relative paths without . or .. segments are accepted."
+  (dolist (ok '(".blueprint" "blueprint" "content/blueprint" "docs/bp/"))
+    (should (blueprint--valid-directory-name-p ok)))
+  (dolist (bad '("" "/abs/blueprint" "../outside" "a/../b" "." "a//b" nil 42))
+    (should-not (blueprint--valid-directory-name-p bad))))
+
+(ert-deftest blueprint-test-data-dir/invalid-name-errors ()
+  "An invalid `blueprint-directory-name' signals a user-error, not a crash."
+  (let ((blueprint-directory-name "../escape"))
+    (should-error (blueprint--directory-name) :type 'user-error)))
+
+(ert-deftest blueprint-test-data-dir/nested-custom-name ()
+  "A nested custom name is used for root detection and components."
+  (let ((blueprint-directory-name "content/blueprint"))
+    (blueprint-test--with-project
+      (let ((proj default-directory))
+        (should (file-equal-p proj (blueprint--root)))
+        (should (string= (expand-file-name "content/blueprint" proj)
+                         (blueprint--data-dir)))
+        (should-not (file-exists-p (expand-file-name ".blueprint" proj)))
+        (blueprint-add-component "Order Service")
+        (should (file-exists-p
+                 (expand-file-name
+                  "content/blueprint/components/order-service/arc42.org" proj)))
+        (should (gethash "order-service" (blueprint--components)))))))
+
+(ert-deftest blueprint-test-data-dir/root-from-inside-nested-dir ()
+  "The root is found from a directory inside a nested data directory."
+  (let ((blueprint-directory-name "content/blueprint"))
+    (blueprint-test--with-project
+      (let ((proj default-directory))
+        (blueprint-test--write-component "svc")
+        (let ((default-directory
+               (expand-file-name "content/blueprint/components/svc/" proj)))
+          (should (file-equal-p proj (blueprint--root))))))))
+
+(ert-deftest blueprint-test-data-dir/legacy-fallback ()
+  "A project still on .blueprint/ works under a different configured name."
+  (blueprint-test--with-project
+    (let ((proj default-directory))
+      (blueprint-test--write-component "svc")
+      (let ((blueprint-directory-name "blueprint")
+            (blueprint--warned-roots (make-hash-table :test 'equal))
+            (warnings 0))
+        (cl-letf (((symbol-function 'display-warning)
+                   (lambda (&rest _) (cl-incf warnings))))
+          (should (file-equal-p proj (blueprint--root)))
+          (should (string= (expand-file-name ".blueprint" proj)
+                           (blueprint--data-dir)))
+          (should (gethash "svc" (blueprint--components)))
+          ;; Warned once per root, however many commands call it.
+          (blueprint--root)
+          (blueprint--root)
+          (should (= 1 warnings)))))))
+
+(ert-deftest blueprint-test-data-dir/configured-wins-over-legacy ()
+  "With both directories present the configured one is used, with a warning."
+  (blueprint-test--with-project
+    (let ((proj default-directory)
+          (blueprint-directory-name "blueprint")
+          (blueprint--warned-roots (make-hash-table :test 'equal))
+          (msg nil))
+      (make-directory (expand-file-name "blueprint/components" proj) t)
+      (cl-letf (((symbol-function 'display-warning)
+                 (lambda (_type text &rest _) (setq msg text))))
+        (should (string= (expand-file-name "blueprint" proj)
+                         (blueprint--data-dir)))
+        (blueprint--root)
+        (should (string-match-p "both" msg))))))
+
+(ert-deftest blueprint-test-data-dir/init-reuses-legacy ()
+  "blueprint-init in a legacy project does not create a second, empty data dir."
+  (blueprint-test--with-project
+    (let ((proj default-directory)
+          (blueprint-directory-name "blueprint")
+          (blueprint--warned-roots (make-hash-table :test 'equal)))
+      (cl-letf (((symbol-function 'display-warning) #'ignore))
+        (blueprint-init "P" "A"))
+      (should-not (file-exists-p (expand-file-name "blueprint" proj)))
+      (should (file-directory-p (expand-file-name ".blueprint/templates" proj))))))
+
+(ert-deftest blueprint-test-data-dir/init-creates-custom ()
+  "blueprint-init in a fresh directory creates the configured data dir."
+  (let* ((tmpdir (make-temp-file "blueprint-test-" t))
+         (default-directory (file-name-as-directory tmpdir))
+         (blueprint-directory-name "content/blueprint"))
+    (unwind-protect
+        (progn
+          (blueprint-init "P" "A")
+          (should (file-directory-p
+                   (expand-file-name "content/blueprint/components" tmpdir)))
+          (should-not (file-exists-p (expand-file-name ".blueprint" tmpdir))))
+      (delete-directory tmpdir t))))
 
 (provide 'blueprint-test-core)
 ;;; blueprint-test-core.el ends here

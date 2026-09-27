@@ -42,37 +42,40 @@
             (push (format "%s:%s: missing heading \"%s\""
                           (file-name-nondirectory file) id heading)
                   warnings)))
-        ;; Check marker counts
-        (goto-char (point-min))
-        (let ((questions (count-matches "\\<QUESTION\\>" (point-min) (point-max)))
-              (tbds (count-matches "\\<TBD\\>" (point-min) (point-max)))
-              (fixmes (count-matches "\\<FIXME\\>" (point-min) (point-max))))
+        ;; Check marker counts (exported text only, as in the health score)
+        (pcase-let ((`(,questions ,tbds ,fixmes)
+                     (blueprint--component-metrics file)))
           (let ((total (+ questions tbds fixmes)))
             (when (> total blueprint-lint-marker-threshold)
               (push (format "%s: %d unresolved markers (%d QUESTION, %d TBD, %d FIXME)"
                             id total questions tbds fixmes)
                     warnings))))
-        ;; Check for effectively empty content (only headings, keywords, whitespace)
+        ;; Check for effectively empty content (only headings, keywords,
+        ;; anchors, whitespace).  Text in subtrees the export leaves out
+        ;; (the templates' :noexport: guides) is not content: every
+        ;; component created from a template has some.  A line holding
+        ;; only a <<target>> is the anchor the templates put under each
+        ;; heading, not content either.
+        (let ((org-inhibit-startup t))
+          (delay-mode-hooks (org-mode)))
         (goto-char (point-min))
-        (let ((content-lines 0))
+        (let ((content-lines 0)
+              (excluded (blueprint--non-exported-subtrees)))
           (while (not (eobp))
             (let ((line (buffer-substring-no-properties
                          (line-beginning-position) (line-end-position))))
-              (unless (or (string-match-p "^\\s-*$" line)
+              (unless (or (blueprint--in-regions-p (point) excluded)
+                          (string-match-p "^\\s-*$" line)
                           (string-match-p "^\\*+ " line)
-                          (string-match-p "^#\\+" line))
+                          (string-match-p "^#\\+" line)
+                          (string-match-p "^[ \t]*<<[^<>\n]+>>[ \t]*$" line))
                 (cl-incf content-lines)))
             (forward-line 1))
           (when (zerop content-lines)
-            (push (format "%s: file has no content (only headings and keywords)" id)
+            (push (format "%s: file has no content (only headings, keywords and anchors)" id)
                   warnings))))
       ;; Check dangling dependencies, and in-scope -> out-of-scope leaks
-      (let* ((deps-str (with-temp-buffer
-                         (insert-file-contents file)
-                         (goto-char (point-min))
-                         (when (re-search-forward
-                                "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
-                           (match-string 1))))
+      (let* ((deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))
              (all-comps (blueprint--components))
              (own-status (blueprint--component-scope-status id)))
         (when deps-str

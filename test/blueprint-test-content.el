@@ -206,6 +206,24 @@ and a tag."
       (should-not (string-match-p "New question here\n\\* DONE" content))
       (should (string-match-p "must survive untouched" content)))))
 
+(ert-deftest blueprint-test-questions/list-skips-noexport ()
+  "Questions inside a :noexport: subtree are not listed."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "svc" (concat "#+TITLE: svc\n\n* Guida :noexport:\n- QUESTION esempio\n\n"
+                   "* Open Questions\n- QUESTION vera\n"))
+    (let ((buffers-before (buffer-list)))
+      (unwind-protect
+          (progn
+            (blueprint-list-questions)
+            (with-current-buffer "*Blueprint Questions*"
+              (should (= 1 (length tabulated-list-entries)))
+              (should (string= "vera"
+                               (aref (cadr (car tabulated-list-entries)) 1)))))
+        (dolist (buf (buffer-list))
+          (unless (memq buf buffers-before)
+            (kill-buffer buf)))))))
+
 (ert-deftest blueprint-test-questions/unknown-component-errors ()
   "Adding a question to a non-existent component raises an error."
   (blueprint-test--with-project

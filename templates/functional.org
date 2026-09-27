@@ -119,102 +119,48 @@ Struttura del payload in ingresso.
 }
 #+end_src
 
-* Panoramica del componente
-<<{{ID}}-func-overview>>
-[DA VALIDARE]
+** Cosa scrivere in ogni sezione                                   :noexport:
 
-Scopo del componente in termini di business.  Quale problema risolve.
-A quale dominio funzionale appartiene.
+Le sezioni nascono vuote.  Quando se ne scrive il contenuto, marcarla con
+=[DA VALIDARE]= fino alla conferma da una fonte attendibile.
 
-* Aree funzionali
+- /Panoramica del componente/: scopo del componente in termini di business,
+  quale problema risolve, a quale dominio funzionale appartiene.
+- /Aree funzionali/: una sottosezione per area (=blueprint-functional-add-area=),
+  con le feature al suo interno (=blueprint-functional-add-feature=): scopo,
+  input, output, regole di business, logica di calcolo (notazione matematica
+  con variabili in linguaggio di dominio, es.
+  =Importo_Netto = Importo_Lordo * (1 - Aliquota_IVA)=), regole di
+  validazione, casi limite ed eccezioni.
+- /Entità di dominio/: oggetti di dominio con attributi in linguaggio business,
+  non tabelle del DB (=blueprint-functional-add-entity=).  La colonna
+  /Relazione/ indica l'entità target degli attributi che sono chiavi esterne
+  (es.: ~→ Ordine~).  In coda, un diagramma ER generale del componente.
+- /Punti di integrazione/: cosa il componente riceve da e invia ad altri
+  sistemi, in termini di business: una tabella riassuntiva e una
+  sottosezione per integrazione (=blueprint-functional-add-integration=).
+- /Flussi dati/: Data Flow Diagram (notazione Yourdon/DeMarco) per il data
+  lineage: da dove arrivano i dati, quali processi li trasformano, dove
+  vengono persistiti e verso quali sistemi escono.  Complementa la tabella
+  dei punti di integrazione con il percorso del dato.
+- /Open Questions/: elementi non determinabili dal codice che richiedono
+  validazione con il domain expert.
 
-** [Nome area funzionale]
-<<{{ID}}-area-01>>
-[DA VALIDARE]
+** Modelli                                                          :noexport:
 
-Descrizione dell'area in termini di business.
+Da copiare nella sezione di destinazione.  Nei blocchi PlantUML togliere
+=:eval never=, che qui impedisce a Babel di generare i file a ogni export
+(Babel valuta anche i blocchi dei sottoalberi =:noexport:=).
 
-*** [Nome funzione o feature]
-<<{{ID}}-func-01>>
-[DA VALIDARE]
+Tabella riassuntiva dei punti di integrazione (la colonna /Dato/ collega alla
+sottosezione di dettaglio):
 
-**** Scopo
-Cosa fa questa funzione in termini di business.  Una frase.
+| Direzione | Controparte | Dato | Protocollo | Frequenza | Note |
+|-----------+-------------+------+------------+-----------+------|
 
-**** Input
-| Nome (business) | Tipo (business) | Vincoli | Provenienza |
-|-----------------+-----------------+---------+-------------|
+Diagramma ER generale (Entità di dominio):
 
-**** Output
-| Nome (business) | Tipo (business) | Formato | Destinazione |
-|-----------------+-----------------+---------+--------------|
-
-**** Regole di business
-1.
-2.
-
-**** Logica di calcolo
-[Se applicabile.  Usare notazione matematica con variabili in
-linguaggio di dominio.]
-
-Esempio:
-Importo_Netto = Importo_Lordo * (1 - Aliquota_IVA)
-Arrotondamento: 2 cifre decimali, half-up, applicato al risultato finale.
-
-**** Regole di validazione
-| Condizione | Comportamento / Errore |
-|------------+------------------------|
-
-**** Casi limite e eccezioni
-[Deviazioni dal flusso normale.  Condizioni che bypassano le regole standard.]
-
-* Entità di dominio
-<<{{ID}}-entities>>
-[DA VALIDARE]
-
-Entità di business gestite da questo componente.  Oggetti di dominio con
-attributi in linguaggio business, piuttosto che tabelle del DB.
-La colonna /Relazione/ indica l'entità target per gli attributi che sono
-chiavi esterne (es.: ~→ Ordine~); lasciare vuota per attributi semplici.
-
-** [Nome entità]
-<<{{ID}}-entity-01>>
-[DA VALIDARE]
-
-Descrizione.  Attributi principali in termini di business.
-
-| Attributo | Tipo (business) | Vincoli | Relazione | Note |
-|-----------+-----------------+---------+-----------+------|
-
-*** Rappresentazione logica
-<<{{ID}}-entity-01-er>>
-
-Diagramma ER dell'entità.  Le frecce verso entità esterne puntano ai soli
-identificatori, senza mostrare la struttura interna delle entità correlate.
-
-#+begin_src plantuml :file {{ID}}-er-entity-01.svg
-@startuml
-entity "[Nome entità]" as e {
-  * id : tipo <<PK>>
-  --
-  attributo : tipo
-  * fk_correlata : tipo <<FK>>
-}
-' Entità esterne: solo il bordo, nessun dettaglio interno
-entity "[Entità correlata]" as ext #lightgrey {
-}
-e }o--|| ext : "descrizione relazione"
-@enduml
-#+end_src
-
-** Diagramma ER generale
-<<{{ID}}-er-general>>
-[DA VALIDARE]
-
-Schema ER completo del componente con tutte le entità e le relazioni.
-Aggiornare man mano che si aggiungono entità.
-
-#+begin_src plantuml :file {{ID}}-er-general.svg
+#+begin_src plantuml :file {{ID}}-er-general.svg :eval never
 @startuml
 ' Aggiungere le entità del componente e le loro relazioni
 entity "Entità1" as e1 {
@@ -232,59 +178,11 @@ e1 ||--o{ e2 : "relazione"
 @enduml
 #+end_src
 
-* Punti di integrazione
-<<{{ID}}-func-integrations>>
-[DA VALIDARE]
+Data Flow Diagram (Flussi dati).  PlantUML non ha una libreria DFD dedicata:
+entità esterne come ~rectangle~, processi come ~circle~, data store come
+~database~.
 
-Cosa questo componente riceve da e invia ad altri sistemi, in termini
-di business.  La colonna /Dato/ collega alla sezione di dettaglio.
-
-| Direzione | Controparte | Dato      | Protocollo | Frequenza | Note |
-|-----------+-------------+-----------+------------+-----------+------|
-| IN        |             | [[{{ID}}-integ-01][Nome dato]] |            |           |      |
-| OUT       |             |           |            |           |      |
-
-** [Nome integrazione]
-<<{{ID}}-integ-01>>
-[DA VALIDARE]
-
-Descrizione dell'integrazione in termini di business.  Cosa viene
-scambiato, perché, e in quale contesto operativo.
-
-| Campo          | Valore                                          |
-|----------------+-------------------------------------------------|
-| Direzione      | IN / OUT                                        |
-| Controparte    | [Sistema esterno]                               |
-| Protocollo     | REST / SOAP / Kafka / gRPC / file / batch / ... |
-| Autenticazione | OAuth2 / API key / mTLS / nessuna / ...         |
-| Frequenza      | sincrona / asincrona / batch giornaliero / ...  |
-| SLA            | [latenza attesa o finestra di consegna]         |
-
-*** Formato scambio
-<<{{ID}}-integ-01-fmt>>
-
-Struttura del payload o del file scambiato.  Includere un esempio
-realistico con tutti i campi obbligatori valorizzati.
-
-#+begin_src json
-{
-  "attr1": ""
-}
-#+end_src
-
-* Flussi dati
-<<{{ID}}-data-flows>>
-[DA VALIDARE]
-
-Data Flow Diagram (notazione Yourdon/DeMarco) per il data lineage: da dove
-arrivano i dati, quali processi li trasformano, dove vengono persistiti e
-verso quali sistemi escono.  Complementa la tabella di "Punti di
-integrazione" con la vista del percorso del dato, non solo del contratto
-punto-a-punto.  PlantUML non ha una libreria DFD dedicata (a differenza di
-C4): entità esterne come ~rectangle~, processi come ~circle~, data store
-come ~database~.
-
-#+begin_src plantuml :file {{ID}}-data-flows.svg
+#+begin_src plantuml :file {{ID}}-data-flows.svg :eval never
 @startuml
 left to right direction
 rectangle "[Entità esterna, es. Cliente]" as ext1
@@ -299,5 +197,18 @@ ext2 --> p1 : [dato di risposta]
 @enduml
 #+end_src
 
+* Panoramica del componente
+<<{{ID}}-func-overview>>
+
+* Aree funzionali
+
+* Entità di dominio
+<<{{ID}}-entities>>
+
+* Punti di integrazione
+<<{{ID}}-func-integrations>>
+
+* Flussi dati
+<<{{ID}}-data-flows>>
+
 * Open Questions
-- [Elementi non determinabili dal codice che richiedono validazione con domain expert]

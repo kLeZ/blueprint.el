@@ -117,7 +117,8 @@
     ("z" "add reference" blueprint-reference-add)]
    ["Templates"
     ("D" "diff" blueprint-template-diff)
-    ("M" "migrate" blueprint-template-migrate)]
+    ("M" "migrate" blueprint-template-migrate)
+    ("m" "migrate data directory" blueprint-migrate-directory)]
    ["Export"
     ("E" "export (default backend)" blueprint-export)
     ("P" "export PDF" blueprint-export-pdf)
@@ -158,6 +159,7 @@
     (define-key map (kbd "o") #'blueprint-out-of-scope-view)
     (define-key map (kbd "D") #'blueprint-template-diff)
     (define-key map (kbd "M") #'blueprint-template-migrate)
+    (define-key map (kbd "m") #'blueprint-migrate-directory)
     (define-key map (kbd "S") #'blueprint-sync)
     (define-key map (kbd "E") #'blueprint-export)
     (define-key map (kbd "O") #'blueprint-export-odt)

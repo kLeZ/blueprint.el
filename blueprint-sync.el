@@ -167,7 +167,8 @@ itself uses :minlevel 3 to nest under that headline.  When
 PAGE-BREAKS is the symbol `components', `blueprint--page-break-lines'
 precede every headline except the first.  Returns an empty string when
 no matching files are found."
-  (let ((names (sort (hash-table-keys (blueprint--components)) #'string<))
+  (let ((root (blueprint--root))
+        (names (sort (hash-table-keys (blueprint--components)) #'string<))
         (lines '()))
     (dolist (name names)
       (let ((dir (gethash name (blueprint--components))))
@@ -175,9 +176,12 @@ no matching files are found."
           (push (concat
                  (when (and (eq page-breaks 'components) lines)
                    (concat blueprint--page-break-lines "\n"))
-                 (format "** %s\n#+INCLUDE: \".blueprint/components/%s/%s\" :minlevel 3"
+                 ;; Relative to master.org (at the project root), so the
+                 ;; path follows `blueprint-directory-name'.
+                 (format "** %s\n#+INCLUDE: \"%s\" :minlevel 3"
                          (blueprint--component-display-name name dir filename)
-                         name filename))
+                         (file-relative-name (expand-file-name filename dir)
+                                             root)))
                 lines))))
     (mapconcat #'identity (nreverse lines) "\n")))
 

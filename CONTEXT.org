@@ -1,0 +1,75 @@
+#+TITLE: Session Context
+#+VERSION: 1.5
+#+CREATED: 2026-09-26T13:30:00+02:00
+#+UPDATED: 2026-09-27T11:30:00+02:00
+#+STATUS: completed
+
+* Current Task
+None. Work on 9.18-9.25 committed and pushed to main.
+
+* Completed
+- [X] 9.19: defcustom =blueprint-directory-name= (nested relative path allowed),
+  =blueprint--data-dir= / =blueprint--data-path=, legacy =.blueprint= fallback
+  (option A), =blueprint-migrate-directory= (=C-c b m=)
+- [X] Bug: Emacs lock files (=.#x.org=) crashed list-findings/list-unvalidated
+  (=blueprint--org-file-regexp=)
+- [X] Bug 9.21: DEPENDS read from the template's :noexport: example, so
+  =blueprint-ci-validate= failed on every new project; =blueprint--org-keyword=
+  moved to core, org-element based, cached per file (mtime+size)
+- [X] Bug 9.21: =blueprint-rename-component= rewrote =auth-db= to
+  =identity-db= when renaming =auth=
+- [X] 9.18: diagram captions lost in ODT export (advice on
+  =org-babel-exp-process-buffer=)
+- [X] USAGE.org: =blueprint-template-migrate= key was =T=, is =M=
+- [X] Docs: README, USAGE.org, CLAUDE.md, PLAN.org (9.18, 9.19, 9.20, 9.21, 9.22)
+- [X] 9.22: markers in non-exported text (noexport/COMMENT subtrees, blocks,
+  comments, verbatim/code) no longer counted; matching case-sensitive
+- [X] 9.23 TODO added (caption limits)
+- [X] CLAUDE.md renamed to AGENTS.md
+- [X] Lint "no content" check ignores non-exported subtrees
+- [X] PLAN.md and README.md converted to PLAN.org / README.org (pandoc, git mv);
+  release workflow copies README.org
+- [X] claude-mem CLAUDE.md files removed (5); CLAUDE.md is now =@AGENTS.md=
+- [X] 9.24: component/functional/infrastructure templates without skeleton
+  (only headings + anchors; descriptions and models in the :noexport: guide)
+- [X] 9.25: health gauge SVG shown via create-image svg (was image-mode -> ImageMagick, blocked by policy)
+- [X] Suite: 353 tests green, byte-compile clean with error-on-warn
+
+* Decisions Made
+| Decision | Rationale | ADR |
+|----------+-----------+-----|
+| Global defcustom with legacy fallback (option A) | No project breaks, works in non-file buffers and CI | [[file:docs/adr/ADR-001-configurable-data-directory.org]] |
+| Caption fix as :before advice, not export hook | Only point after INCLUDE expansion and before Babel | PLAN.org 9.18 |
+| Copy CAPTION/ATTR_* only, not NAME/HEADER | NAME/HEADER drive Babel result lookup | PLAN.org 9.18 |
+| Non-exported text is not counted as markers | User decision 2026-09-26 | PLAN.org 9.22 |
+| File keywords (#+STATUS:) still counted | They mark the whole file as not validated | PLAN.org 9.22 |
+| 9.20 deferred, dir-locals unsupported, rename-component as is | User decisions 2026-09-26 | PLAN.org 9.19-9.21 |
+| Other templates and add-* commands keep their placeholders | User decision 2026-09-27 (section-level editing trade-off) | PLAN.org 9.24 |
+| CLAUDE.md contains only =@AGENTS.md= | User choice 2026-09-27 (overrides symlink) | |
+| New project files are Org; only AGENTS.md/CLAUDE.md are Markdown | User rule 2026-09-26 | AGENTS.md |
+
+* Files Touched
+| File | Action | Notes |
+|------+--------+-------|
+| blueprint-core.el | modified | defcustom, resolver, root detection, org-keyword, rename-dependency, org-file-regexp |
+| blueprint-migrate.el | modified | blueprint-migrate-directory and helpers |
+| blueprint-export.el | modified | blueprint--move-result-captions |
+| blueprint-{adr,async,capture,roam,search,sync,watch,wizard}.el | modified | go through the resolver |
+| blueprint-{ci,dashboard,lint,risks,c4,health}.el | modified | org-keyword instead of regex; lock-file regexp |
+| blueprint.el | modified | menu/keymap =m= |
+| test/*.el | modified | new tests; helper uses blueprint-directory-name |
+| docs/adr/ADR-001-configurable-data-directory.org | created | |
+| README.org, USAGE.org, PLAN.org | modified | |
+| AGENTS.md | renamed from CLAUDE.md, modified | CLAUDE.md imports it |
+| templates/{component,functional,infrastructure}.org | modified | skeleton moved to guide |
+| blueprint-questions.el | modified | list-questions skips non-exported text |
+
+* Next Steps
+1. 9.23: caption limits
+
+
+* Open Questions
+- None
+
+* Blockers
+- None

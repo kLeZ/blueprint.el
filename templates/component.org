@@ -9,10 +9,12 @@
 * Guida alla compilazione — arc42                                  :noexport:
 
 Questo file documenta l'architettura del componente seguendo la struttura
-arc42.  Ogni sezione porta il marker =[DA VALIDARE]= fino a quando il
-contenuto non è confermato da una fonte attendibile (codice, log, intervista
-o documento).  Sostituire il marker con =[APPROVATO YYYY-MM-DD]= o
-=[FINDING]= a seconda dell'esito della verifica.
+arc42.  Le sezioni nascono vuote: quando se ne scrive il contenuto, marcarla
+con =[DA VALIDARE]= fino a quando non è confermato da una fonte attendibile
+(codice, log, intervista o documento), poi sostituire il marker con
+=[APPROVATO YYYY-MM-DD]= o =[FINDING]= a seconda dell'esito della verifica.
+Finché una sezione è vuota, =blueprint-lint= segnala il file come privo di
+contenuto.
 
 Gerarchia delle fonti (dalla più affidabile): codice → test → log →
 monitoring → interviste → documentazione preesistente.
@@ -72,21 +74,45 @@ segnala se un componente =in-scope= dipende da uno =out-of-scope=.
 | Timeout Stripe non gestito in modo | Media       | Alto    | Alto    | Aggiungere retry con backoff   |
 | idempotente → doppio addebito      |             |         |         | esponenziale e idempotency key |
 
-* Introduction
-<<{{ID}}-intro>>
-[DA VALIDARE]
+** Cosa scrivere in ogni sezione
 
-Breve descrizione del componente: cosa fa, a chi serve, qual è il suo
-ruolo nell'architettura di sistema.
+- /Introduction/: cosa fa il componente, a chi serve, qual è il suo ruolo
+  nell'architettura di sistema.
+- /Context and Scope/: contesto e perimetro: utenti e ruoli, sistemi
+  confinanti (tabelle come negli esempi sopra), confini del componente;
+  diagramma C4 di contesto.
+- /Constraints/: vincoli tecnici, organizzativi, normativi che impattano le
+  scelte architetturali (tabella come nell'esempio sopra).
+- /Solution Strategy/: principi architetturali, pattern adottati, scelte
+  tecnologiche rilevanti con motivazione (se ricostruibile).
+- /Building Blocks/: vista statica dei building block interni (C4 container;
+  C4 L3 se la complessità lo richiede).
+- /Runtime Behavior/: flussi principali a runtime; per ogni flusso gli attori
+  coinvolti (casi d'uso) e il dettaglio degli scambi di messaggi (sequenza).
+  =blueprint-runtime-add-flow= crea la sottosezione di un flusso.
+- /Processi di business/: processi multi-attore rilevanti per il componente,
+  come diagramma di attività UML con corsie per attore.
+  =blueprint-runtime-add-process= crea la sottosezione di un processo.
+- /Deployment/: ambienti, host, configurazione; il dettaglio va nel
+  censimento infrastrutturale (=infrastructure.org= accanto a questo file).
+- /Responsibility/: aspetti trasversali (sicurezza, autenticazione,
+  autorizzazione, logging, gestione errori, transazionalità), tabella come
+  nell'esempio sopra.
+- /Risks/: rischi tecnici specifici del componente; quelli trasversali vanno
+  nel registro rischi del progetto (=nfr/risks.org=).
+- /Open Questions/: domande emerse durante l'analisi che richiedono
+  validazione (=blueprint-add-question=).
+- /Diagrams/: diagrammi aggiuntivi non collocabili nelle sezioni precedenti.
 
-* Context and Scope
-<<{{ID}}-context>>
-[DA VALIDARE]
+** Modelli di diagramma
 
-Contesto e perimetro del sistema: utenti, sistemi confinanti, confini
-del componente.
+Da copiare nella sezione di destinazione togliendo =:eval never=, che qui
+impedisce a Babel di generare i file a ogni export (Babel valuta anche i
+blocchi dei sottoalberi =:noexport:=).
 
-#+begin_src plantuml :file {{ID}}-context.svg
+Contesto (Context and Scope):
+
+#+begin_src plantuml :file {{ID}}-context.svg :eval never
 !include <C4/C4_Context>
 System({{ID}}, "{{NAME}}", "")
 Person(user, "Utente")
@@ -95,38 +121,9 @@ Rel(user, {{ID}}, "Usa")
 @enduml
 #+end_src
 
-** Utenti e ruoli
-| Ruolo | Descrizione | Tipo (umano/sistema) |
-|-------+-------------+----------------------|
+Container (Building Blocks):
 
-** Sistemi confinanti
-| Sistema | Direzione | Tipo interazione | Note |
-|---------+-----------+------------------+------|
-
-* Constraints
-<<{{ID}}-constraints>>
-[DA VALIDARE]
-
-Vincoli tecnici, organizzativi, normativi che impattano le scelte
-architetturali.
-
-| Vincolo | Tipo (tecnico/org/normativo) | Impatto | Fonte |
-|---------+------------------------------+---------+-------|
-
-* Solution Strategy
-<<{{ID}}-strategy>>
-[DA VALIDARE]
-
-Principi architetturali principali.  Pattern adottati.  Scelte
-tecnologiche rilevanti con motivazione (se ricostruibile).
-
-* Building Blocks
-<<{{ID}}-static>>
-[DA VALIDARE]
-
-Vista statica dei building block interni al componente.
-
-#+begin_src plantuml :file {{ID}}-containers.svg
+#+begin_src plantuml :file {{ID}}-containers.svg :eval never
 !include <C4/C4_Container>
 System_Boundary({{ID}}, "{{NAME}}") {
   Container(app, "Applicazione", "Tecnologia", "Descrizione")
@@ -135,29 +132,9 @@ System_Boundary({{ID}}, "{{NAME}}") {
 @enduml
 #+end_src
 
-** Componenti interni principali
-[Aggiungere C4 L3 se la complessità lo richiede]
+Casi d'uso di un flusso (Runtime Behavior), vista per stakeholder non tecnici:
 
-* Runtime Behavior
-<<{{ID}}-runtime>>
-[DA VALIDARE]
-
-Flussi principali a runtime.  Per ogni flusso documentare gli attori
-coinvolti (casi d'uso) e il dettaglio degli scambi di messaggi (sequenza).
-
-** Flusso: [nome flusso]
-<<{{ID}}-flow-main>>
-[DA VALIDARE]
-
-Descrizione del flusso: obiettivo, precondizioni, attori coinvolti e
-vincoli di contesto rilevanti.
-
-*** Casi d'uso
-
-Panoramica degli attori e delle funzionalità coinvolte nel flusso.
-Questa vista è utile per comunicare con stakeholder non tecnici.
-
-#+begin_src plantuml :file {{ID}}-uc-main.svg
+#+begin_src plantuml :file {{ID}}-uc-main.svg :eval never
 @startuml
 left to right direction
 actor "Utente" as u
@@ -170,12 +147,10 @@ u --> uc2
 @enduml
 #+end_src
 
-*** Sequenza
+Sequenza di un flusso (Runtime Behavior), vista per i team tecnici e per la
+documentazione delle API:
 
-Dettaglio temporale degli scambi di messaggi per il flusso.
-Questa vista è utile per i team tecnici e per la documentazione delle API.
-
-#+begin_src plantuml :file {{ID}}-seq-main.svg
+#+begin_src plantuml :file {{ID}}-seq-main.svg :eval never
 @startuml
 participant "A" as a
 participant "B" as b
@@ -184,21 +159,9 @@ b --> a : risposta
 @enduml
 #+end_src
 
-* Processi di business
-<<{{ID}}-business-processes>>
-[DA VALIDARE]
+Processo di business con corsie (Processi di business):
 
-Processi di business multi-attore rilevanti per questo componente, come
-diagramma di attività UML con corsie (swimlane) per attore.
-
-** Processo: [nome processo]
-<<{{ID}}-process-main>>
-[DA VALIDARE]
-
-Descrizione del processo: obiettivo di business, attori coinvolti e punti
-decisionali rilevanti.
-
-#+begin_src plantuml :file {{ID}}-process-main.svg
+#+begin_src plantuml :file {{ID}}-process-main.svg :eval never
 @startuml
 |Attore 1|
 start
@@ -216,13 +179,9 @@ stop
 @enduml
 #+end_src
 
-* Deployment
-<<{{ID}}-deployment>>
-[DA VALIDARE]
+Deployment:
 
-Vista di deployment: ambienti, host, configurazione.
-
-#+begin_src plantuml :file {{ID}}-deployment.svg
+#+begin_src plantuml :file {{ID}}-deployment.svg :eval never
 node "Ambiente: [nome]" {
   node "Host: [nome]" {
     artifact "{{NAME}}"
@@ -233,40 +192,37 @@ node "Ambiente: [nome]" {
 @enduml
 #+end_src
 
-Vedere anche: [[file:infrastructure.org][Censimento infrastrutturale -- {{NAME}}]]
+* Introduction
+<<{{ID}}-intro>>
+
+* Context and Scope
+<<{{ID}}-context>>
+
+* Constraints
+<<{{ID}}-constraints>>
+
+* Solution Strategy
+<<{{ID}}-strategy>>
+
+* Building Blocks
+<<{{ID}}-static>>
+
+* Runtime Behavior
+<<{{ID}}-runtime>>
+
+* Processi di business
+<<{{ID}}-business-processes>>
+
+* Deployment
+<<{{ID}}-deployment>>
 
 * Responsibility
 <<{{ID}}-responsibility>>
-[DA VALIDARE]
-
-Aspetti trasversali: sicurezza, logging, gestione errori,
-transazionalità, autenticazione, autorizzazione.
-
-| Aspetto         | Approccio rilevato | Note |
-|-----------------+--------------------+------|
-| Sicurezza       |                    |      |
-| Autenticazione  |                    |      |
-| Autorizzazione  |                    |      |
-| Logging         |                    |      |
-| Gestione errori |                    |      |
-| Transazionalità |                    |      |
 
 * Risks
 <<{{ID}}-risks>>
-[DA VALIDARE]
-
-Rischi tecnici specifici di questo componente.
-Vedere anche: [[file:../../nfr/risks.org][Registro rischi trasversale]]
-
-| Rischio | Probabilità | Impatto | Livello | Mitigazione |
-|---------+-------------+---------+---------+-------------|
 
 * Open Questions
 <<{{ID}}-questions>>
 
-- [Inserire domande emerse durante l'analisi che richiedono validazione]
-
 * Diagrams
-
-Vedere le sezioni precedenti per i diagrammi PlantUML.
-Aggiungere qui diagrammi aggiuntivi non collocabili nelle sezioni arc42.

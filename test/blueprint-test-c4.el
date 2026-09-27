@@ -49,8 +49,55 @@
     (unwind-protect
         (progn
           (with-temp-file file (insert "#+BLUEPRINT_DEPENDS:   \n"))
-          ;; The regex requires a non-space char: \(.*\\S-\)
           (should (null (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-org-keyword/empty-does-not-read-next-line ()
+  "An empty keyword is nil, not the text of the following line.
+Regression: \"\\s-*\" in the old regex crossed the newline, so an empty
+#+BLUEPRINT_DEPENDS: returned \"#+BLUEPRINT_OWNER:\"."
+  (let ((file (make-temp-file "bp-kw-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "#+BLUEPRINT_DEPENDS:\n#+BLUEPRINT_OWNER:\n#+BLUEPRINT_TECH: Java\n"))
+          (should (null (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
+          (should (null (blueprint--org-keyword file "BLUEPRINT_OWNER")))
+          (should (equal "Java" (blueprint--org-keyword file "BLUEPRINT_TECH"))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-org-keyword/ignores-src-block-examples ()
+  "A keyword line shown inside a src block is not a keyword."
+  (let ((file (make-temp-file "bp-kw-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "#+BLUEPRINT_DEPENDS:\n\n* Guida :noexport:\n"
+                    "#+BEGIN_SRC org\n#+BLUEPRINT_DEPENDS: order-service\n#+END_SRC\n"))
+          (should (null (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-org-keyword/fresh-component-has-no-deps ()
+  "A component created from the system template declares no dependency.
+Regression: the example in the template's :noexport: guide was read as
+the component's own dependencies by lint, CI, dashboard and risks."
+  (blueprint-test--with-project
+    (blueprint-add-component "svc")
+    (let ((file (blueprint--component-file "svc")))
+      (should (null (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
+      (should (null (blueprint--org-keyword file "BLUEPRINT_OWNER")))
+      (should (equal "in-scope" (blueprint--org-keyword file "BLUEPRINT_STATUS"))))))
+
+(ert-deftest blueprint-test-org-keyword/cache-follows-file-changes ()
+  "A cached keyword value is re-read after the file changes."
+  (let ((file (make-temp-file "bp-kw-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file (insert "#+BLUEPRINT_DEPENDS: a\n"))
+          (should (equal "a" (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
+          (with-temp-file file (insert "#+BLUEPRINT_DEPENDS: b c\n"))
+          ;; Same second on coarse-mtime filesystems: size differs too.
+          (should (equal "b c" (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))))
       (delete-file file))))
 
 ;;; --- blueprint-generate-c4 ---

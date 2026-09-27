@@ -70,9 +70,13 @@ Returns the position where new content should be inserted, or nil."
        (let ((file (blueprint--component-file id)))
          (when (and file (file-exists-p file))
            (with-temp-buffer
-             (insert-file-contents file)
-             (goto-char (point-min))
-             (while (re-search-forward "^-\\s-*QUESTION\\s-+\\(.*\\)" nil t)
+             (blueprint--insert-org-file file)
+             ;; Questions in non-exported text (template guides) are
+             ;; examples, not open questions.
+             (dolist (pos (blueprint--marker-positions
+                           "^-[ \t]*QUESTION[ \t]+\\(.*\\)"))
+               (goto-char pos)
+               (looking-at "^-[ \t]*QUESTION[ \t]+\\(.*\\)")
                (push (list (cons id file)
                            (vector id (match-string 1)))
                      entries))))))

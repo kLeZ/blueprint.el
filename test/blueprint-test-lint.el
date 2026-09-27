@@ -107,6 +107,31 @@
         (should (cl-some (lambda (w) (string-match-p "no content" w))
                          warnings))))))
 
+(ert-deftest blueprint-test-lint/empty-content-ignores-noexport ()
+  "Text only inside :noexport: or COMMENT subtrees does not count as content."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "guided"
+                 (concat "#+TITLE: guided\n\n"
+                         "* Guida alla compilazione :noexport:\n"
+                         "Esempio fittizio: PiattaformaPagamenti.\n"
+                         "| Aspetto | Approccio |\n|---+---|\n| Logging | JSON |\n\n"
+                         "* COMMENT Appunti\nNota interna.\n\n"
+                         "* Introduction\n\n* Context and Scope\n"))))
+      (should (cl-some (lambda (w) (string-match-p "no content" w))
+                       (blueprint--lint-component "guided" file))))))
+
+(ert-deftest blueprint-test-lint/content-outside-noexport-counts ()
+  "Real text next to a :noexport: guide is content."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "filled"
+                 (concat "#+TITLE: filled\n\n"
+                         "* Guida :noexport:\nEsempio.\n\n"
+                         "* Introduction\nIl servizio gestisce gli ordini.\n"))))
+      (should-not (cl-some (lambda (w) (string-match-p "no content" w))
+                           (blueprint--lint-component "filled" file))))))
+
 (ert-deftest blueprint-test-lint/binary-content-no-crash ()
   "Linting a component file with invalid-UTF-8 / binary bytes does not
 error.  The binary line itself counts as \"content\" (the empty-content
@@ -204,6 +229,18 @@ out-of-scope warning."
   (blueprint-test--with-project
     ;; Should not error; returns nil or shows "all clear"
     (should (progn (blueprint-lint) t))))
+
+(ert-deftest blueprint-test-lint/fresh-template-component-no-dangling-dep ()
+  "A component fresh from the system template reports no unknown dependency.
+Regression: the #+BLUEPRINT_DEPENDS: example in the template's
+:noexport: guide was read as a real dependency on order-service and
+notification-service, so `blueprint-ci-validate' failed on every new
+project."
+  (blueprint-test--with-project
+    (blueprint-add-component "svc")
+    (should-not (cl-some (lambda (w) (string-match-p "unknown component" w))
+                         (blueprint--lint-component
+                          "svc" (blueprint--component-file "svc"))))))
 
 (provide 'blueprint-test-lint)
 ;;; blueprint-test-lint.el ends here

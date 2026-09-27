@@ -15,7 +15,7 @@
 
 (defun blueprint--search-command (pattern)
   "Return a search command string for PATTERN in the Blueprint project."
-  (let ((dir (expand-file-name ".blueprint" (blueprint--root))))
+  (let ((dir (blueprint--data-dir)))
     (if (executable-find "rg")
         (format "rg --no-heading --line-number %s %s"
                 (shell-quote-argument pattern)

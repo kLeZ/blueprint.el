@@ -33,8 +33,7 @@ name (lowercase, hyphens replacing non-alphanumeric characters)."
          (deps (read-string "Dependencies (space-separated): "))
          (date (format-time-string "%Y-%m-%d"))
          (dir (expand-file-name id
-                                (expand-file-name ".blueprint/components"
-                                                  (blueprint--root))))
+                                (blueprint--data-path "components")))
          (file (expand-file-name "arc42.org" dir))
          (content (blueprint--template "component.org")))
     (setq content (replace-regexp-in-string "{{NAME}}" name content t t))

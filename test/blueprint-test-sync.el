@@ -66,6 +66,16 @@
 
 ;;; --- page breaks ---
 
+(ert-deftest blueprint-test-sync/include-path-follows-directory-name ()
+  "Include paths are relative to master.org and follow the data dir name."
+  (let ((blueprint-directory-name "content/blueprint"))
+    (blueprint-test--with-project
+      (blueprint-test--write-component "svc")
+      (should (string-match-p
+               (regexp-quote
+                "#+INCLUDE: \"content/blueprint/components/svc/arc42.org\" :minlevel 3")
+               (blueprint--generate-includes-for "arc42.org"))))))
+
 (ert-deftest blueprint-test-sync/page-breaks-between-components ()
   "With PAGE-BREAKS `components', a break precedes every headline but the first."
   (blueprint-test--with-project

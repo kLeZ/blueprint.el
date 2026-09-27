@@ -17,7 +17,7 @@
 
 (defun blueprint--notes-file ()
   "Return the path to the project notes file."
-  (let ((file (expand-file-name ".blueprint/notes.org" (blueprint--root))))
+  (let ((file (blueprint--data-path "notes.org")))
     (unless (file-exists-p file)
       (with-temp-file file
         (insert "#+TITLE: Project Notes\n\n")))

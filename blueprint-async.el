@@ -54,7 +54,7 @@ Calls CALLBACK with the result when done."
      "blueprint-tangle"
      (lambda ()
        (let ((files (directory-files-recursively
-                     (expand-file-name ".blueprint" root) "\\.org$")))
+                     (blueprint--data-dir root) blueprint--org-file-regexp)))
          (dolist (f files)
            (with-current-buffer (find-file-noselect f)
              (org-babel-tangle)))

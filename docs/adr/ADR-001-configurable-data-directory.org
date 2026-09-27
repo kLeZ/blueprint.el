@@ -1,0 +1,66 @@
+#+TITLE: ADR-001: Configurable data directory with legacy fallback
+#+DATE: 2026-09-26
+#+STATUS: accepted
+
+* Context
+The per-project data directory was hardcoded as =.blueprint/= in 25 places
+across 12 files, and =blueprint-sync= wrote the literal
+=.blueprint/components/...= into the =#+INCLUDE:= lines of =master.org=.
+Projects may have to follow a directory layout imposed by an external tool
+(a Hugo/Jekyll-like site generator for Org, a build system as strict about
+directories as Maven), so the name, and possibly its depth, must be
+configurable. Existing projects on =.blueprint/= must keep working, and there
+must be a way to move them to the new name without breaking the paths that
+point into the directory.
+
+* Decision
+A defcustom =blueprint-directory-name= (default =.blueprint=, relative path,
+may be nested). Root detection accepts either the configured name or the
+legacy =.blueprint= at each level going up, so the nearest project wins; a
+project found only through the legacy name is used and warned about once per
+session. =blueprint-migrate-directory= renames the directory and rewrites
+the Org paths into it.
+
+* Alternatives Considered
+
+** Alternative A: global defcustom with legacy fallback (chosen)
+- Pro: no existing project breaks; migration is optional, per project.
+- Pro: works the same in file buffers, non-file buffers and batch/CI.
+- Con: two names to check during root detection; a project holding both
+  directories needs a warning instead of a silent choice.
+
+** Alternative B: per-project value via =.dir-locals.el= only
+- Pro: each project declares its own layout.
+- Con: directory-local values only reach buffers visiting a project file;
+  the dashboard, result buffers and batch commands would not see them and
+  would fail to find a migrated project.
+
+** Alternative C: global defcustom, no fallback
+- Pro: simplest code.
+- Con: changing the value breaks every project not yet migrated, all at once.
+
+* Consequences
+
+** Positive
+- All paths go through =blueprint--data-dir= / =blueprint--data-path=.
+- Sync writes include paths relative to =master.org=, so they follow the name.
+- Migration rewrites links from files inside the moved tree to files outside
+  it when its depth changes, and uses =git mv= when git tracks the directory.
+
+** Negative
+- The defcustom is marked safe as a directory-local variable, but a
+  =.dir-locals.el= value has the limitation described under Alternative B.
+  It is documented and, by the user's choice (2026-09-26), not supported.
+
+** Risks
+- Plain-text mentions of the old path (prose, =:file= arguments of source
+  blocks) are reported, not rewritten; a user who ignores the report keeps
+  stale paths.
+
+** Technical Debt
+- =master.org=, =glossary.org=, =references.org=, =enterprise/=, =nfr/= and
+  =_archive/= are still fixed at the project root. A layout imposed by a site
+  generator will probably need them configurable too (PLAN.org 9.20, deferred
+  by the user until there is a requirement).
+- The 86 hardcoded =.blueprint= paths in the test files still rely on the
+  default value.

@@ -8,7 +8,8 @@
 
 ;; Architecture Decision Record management for Blueprint.
 ;;
-;; All ADRs live in a single consolidated file `.blueprint/adr/adr.org'.
+;; All ADRs live in a single consolidated file, adr.org in the project
+;; data directory (`blueprint-directory-name', default `.blueprint/').
 ;; Each ADR is a level-1 heading with the form:
 ;;
 ;;   * ADR 0001: Title
@@ -33,8 +34,8 @@
 (require 'org-element)
 
 (defun blueprint--adr-file ()
-  "Return the path to the consolidated ADR file (.blueprint/adr.org)."
-  (expand-file-name ".blueprint/adr.org" (blueprint--root)))
+  "Return the path to the consolidated ADR file (adr.org in the data directory)."
+  (blueprint--data-path "adr.org"))
 
 (defun blueprint--adr-next-number ()
   "Return the next ADR number as a zero-padded 4-digit string.
@@ -53,7 +54,8 @@ or contains no ADR headings."
     (format "%04d" (1+ max-num))))
 
 (defun blueprint--adr-ensure-file ()
-  "Create .blueprint/adr.org from template if it does not exist.  Return its path."
+  "Create adr.org in the data directory from template if absent.
+Return its path."
   (let ((file (blueprint--adr-file)))
     (make-directory (file-name-directory file) t)
     (unless (file-exists-p file)

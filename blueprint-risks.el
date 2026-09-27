@@ -63,26 +63,15 @@ Returns a list of plists (:risk :severity :match)."
            (id (when file
                  (let ((dir (file-name-directory file)))
                    (file-name-nondirectory (directory-file-name dir)))))
-           (deps-str (when file
-                       (with-temp-buffer
-                         (insert-file-contents file)
-                         (goto-char (point-min))
-                         (when (re-search-forward
-                                "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
-                           (match-string 1)))))
+           (deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))
            (is-depended nil))
       ;; Check if anyone depends on this component
       (when id
         (maphash
          (lambda (other-id _dir)
            (let* ((other-file (blueprint--component-file other-id))
-                  (other-deps (when other-file
-                                (with-temp-buffer
-                                  (insert-file-contents other-file)
-                                  (goto-char (point-min))
-                                  (when (re-search-forward
-                                         "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
-                                    (match-string 1))))))
+                  (other-deps (blueprint--org-keyword
+                               other-file "BLUEPRINT_DEPENDS")))
              (when (and other-deps
                         (member id (split-string other-deps)))
                (setq is-depended t))))

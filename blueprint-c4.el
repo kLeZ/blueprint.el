@@ -20,15 +20,6 @@
 (defvar blueprint-enterprise-c4-end-marker "' @@blueprint-enterprise-end@@"
   "Marker delimiting the end of the auto-generated enterprise C4 section.")
 
-(defun blueprint--org-keyword (file key)
-  "Extract the value of Org keyword KEY from FILE.
-Returns the keyword value as a string, or nil if not found."
-  (when (and file (file-exists-p file))
-    (with-temp-buffer
-      (insert-file-contents file)
-      (when (re-search-forward (format "^#\\+%s:\\s-*\\(.*\\S-\\)" key) nil t)
-        (match-string 1)))))
-
 (defconst blueprint--component-scope-values '("in-scope" "out-of-scope" "tbd")
   "Valid values for the #+BLUEPRINT_STATUS: keyword.")
 

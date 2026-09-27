@@ -76,13 +76,7 @@ Exits with code 0 (pass), 1 (warnings), or 2 (errors)."
     (maphash
      (lambda (id _dir)
        (let* ((file (blueprint--component-file id))
-              (deps-str (when file
-                          (with-temp-buffer
-                            (insert-file-contents file)
-                            (goto-char (point-min))
-                            (when (re-search-forward
-                                   "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
-                              (match-string 1)))))
+              (deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))
               (all-comps (blueprint--components)))
          (when deps-str
            (dolist (dep (split-string deps-str))

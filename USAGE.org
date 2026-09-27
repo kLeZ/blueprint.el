@@ -116,7 +116,7 @@ Se il progetto richiede template personalizzati (es. sezioni aggiuntive,
 notazioni diverse, testo prefabbricato per il cliente):
 
 #+begin_src
-M-x blueprint-template-migrate  (oppure: C-c b T)
+M-x blueprint-template-migrate  (oppure: C-c b M)
 #+end_src
 
 Copia i template di sistema in =.blueprint/templates/=. Da quel momento, i
@@ -125,6 +125,39 @@ template locali hanno precedenza su quelli di sistema.
 I template disponibili: =component.org=, =functional.org=, =infrastructure.org=,
 =adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
 =enterprise-dependencies.org=, =nfr-quality.org=, =nfr-constraints.org=, =nfr-risks.org=.
+
+** Azione 2-bis: Scegliere il nome della directory dati (opzionale)
+
+La directory dati del progetto (componenti, ADR, template locali) si chiama
+=.blueprint/= per default. Se la struttura del progetto deve rispettare quella
+attesa da un generatore di siti o da un build tool, impostare
+=blueprint-directory-name= con un altro nome o con un percorso relativo
+annidato, es. =content/blueprint=, a livello globale (=init.el= o
+=customize=):
+
+#+begin_src emacs-lisp
+(setq blueprint-directory-name "content/blueprint")
+#+end_src
+
+La variabile e' marcata sicura anche come directory-local, ma un valore in
+=.dir-locals.el= arriva solo ai buffer che visitano un file del progetto: i
+comandi lanciati da buffer senza file (dashboard, buffer di risultato) vedono
+comunque il valore globale.
+
+Un progetto che ha ancora =.blueprint/= continua a funzionare anche dopo il
+cambio: Blueprint lo usa come ripiego e lo segnala una volta per sessione. Per
+rinominarlo:
+
+#+begin_src
+M-x blueprint-migrate-directory  (oppure: C-c b m)
+#+end_src
+
+Il comando mostra il piano e chiede conferma. Poi rinomina la directory (con
+=git mv= se e' tracciata da git) e riscrive ogni link =file:= e ogni percorso
+di =#+INCLUDE:= / =#+SETUPFILE:= nei file Org del progetto che il rename
+romperebbe, compresi i link dai file dentro la directory spostata verso file
+esterni. Le menzioni in testo libero (prosa, argomenti =:file= dei blocchi
+sorgente) vengono solo elencate nel buffer di report, da correggere a mano.
 
 ** Azione 3: Compilare la Parte 0 del master
 
@@ -280,6 +313,16 @@ Usare le marcature definite dalla metodologia:
 
 I marcatori =QUESTION=, =TBD=, =FIXME= sono rilevati automaticamente dal
 sistema di health scoring e penalizzano il punteggio di salute del progetto.
+
+Contano solo le marcature nel testo che l'export mostra davvero: vengono
+ignorati i sottoalberi con un tag di esclusione (=:noexport:= o quelli
+elencati in =#+EXCLUDE_TAGS:=), i sottoalberi COMMENT, i blocchi
+src/example/export/comment, le righe di commento e il markup
+verbatim/code (scrivere ==[FINDING]== cita la marcatura senza crearla).
+Il confronto distingue maiuscole e minuscole. Le keyword di file come
+=#+STATUS: [DA VALIDARE]= contano ancora. Per questo le guide
+=:noexport:= dei template, con i loro dati d'esempio, non pesano sul
+punteggio.
 
 ** Aggiungere domande aperte durante l'analisi
 
@@ -932,4 +975,4 @@ tecnici con uso specifico" del template (a differenza di
 =blueprint-reference-add=, che dalla fase 10.6 instrada correttamente nelle
 sezioni di =references.org=). Aggiungere il termine a mano nella sezione
 corretta, o lasciarlo in coda al file e riorganizzare in seguito. Vedi
-PLAN.md, Fase 10.8.
+PLAN.org, Fase 10.8.

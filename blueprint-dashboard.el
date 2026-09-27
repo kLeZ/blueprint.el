@@ -186,13 +186,7 @@ dependencies.  Writes dashboard.svg to the project root."
               (color (cond ((> fixmes 0) "#ff6b6b")
                            ((> total 3) "#ffd93d")
                            (t "#6bcb77")))
-              (deps-str (with-temp-buffer
-                          (when (and file (file-exists-p file))
-                            (insert-file-contents file)
-                            (goto-char (point-min))
-                            (when (re-search-forward
-                                   "^#\\+BLUEPRINT_DEPENDS:[[:blank:]]*\\(.*\\S-\\)" nil t)
-                              (match-string 1))))))
+              (deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
          (push (format "  %s [label=\"%s\", fillcolor=\"%s\"];" id id color) lines)
          (when deps-str
            (dolist (dep (split-string deps-str))

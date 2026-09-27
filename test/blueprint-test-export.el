@@ -283,5 +283,126 @@ must not be flagged just because they lack a definition."
   (should-not (blueprint--odt-missing-styles
                '("PageBreak") '("OrgCode") '("PageBreak"))))
 
+;;; --- Captions of src blocks exported as results (PLAN 9.18) ---
+
+(defun blueprint-test--caption-buffer (header &optional result-caption)
+  "Insert a captioned src block with HEADER args and its results; return nothing.
+With RESULT-CAPTION, the results paragraph already carries that caption."
+  (org-mode)
+  (insert "* S\n\n"
+          "#+CAPTION: Diagramma di contesto\n"
+          "#+NAME: fig-ctx\n"
+          "#+HEADER: :cache no\n"
+          "#+ATTR_ODT: :width 12\n"
+          "#+begin_src plantuml :file x.svg " header "\n"
+          "A -> B\n"
+          "#+end_src\n\n"
+          (if result-caption (format "#+CAPTION: %s\n" result-caption) "")
+          "#+RESULTS: fig-ctx\n"
+          "[[file:x.svg]]\n\n"
+          "Testo.\n"))
+
+(defun blueprint-test--results-element ()
+  "Return the element holding the #+RESULTS: line in the current buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (re-search-forward "^#\\+RESULTS:")
+    (forward-line 0)
+    (org-element-at-point)))
+
+(ert-deftest blueprint-test-export/caption-copied-to-results ()
+  "Caption and ATTR lines of a results-only block move onto its results."
+  (with-temp-buffer
+    (blueprint-test--caption-buffer ":exports results")
+    (blueprint--move-result-captions)
+    (let ((res (blueprint-test--results-element)))
+      (should (eq 'paragraph (org-element-type res)))
+      (should (org-element-property :caption res))
+      (should (org-element-property :attr_odt res)))
+    ;; #+NAME: and #+HEADER: drive Babel and are not duplicated.
+    (should (= 1 (how-many "^#\\+NAME:" (point-min) (point-max))))
+    (should (= 1 (how-many "^#\\+HEADER:" (point-min) (point-max))))
+    ;; Babel still finds the (named) results from the block.
+    (goto-char (point-min))
+    (re-search-forward "^#\\+begin_src")
+    (let ((pos (org-babel-where-is-src-block-result)))
+      (should pos)
+      (goto-char pos)
+      (should (looking-at "#\\+RESULTS: fig-ctx")))))
+
+(ert-deftest blueprint-test-export/caption-anonymous-results-still-found ()
+  "Without #+NAME:, Babel still finds the anonymous results after the move."
+  (with-temp-buffer
+    (org-mode)
+    (insert "#+CAPTION: Anonimo\n"
+            "#+begin_src plantuml :file y.svg :exports results\nA -> B\n#+end_src\n\n"
+            "#+RESULTS:\n[[file:y.svg]]\n")
+    (blueprint--move-result-captions)
+    (goto-char (point-min))
+    (re-search-forward "^#\\+begin_src")
+    (let ((pos (org-babel-where-is-src-block-result)))
+      (should pos)
+      (goto-char pos)
+      (should (looking-at "#\\+RESULTS:")))
+    (should (= 2 (how-many "^#\\+CAPTION: Anonimo" (point-min) (point-max))))))
+
+(ert-deftest blueprint-test-export/caption-left-on-exports-both ()
+  "A block exported with its code keeps the caption on the listing only."
+  (with-temp-buffer
+    (blueprint-test--caption-buffer ":exports both")
+    (blueprint--move-result-captions)
+    (should (= 1 (how-many "^#\\+CAPTION:" (point-min) (point-max))))))
+
+(ert-deftest blueprint-test-export/caption-not-added-when-results-captioned ()
+  "Results that already have their own caption are left alone."
+  (with-temp-buffer
+    (blueprint-test--caption-buffer ":exports results" "Didascalia propria")
+    (blueprint--move-result-captions)
+    (should (= 2 (how-many "^#\\+CAPTION:" (point-min) (point-max))))
+    (should-not (string-match-p
+                 "Diagramma"
+                 (format "%S" (org-element-property
+                               :caption (blueprint-test--results-element)))))))
+
+(ert-deftest blueprint-test-export/caption-advice-installed ()
+  "The caption fix runs before Babel processes the export buffer."
+  (should (advice-member-p #'blueprint--move-result-captions
+                           'org-babel-exp-process-buffer)))
+
+(ert-deftest blueprint-test-export/odt-caption-reaches-content-xml ()
+  "A caption above an included diagram block appears in the exported ODT.
+Regression (pilot project, 2026-09-24): zero captions in
+content.xml although every image was there."
+  (skip-unless (executable-find "unzip"))
+  (blueprint-test--with-project
+    (let* ((proj default-directory)
+           (svg (blueprint-test--tiny-svg proj))
+           (arc42 (blueprint-test--write-component
+                   "svc"
+                   (concat "#+TITLE: svc\n\n* Diagrams\n\n"
+                           "#+CAPTION: Contesto del servizio svc\n"
+                           "#+begin_src plantuml :file " svg
+                           " :exports results :eval never-export\nA -> B\n#+end_src\n\n"
+                           "#+RESULTS:\n[[file:" svg "]]\n")))
+           (master (expand-file-name "master.org" proj))
+           (odt (expand-file-name "master.odt" proj)))
+      (with-temp-file master
+        (insert "#+TITLE: Assessment Master\n\n"
+                (format "#+INCLUDE: %S :minlevel 2\n" arc42)))
+      (let ((buffers-before (buffer-list)))
+        (unwind-protect
+            (progn
+              (blueprint-export-odt)
+              (should (file-exists-p odt))
+              (should (string-match-p
+                       "Contesto del servizio svc"
+                       (with-temp-buffer
+                         (call-process "unzip" nil t nil "-p" odt "content.xml")
+                         (buffer-string)))))
+          (let ((kill-buffer-query-functions nil))
+            (dolist (buf (buffer-list))
+              (unless (memq buf buffers-before)
+                (kill-buffer buf)))))))))
+
 (provide 'blueprint-test-export)
 ;;; blueprint-test-export.el ends here

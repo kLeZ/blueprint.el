@@ -32,7 +32,7 @@
   (and buffer-file-name
        (ignore-errors (blueprint--root))
        (string-prefix-p
-        (expand-file-name ".blueprint" (blueprint--root))
+        (blueprint--data-dir)
         (expand-file-name buffer-file-name))))
 
 (defun blueprint--auto-tangle-hook ()

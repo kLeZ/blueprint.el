@@ -9,7 +9,8 @@
 Censimento dell'infrastruttura su cui gira questo componente al momento
 dell'assessment.  Non descrive l'architettura ideale, ma lo stato
 rilevato.  Usare =[FINDING]= per anomalie o discrepanze rispetto alla
-documentazione esistente.
+documentazione esistente.  Le sezioni nascono vuote: quando se ne scrive il
+contenuto, marcarla con =[DA VALIDARE]= fino alla conferma.
 
 ** Esempio: inventario host e servizi
 
@@ -39,18 +40,32 @@ documentazione esistente.
 |                        |                 | mancata risposta del provider          |                         |
 | Circuit breaker        | non configurato | Nessuna degradazione automatica        | [FINDING] da aggiungere |
 
-* Inventario
-<<{{ID}}-inventory>>
-[DA VALIDARE]
+** Cosa scrivere in ogni sezione
 
-| ID | Nome host / servizio | Ruolo | OS / Runtime | Versione | Ambiente | Owner |
-|----+----------------------+-------+--------------+----------+----------+-------|
+- /Inventario/: host e servizi (tabella come nell'esempio sopra).
+- /Deployment view/: diagramma di deployment dello stato rilevato.
+- /Dipendenze infrastrutturali/: tabella come nell'esempio sopra.
+- /Configurazione rilevante/: parametri con impatto architetturale (non
+  operativi), es. pool size, timeout, dimensioni buffer, modalità di
+  failover; tabella come nell'esempio sopra.
+- /Ambienti/: un rigo per ambiente (produzione, collaudo, sviluppo, ...).
 
-* Deployment view
-<<{{ID}}-deployment-view>>
-[DA VALIDARE]
+** Modelli
 
-#+begin_src plantuml :file {{ID}}-infra.svg
+Da copiare nella sezione di destinazione.  Nel blocco PlantUML togliere
+=:eval never=, che qui impedisce a Babel di generare il file a ogni export.
+
+Ambienti:
+
+| Ambiente   | URL / Endpoint | Versione | Differenze rispetto a prod |
+|------------+----------------+----------+----------------------------|
+| Produzione |                |          | --                         |
+| Collaudo   |                |          |                            |
+| Sviluppo   |                |          |                            |
+
+Deployment view:
+
+#+begin_src plantuml :file {{ID}}-infra.svg :eval never
 node "Ambiente: [nome]" {
   node "Host: [nome]" {
     artifact "{{NAME}} vX.Y"
@@ -61,32 +76,19 @@ node "Ambiente: [nome]" {
 @enduml
 #+end_src
 
+* Inventario
+<<{{ID}}-inventory>>
+
+* Deployment view
+<<{{ID}}-deployment-view>>
+
 * Dipendenze infrastrutturali
 <<{{ID}}-infra-deps>>
-[DA VALIDARE]
-
-| Dipendenza | Tipo | Porta / Protocollo | Direzione | Obbligatoria? |
-|------------+------+--------------------+-----------+---------------|
 
 * Configurazione rilevante
 <<{{ID}}-config>>
-[DA VALIDARE]
-
-Parametri di configurazione con impatto architetturale (non operativi).
-Es. pool size, timeout, dimensioni buffer, modalità di failover.
-
-| Parametro | Valore rilevato | Impatto | Note |
-|-----------+-----------------+---------+------|
 
 * Ambienti
 <<{{ID}}-environments>>
-[DA VALIDARE]
-
-| Ambiente   | URL / Endpoint | Versione | Differenze rispetto a prod |
-|------------+----------------+----------+----------------------------|
-| Produzione |                |          | --                         |
-| Collaudo   |                |          |                            |
-| Sviluppo   |                |          |                            |
 
 * Open Questions
--
