@@ -15,6 +15,7 @@
 (require 'ox)
 (require 'ox-html)
 (require 'ox-odt)
+(require 'ox-latex)
 (require 'blueprint-test-helpers)
 (require 'blueprint-core)
 (require 'blueprint-export)
@@ -285,24 +286,24 @@ must not be flagged just because they lack a definition."
   (should-not (blueprint--odt-missing-styles
                '("PageBreak") '("OrgCode") '("PageBreak"))))
 
-;;; --- Captions of src blocks exported as results (PLAN 9.18) ---
+;;; --- Captions of src blocks exported as results (PLAN 9.18, 9.23) ---
 
-(defun blueprint-test--caption-buffer (header &optional result-caption)
-  "Insert a captioned src block with HEADER args and its results; return nothing.
-With RESULT-CAPTION, the results paragraph already carries that caption."
-  (org-mode)
-  (insert "* S\n\n"
-          "#+CAPTION: Diagramma di contesto\n"
-          "#+NAME: fig-ctx\n"
-          "#+HEADER: :cache no\n"
-          "#+ATTR_ODT: :width 12\n"
-          "#+begin_src plantuml :file x.svg " header "\n"
-          "A -> B\n"
-          "#+end_src\n\n"
-          (if result-caption (format "#+CAPTION: %s\n" result-caption) "")
-          "#+RESULTS: fig-ctx\n"
-          "[[file:x.svg]]\n\n"
-          "Testo.\n"))
+(defmacro blueprint-test--in-babel-export (content &rest body)
+  "Insert CONTENT in a temp Org buffer, run Babel's export pass, then BODY.
+`org-babel-exp-process-buffer' is the advised function, so this runs
+the caption fix exactly as an export does, in a temporary directory."
+  (declare (indent 1) (debug t))
+  `(let* ((dir (make-temp-file "blueprint-cap-" t))
+          (default-directory (file-name-as-directory dir))
+          (org-confirm-babel-evaluate nil)
+          (org-export-use-babel t))
+     (unwind-protect
+         (with-temp-buffer
+           (org-mode)
+           (insert ,content)
+           (org-babel-exp-process-buffer)
+           ,@body)
+       (delete-directory dir t))))
 
 (defun blueprint-test--results-element ()
   "Return the element holding the #+RESULTS: line in the current buffer."
@@ -312,62 +313,113 @@ With RESULT-CAPTION, the results paragraph already carries that caption."
     (forward-line 0)
     (org-element-at-point)))
 
+(defconst blueprint-test--captioned-block
+  (concat "* S\n\n"
+          "#+CAPTION: Diagramma di contesto\n"
+          "#+NAME: fig-ctx\n"
+          "#+HEADER: :cache no\n"
+          "#+ATTR_ODT: :width 12\n"
+          "#+begin_src plantuml :file x.svg %s\n"
+          "A -> B\n"
+          "#+end_src\n\n"
+          "%s"
+          "#+RESULTS: fig-ctx\n"
+          "[[file:x.svg]]\n\n"
+          "Testo.\n")
+  "Captioned block with existing results; format with HEADER and RESULT-CAPTION.")
+
 (ert-deftest blueprint-test-export/caption-copied-to-results ()
-  "Caption and ATTR lines of a results-only block move onto its results."
-  (with-temp-buffer
-    (blueprint-test--caption-buffer ":exports results")
-    (blueprint--move-result-captions)
+  "Caption, name and ATTR lines of a results-only block land on its results."
+  (blueprint-test--in-babel-export
+      (format blueprint-test--captioned-block
+              ":exports results :eval never-export" "")
     (let ((res (blueprint-test--results-element)))
       (should (eq 'paragraph (org-element-type res)))
       (should (org-element-property :caption res))
+      (should (equal "fig-ctx" (org-element-property :name res)))
       (should (org-element-property :attr_odt res)))
-    ;; #+NAME: and #+HEADER: drive Babel and are not duplicated.
-    (should (= 1 (how-many "^#\\+NAME:" (point-min) (point-max))))
-    (should (= 1 (how-many "^#\\+HEADER:" (point-min) (point-max))))
-    ;; Babel still finds the (named) results from the block.
-    (goto-char (point-min))
-    (re-search-forward "^#\\+begin_src")
-    (let ((pos (org-babel-where-is-src-block-result)))
-      (should pos)
-      (goto-char pos)
-      (should (looking-at "#\\+RESULTS: fig-ctx")))))
+    ;; The block is gone; #+HEADER: is never copied; no sentinel left.
+    (should-not (string-match-p "begin_src" (buffer-string)))
+    (should-not (string-match-p "#\\+HEADER:" (buffer-string)))
+    (should-not (string-match-p "blueprint-result-keywords" (buffer-string)))))
 
-(ert-deftest blueprint-test-export/caption-anonymous-results-still-found ()
-  "Without #+NAME:, Babel still finds the anonymous results after the move."
-  (with-temp-buffer
-    (org-mode)
-    (insert "#+CAPTION: Anonimo\n"
-            "#+begin_src plantuml :file y.svg :exports results\nA -> B\n#+end_src\n\n"
-            "#+RESULTS:\n[[file:y.svg]]\n")
-    (blueprint--move-result-captions)
-    (goto-char (point-min))
-    (re-search-forward "^#\\+begin_src")
-    (let ((pos (org-babel-where-is-src-block-result)))
-      (should pos)
-      (goto-char pos)
-      (should (looking-at "#\\+RESULTS:")))
-    (should (= 2 (how-many "^#\\+CAPTION: Anonimo" (point-min) (point-max))))))
+(ert-deftest blueprint-test-export/caption-on-results-created-during-export ()
+  "A block never evaluated gets its caption on the results Babel creates.
+Regression (9.23): the caption was only moved onto existing results."
+  (blueprint-test--in-babel-export
+      (concat "#+CAPTION: Prima valutazione\n"
+              "#+NAME: fig-new\n"
+              "#+begin_src emacs-lisp :results file :file out.txt :exports results\n"
+              "\"contenuto\"\n#+end_src\n\n"
+              "Testo dopo.\n")
+    (let ((res (blueprint-test--results-element)))
+      (should (string-match-p "out\\.txt" (buffer-substring-no-properties
+                                           (org-element-property :begin res)
+                                           (org-element-property :end res))))
+      (should (org-element-property :caption res))
+      (should (equal "fig-new" (org-element-property :name res))))
+    (should (= 1 (how-many "^#\\+RESULTS:" (point-min) (point-max))))
+    (should-not (string-match-p "blueprint-result-keywords" (buffer-string)))))
+
+(ert-deftest blueprint-test-export/caption-anonymous-results-reevaluated ()
+  "Anonymous existing results are found and replaced once, caption kept."
+  (blueprint-test--in-babel-export
+      (concat "#+CAPTION: Anonimo\n"
+              "#+begin_src emacs-lisp :results file :file out.txt :exports results\n"
+              "\"nuovo\"\n#+end_src\n\n"
+              "#+RESULTS:\n[[file:out.txt]]\n")
+    (should (= 1 (how-many "^#\\+RESULTS:" (point-min) (point-max))))
+    (should (org-element-property :caption (blueprint-test--results-element)))))
 
 (ert-deftest blueprint-test-export/caption-left-on-exports-both ()
   "A block exported with its code keeps the caption on the listing only."
-  (with-temp-buffer
-    (blueprint-test--caption-buffer ":exports both")
-    (blueprint--move-result-captions)
-    (should (= 1 (how-many "^#\\+CAPTION:" (point-min) (point-max))))))
+  (blueprint-test--in-babel-export
+      (format blueprint-test--captioned-block ":exports both :eval never-export" "")
+    (should (= 1 (how-many "^#\\+CAPTION:" (point-min) (point-max))))
+    (should (string-match-p "begin_src" (buffer-string)))))
 
 (ert-deftest blueprint-test-export/caption-not-added-when-results-captioned ()
   "Results that already have their own caption are left alone."
-  (with-temp-buffer
-    (blueprint-test--caption-buffer ":exports results" "Didascalia propria")
-    (blueprint--move-result-captions)
-    (should (= 2 (how-many "^#\\+CAPTION:" (point-min) (point-max))))
-    (should-not (string-match-p
-                 "Diagramma"
-                 (format "%S" (org-element-property
-                               :caption (blueprint-test--results-element)))))))
+  (blueprint-test--in-babel-export
+      (format blueprint-test--captioned-block
+              ":exports results :eval never-export"
+              "#+CAPTION: Didascalia propria\n")
+    (should (= 1 (how-many "^#\\+CAPTION:" (point-min) (point-max))))
+    (should (string-match-p "Didascalia propria" (buffer-string)))))
+
+(ert-deftest blueprint-test-export/caption-sentinel-removed-without-results ()
+  "A block Babel does not evaluate and that has no results leaves no trace."
+  (blueprint-test--in-babel-export
+      (concat "#+CAPTION: Mai valutato\n"
+              "#+begin_src plantuml :file never.svg :exports results :eval never-export\n"
+              "A -> B\n#+end_src\n\nTesto.\n")
+    (should-not (string-match-p "blueprint-result-keywords" (buffer-string)))
+    (should-not (string-match-p "Mai valutato" (buffer-string)))))
+
+(ert-deftest blueprint-test-export/caption-name-link-resolves-in-latex ()
+  "A link to the block's #+NAME: points at the captioned figure in LaTeX."
+  (let* ((dir (make-temp-file "blueprint-cap-" t))
+         (default-directory (file-name-as-directory dir))
+         (org-confirm-babel-evaluate nil))
+    (unwind-protect
+        (let ((tex (with-temp-buffer
+                     (org-mode)
+                     (insert "* S\n\nVedi [[fig-ctx]].\n\n"
+                             "#+CAPTION: Contesto\n#+NAME: fig-ctx\n"
+                             "#+begin_src plantuml :file ctx.png :exports results :eval never-export\n"
+                             "A -> B\n#+end_src\n\n"
+                             "#+RESULTS: fig-ctx\n[[file:ctx.png]]\n")
+                     (org-export-as 'latex nil nil t))))
+          ;; ox-latex puts the label inside the caption:
+          ;; \caption{\label{fig:...}Contesto}
+          (should (string-match "\\\\caption{\\\\label{\\([^}]+\\)}Contesto}" tex))
+          (let ((label (match-string 1 tex)))
+            (should (string-match-p (concat "\\\\ref{" (regexp-quote label) "}")
+                                    tex))))
+      (delete-directory dir t))))
 
 (ert-deftest blueprint-test-export/caption-advice-installed ()
-  "The caption fix runs before Babel processes the export buffer."
+  "The caption fix runs around Babel's processing of the export buffer."
   (should (advice-member-p #'blueprint--move-result-captions
                            'org-babel-exp-process-buffer)))
 

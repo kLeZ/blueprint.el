@@ -439,10 +439,13 @@ Templates follow the methodology from
   ob-plantuml) con il suo `#+RESULTS:` e cancella le keyword affiliate
   del blocco, `#+CAPTION:` compreso. Nessun hook di export cade fra
   l'espansione degli `#+INCLUDE:` e Babel. **Fix**:
-  `blueprint--move-result-captions`, advice `:before` su
-  `org-babel-exp-process-buffer`, copia `#+CAPTION:`/`#+ATTR_*:` prima
-  della riga `#+RESULTS:` nella copia di export. Test:
-  `blueprint-test-export/caption-*`, `.../odt-caption-reaches-content-xml`.
+  `blueprint--move-result-captions`, advice `:around` su
+  `org-babel-exp-process-buffer`: prima di Babel una riga-sentinella dopo
+  i risultati (o dopo il blocco, se non ne ha), dopo Babel
+  `#+CAPTION:`/`#+NAME:`/`#+ATTR_*:` sul paragrafo `#+RESULTS:` che
+  precede la sentinella. Copre anche i blocchi valutati per la prima volta
+  durante l'export. Test: `blueprint-test-export/caption-*`,
+  `.../odt-caption-reaches-content-xml`.
 
 - **`blueprint-sync.el` — riga vuota spuria a ogni sync**:
   `blueprint--sync-section` inseriva `(insert "\n" content "\n")`, ma il punto

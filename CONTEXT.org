@@ -1,11 +1,11 @@
 #+TITLE: Session Context
-#+VERSION: 1.5
+#+VERSION: 1.6
 #+CREATED: 2026-09-26T13:30:00+02:00
-#+UPDATED: 2026-09-27T11:30:00+02:00
+#+UPDATED: 2026-09-27T12:00:00+02:00
 #+STATUS: completed
 
 * Current Task
-None. Work on 9.18-9.25 committed and pushed to main.
+None. 9.18-9.25 committed and pushed; CI green.
 
 * Completed
 - [X] 9.19: defcustom =blueprint-directory-name= (nested relative path allowed),
@@ -24,7 +24,8 @@ None. Work on 9.18-9.25 committed and pushed to main.
 - [X] Docs: README, USAGE.org, CLAUDE.md, PLAN.org (9.18, 9.19, 9.20, 9.21, 9.22)
 - [X] 9.22: markers in non-exported text (noexport/COMMENT subtrees, blocks,
   comments, verbatim/code) no longer counted; matching case-sensitive
-- [X] 9.23 TODO added (caption limits)
+- [X] 9.23: captions/NAME applied after Babel (never-evaluated blocks too); verified ODT, LaTeX, PDF
+- [X] CI green again: writable copies from read-only (Nix) sources, fail-fast off
 - [X] CLAUDE.md renamed to AGENTS.md
 - [X] Lint "no content" check ignores non-exported subtrees
 - [X] PLAN.md and README.md converted to PLAN.org / README.org (pandoc, git mv);
@@ -65,7 +66,7 @@ None. Work on 9.18-9.25 committed and pushed to main.
 | blueprint-questions.el | modified | list-questions skips non-exported text |
 
 * Next Steps
-1. 9.23: caption limits
+1. 9.16 (document supported native Org features) or 9.13 (delete-component leftovers)
 
 
 * Open Questions

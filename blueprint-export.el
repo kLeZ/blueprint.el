@@ -110,61 +110,122 @@ Deletes from the last match backward so earlier positions stay valid."
 (add-hook 'org-export-before-parsing-functions #'blueprint--strip-question-keywords)
 
 (defconst blueprint--result-affiliated-regexp
-  "^[ \t]*#\\+\\(?:CAPTION\\|ATTR_[[:alnum:]_-]+\\)\\(?:\\[.*\\]\\)?:"
+  "^[ \t]*#\\+\\(?:CAPTION\\|NAME\\|ATTR_[[:alnum:]_-]+\\)\\(?:\\[.*\\]\\)?:"
   "Affiliated keyword lines of a src block that belong to its results.
-Only captions and backend attributes (#+ATTR_ODT: :width ...) are
-copied: #+NAME: and #+HEADER: drive Babel itself and stay on the block.")
+Captions, the name (so that a link to the block reaches the figure)
+and backend attributes (#+ATTR_ODT: :width ...).  #+HEADER: lines are
+Babel arguments and are never copied.")
 
-(defun blueprint--move-result-captions (&rest _)
-  "Copy captions of src blocks exported as results onto their results.
-Babel replaces a block exported with \":exports results\" (the
-ob-plantuml default) by its #+RESULTS: paragraph and deletes the
-block's affiliated keywords with it, so a #+CAPTION: written above
-a diagram block never reached the exported document: the image came
-out of the results link without a caption.  Each such block's
-#+CAPTION: and #+ATTR_*: lines are inserted just before its
-#+RESULTS: line, where Babel still finds the results (it looks for
-the RESULTS line among the next element's affiliated keywords) and
-keeps them when it re-evaluates.  Blocks with no #+RESULTS: yet
-\(never evaluated) and blocks whose results already carry a caption
-are left alone.
+(defconst blueprint--result-sentinel-regexp
+  "^# blueprint-result-keywords \\([0-9]+\\)\n"
+  "Comment line marking where a src block's results end, during export.")
 
-Runs as :before advice on `org-babel-exp-process-buffer', the only
-point where #+INCLUDE: files are already expanded (so component files
-included by master.org are covered) and Babel has not run yet: the
-before-processing hook comes before include expansion, the
-before-parsing hook after Babel.  It only ever edits the export copy
-of the buffer."
-  (let (moves)
+(defvar blueprint--result-keywords-pending nil
+  "Alist (N . LINES) of keyword lines waiting for results, during export.")
+
+(defun blueprint--result-keyword-lines (src)
+  "Return the CAPTION/NAME/ATTR_* lines of src block element SRC."
+  (seq-filter
+   (lambda (l) (string-match-p blueprint--result-affiliated-regexp l))
+   (split-string (buffer-substring-no-properties
+                  (org-element-property :begin src)
+                  (org-element-property :post-affiliated src))
+                 "\n" t)))
+
+(defun blueprint--line-after (pos)
+  "Return the start of the line after the last non-blank text before POS."
+  (save-excursion
+    (goto-char pos)
+    (skip-chars-backward " \t\n")
+    (forward-line 1)
+    (point)))
+
+(defun blueprint--mark-result-keywords ()
+  "Put a sentinel after the results of each block exported as results.
+Only blocks with CAPTION/NAME/ATTR_* lines count.  The sentinel goes
+after the existing #+RESULTS: element, or right after the block when
+it has none yet: Babel inserts new results there, before the sentinel.
+Never between block and results, where Babel would no longer find
+anonymous results.  Records the lines in
+`blueprint--result-keywords-pending'."
+  (let ((n 0) marks)
     (org-element-map (org-element-parse-buffer) 'src-block
       (lambda (src)
-        (let ((lines (seq-filter
-                      (lambda (l) (string-match-p blueprint--result-affiliated-regexp l))
-                      (split-string (buffer-substring-no-properties
-                                     (org-element-property :begin src)
-                                     (org-element-property :post-affiliated src))
-                                    "\n" t))))
+        (let ((lines (blueprint--result-keyword-lines src)))
           (when lines
             (save-excursion
               (goto-char (org-element-property :post-affiliated src))
               (let* ((info (org-babel-get-src-block-info 'no-eval))
                      (exports (format "%s" (cdr (assq :exports (nth 2 info))))))
                 (when (string-match-p "\\`results\\b" exports)
-                  (let ((result (org-babel-where-is-src-block-result)))
-                    (when (and result
-                               (not (save-excursion
-                                      (goto-char result)
-                                      (org-element-property
-                                       :caption (org-element-at-point)))))
-                      (push (cons result (concat (mapconcat #'identity lines "\n")
-                                                 "\n"))
-                            moves))))))))))
+                  (let* ((result (org-babel-where-is-src-block-result))
+                         (end (if result
+                                  (save-excursion
+                                    (goto-char result)
+                                    (org-element-property :end (org-element-at-point)))
+                                (org-element-property :end src))))
+                    (setq n (1+ n))
+                    (push (cons n lines) blueprint--result-keywords-pending)
+                    (push (cons (blueprint--line-after end) n) marks)))))))))
     ;; Insert back to front so earlier positions stay valid.
-    (dolist (m (sort moves (lambda (a b) (> (car a) (car b)))))
+    (dolist (m (sort marks (lambda (a b) (> (car a) (car b)))))
       (goto-char (car m))
-      (insert (cdr m)))))
+      (insert (format "# blueprint-result-keywords %d\n" (cdr m))))))
 
-(advice-add 'org-babel-exp-process-buffer :before #'blueprint--move-result-captions)
+(defun blueprint--apply-result-keywords ()
+  "Move each sentinel's keyword lines onto the results right before it.
+Runs after Babel, which by then has replaced each block with its
+results (or left nothing, when it did not evaluate a block without
+results).  Lines are added only to an element carrying #+RESULTS:
+and not already captioned; a #+NAME: line is dropped when the results
+already have a name.  Every sentinel is removed."
+  (goto-char (point-max))
+  (while (re-search-backward blueprint--result-sentinel-regexp nil t)
+    (let* ((sentinel (point))
+           (lines (cdr (assq (string-to-number (match-string 1))
+                             blueprint--result-keywords-pending))))
+      (delete-region sentinel (match-end 0))
+      (save-excursion
+        (skip-chars-backward " \t\n")
+        (let ((el (and (> (point) (point-min)) (org-element-at-point))))
+          (when (and el lines
+                     (org-element-property :results el)
+                     (not (org-element-property :caption el)))
+            (when (org-element-property :name el)
+              (setq lines (seq-remove
+                           (lambda (l) (string-match-p "^[ \t]*#\\+NAME:" l))
+                           lines)))
+            (goto-char (org-element-property :begin el))
+            (insert (mapconcat #'identity lines "\n") "\n")))))
+    (goto-char (point-max))))
+
+(defun blueprint--move-result-captions (orig &rest args)
+  "Carry captions of src blocks exported as results onto the results.
+Babel replaces a block exported with \":exports results\" (the
+ob-plantuml default) by its #+RESULTS: paragraph and deletes the
+block's affiliated keywords with it, so a #+CAPTION: written above
+a diagram block never reached the exported document, and a link to
+the block's #+NAME: had no target.  Around ORIG (called with ARGS),
+`blueprint--mark-result-keywords' notes where each block's results
+end, and `blueprint--apply-result-keywords' then puts #+CAPTION:,
+#+NAME: and #+ATTR_*: on those results.  Doing it after Babel covers
+blocks evaluated for the first time during export, and lets #+NAME:
+move without breaking Babel's lookup of named results.
+
+Runs as :around advice on `org-babel-exp-process-buffer', the only
+point where #+INCLUDE: files are already expanded (so component files
+included by master.org are covered) and Babel has not run yet: the
+before-processing hook comes before include expansion, the
+before-parsing hook after Babel.  It only ever edits the export copy
+of the buffer."
+  (let ((blueprint--result-keywords-pending nil))
+    (save-excursion (blueprint--mark-result-keywords))
+    (unwind-protect
+        (apply orig args)
+      (save-excursion (blueprint--apply-result-keywords)))))
+
+(advice-remove 'org-babel-exp-process-buffer #'blueprint--move-result-captions)
+(advice-add 'org-babel-exp-process-buffer :around #'blueprint--move-result-captions)
 
 (defun blueprint--master-or-error ()
   "Return the master.org path, or signal an error if it does not exist.

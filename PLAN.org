@@ -642,7 +642,7 @@ sopra =#+RESULTS:= quando rivaluta; verificato anche con PlantUML
 eseguito davvero e il componente incluso via =#+INCLUDE:=. Lavora solo
 sulla copia di export. Non toccati: blocchi =:exports both= (la
 didascalia resta sul listato) e risultati che hanno già una didascalia
-propria. Limiti (da correggere, vedi 9.23): un blocco mai valutato (nessun =#+RESULTS:=) resta
+propria. Limiti poi corretti in 9.23: un blocco mai valutato (nessun =#+RESULTS:=) resta
 senza didascalia; un link =[[fig-ctx]]= al nome del blocco non punta
 alla figura, perché =#+NAME:= non viene spostato. Il meccanismo è
 indipendente dal backend, ma è stato verificato solo in ODT (non in
@@ -733,21 +733,34 @@ invisibili con un tema scuro) e il raggio dell'arco. Test in
 Lato utente, per vedere gli SVG anche visitandoli con =find-file=:
 =(add-to-list 'imagemagick-types-inhibit 'SVG)= nella configurazione.
 
-** 9.23 Limiti della correzione delle didascalie (DA FARE)
-Residui di 9.18, da correggere (decisione dell'utente, 2026-09-26):
+** 9.23 Limiti della correzione delle didascalie (FATTO)
 
-- un blocco mai valutato (nessun =#+RESULTS:= nel file) esce senza
-  didascalia: Babel crea i risultati durante l'export, dopo
-  =blueprint--move-result-captions=. Serve inserire la didascalia
-  anche sui risultati appena creati senza produrre un doppio
-  =#+RESULTS:= (Babel cerca i risultati anonimi solo subito dopo il
-  blocco);
-- un link al =#+NAME:= del blocco (=[[fig-ctx]]=) non porta alla
-  figura: il nome resta sul blocco, che Babel rimuove. Spostare
-  =#+NAME:= sui risultati interferisce con la ricerca dei risultati
-  nominati (=org-babel-find-named-result=), quindi va studiato un
-  modo che non rompa la valutazione;
-- verificare il comportamento in PDF/LaTeX (finora solo ODT).
+Residui di 9.18, corretti il 2026-09-27:
+
+- Un blocco mai valutato (nessun =#+RESULTS:=) usciva senza didascalia,
+  perché Babel crea i risultati durante l'export. Ora
+  =blueprint--move-result-captions= è un advice =:around= su
+  =org-babel-exp-process-buffer= a due fasi: prima di Babel
+  =blueprint--mark-result-keywords= mette una riga-sentinella (un
+  commento) dopo i risultati esistenti o, se non ce ne sono, subito dopo
+  il blocco, dove Babel inserirà i nuovi risultati prima di lei; mai fra
+  blocco e risultati, dove Babel non troverebbe più quelli anonimi.
+  Dopo Babel =blueprint--apply-result-keywords= mette =#+CAPTION:=,
+  =#+NAME:= e =#+ATTR_*:= sul paragrafo =#+RESULTS:= che precede ogni
+  sentinella e toglie le sentinelle.
+- =#+NAME:= ora passa ai risultati: dopo Babel non serve più alla
+  ricerca dei risultati nominati. Verificato che, quando i risultati
+  portano già il nome del blocco (=#+RESULTS: fig-ctx=), Org risolveva
+  il link anche prima: il limite annotato in 9.18 era più stretto di
+  quanto descritto.
+- Verificato in ODT, LaTeX e PDF, con PlantUML eseguito davvero da
+  un componente incluso via =#+INCLUDE:=: didascalia presente
+  ("Figure 1: ..." nel PDF) e =[[fig-ctx]]= risolto in riferimento alla
+  figura (=\ref= in LaTeX, =text:sequence-ref= in ODT).
+
+Test in =test/blueprint-test-export.el=, ora eseguiti con Babel vero
+(=org-babel-exp-process-buffer=); i blocchi valutati usano emacs-lisp
+con =:results file :file=, così la CI non richiede PlantUML.
 
 ** 9.17 Parola chiave QUESTION stampata nel documento esportato (FATTO)
 Trovato dal progetto pilota (2026-09-24): le voci
