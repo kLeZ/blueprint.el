@@ -733,6 +733,33 @@ invisibili con un tema scuro) e il raggio dell'arco. Test in
 Lato utente, per vedere gli SVG anche visitandoli con =find-file=:
 =(add-to-list 'imagemagick-types-inhibit 'SVG)= nella configurazione.
 
+** 9.26 Diagrammi SVG ridotti a 5x5 cm nell'export ODT (FATTO)
+
+Segnalato dal progetto pilota (2026-10-08): nel PDF
+ottenuto dall'ODT tutti i diagrammi erano piccoli, al centro, deformati
+e illeggibili, soprattutto quelli larghi. Nell'ODT le 23 cornici delle
+immagini misuravano tutte 5,00 x 5,00 cm. Causa: =org-odt--image-size=
+misura l'immagine con =identify= di ImageMagick, poi con
+=image-size= di Emacs, e altrimenti usa i 5x5 cm fissi di
+=org-odt-default-image-sizes-alist=. Su SVG falliscono entrambe: la
+policy di ImageMagick del sistema vieta SVG (stessa causa di 9.25) ed
+Emacs in batch non misura immagini.
+
+Fatto: advice =:around= =blueprint--odt-image-size-svg= su
+=org-odt--image-size= in =blueprint-export.el=. Per un file =.svg= legge
+=width=/=height= (px, senza unità o pt) o il =viewBox= dell'elemento
+radice e li passa come larghezza e altezza in cm, così Org applica
+comunque =org-odt-max-image-size= (17x20 cm) e mantiene le proporzioni.
+=:scale= o =:width= più =:height= espliciti restano invariati; con solo
+=:width= o solo =:height= l'altra misura segue il rapporto dell'SVG.
+Verificato sull'export reale del pilota: 23 immagini da 5x5 cm a
+larghezza piena con proporzioni corrette. Test in
+=test/blueprint-test-export.el=.
+
+Resta aperto: i diagrammi molto larghi (C4 container, ER) a 17 cm hanno
+testo piccolo. Possibili strade, da decidere: pagine orizzontali per le
+figure larghe, o layout verticale nei sorgenti PlantUML.
+
 ** 9.23 Limiti della correzione delle didascalie (FATTO)
 
 Residui di 9.18, corretti il 2026-09-27:

@@ -44,6 +44,83 @@ wrapper -- is never overridden."
      (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
      ,@body))
 
+;;; --- SVG size for the ODT exporter ---
+
+(defun blueprint--svg-dimension-to-pixels (value)
+  "Convert the SVG length VALUE (a string) to CSS pixels, or nil.
+Handles unitless and px lengths, and pt (1pt = 96/72 px).  Any other
+unit, a percentage, or a malformed VALUE returns nil."
+  (when (and value
+             (string-match "\\`[ \t]*\\([0-9]+\\(?:\\.[0-9]+\\)?\\)[ \t]*\\(px\\|pt\\)?[ \t]*\\'"
+                           value))
+    (let ((number (string-to-number (match-string 1 value))))
+      (if (equal (match-string 2 value) "pt")
+          (/ (* number 96.0) 72.0)
+        (float number)))))
+
+(defun blueprint--svg-size-in-pixels (file)
+  "Return the intrinsic size of SVG FILE as (WIDTH . HEIGHT) in pixels.
+Reads the width and height attributes of the root <svg> element, and
+falls back to its viewBox.  Returns nil when FILE is unreadable or
+declares no usable size."
+  (when (file-readable-p file)
+    (with-temp-buffer
+      (insert-file-contents file nil 0 8192)
+      (goto-char (point-min))
+      (when (re-search-forward "<svg\\b\\([^>]*\\)>" nil t)
+        (let* ((tag (match-string 1))
+               (attr (lambda (name)
+                       (when (string-match
+                              (format "[ \t\n]%s=[\"']\\([^\"']*\\)[\"']" name)
+                              tag)
+                         (match-string 1 tag))))
+               (width (blueprint--svg-dimension-to-pixels (funcall attr "width")))
+               (height (blueprint--svg-dimension-to-pixels (funcall attr "height")))
+               (viewbox (funcall attr "viewBox")))
+          (cond
+           ((and width height (> width 0) (> height 0))
+            (cons width height))
+           ((and viewbox
+                 (let ((parts (split-string viewbox "[ \t,]+" t)))
+                   (and (= (length parts) 4)
+                        (let ((w (string-to-number (nth 2 parts)))
+                              (h (string-to-number (nth 3 parts))))
+                          (and (> w 0) (> h 0) (cons (float w) (float h))))))))))))))
+
+(defun blueprint--odt-image-size-svg (orig-fun file info &optional
+                                               user-width user-height
+                                               scale dpi embed-as)
+  "Give `org-odt--image-size' (ORIG-FUN) the real size of an SVG FILE.
+Org measures images with ImageMagick's identify, then with Emacs'
+own image support, and otherwise falls back to the fixed 5x5 cm of
+`org-odt-default-image-sizes-alist'.  Both probes commonly fail on
+SVG: many distributions ship an ImageMagick security policy that
+refuses SVG, and Emacs cannot measure images in batch mode.  Every
+PlantUML diagram then lands in the ODT as a distorted 5x5 cm square.
+Reading the size from the SVG header avoids both probes: it is passed
+on as an explicit width and height in cm, so Org still applies
+`org-odt-max-image-size' and keeps the aspect ratio.  An explicit
+#+ATTR_ODT: :scale, or both :width and :height, is left untouched, as
+is any non-SVG FILE.  INFO, USER-WIDTH, USER-HEIGHT, SCALE, DPI and
+EMBED-AS are those of `org-odt--image-size'."
+  (let ((pixels (and (not scale)
+                     (not (and user-width user-height))
+                     (string-match-p "\\.svg\\'" (downcase (format "%s" file)))
+                     (blueprint--svg-size-in-pixels (format "%s" file)))))
+    (if (not pixels)
+        (funcall orig-fun file info user-width user-height scale dpi embed-as)
+      (let* ((ppi (or dpi (plist-get info :odt-pixels-per-inch) 96.0))
+             (width (* 2.54 (/ (car pixels) ppi)))
+             (height (* 2.54 (/ (cdr pixels) ppi))))
+        (cond
+         (user-width (setq height (* user-width (/ height width))
+                           width user-width))
+         (user-height (setq width (* user-height (/ width height))
+                            height user-height)))
+        (funcall orig-fun file info width height nil dpi embed-as)))))
+
+(advice-add 'org-odt--image-size :around #'blueprint--odt-image-size-svg)
+
 (defcustom blueprint-export-backend 'pdf
   "Default export backend for Blueprint.
 Supported values: pdf, odt, html, docx.  Override per-user (e.g. to

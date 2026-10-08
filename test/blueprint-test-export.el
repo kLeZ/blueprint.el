@@ -458,5 +458,71 @@ content.xml although every image was there."
               (unless (memq buf buffers-before)
                 (kill-buffer buf)))))))))
 
+;;; --- SVG size for the ODT exporter ---
+
+(defun blueprint-test--write-svg (header)
+  "Write an SVG whose root element is HEADER to a temp file; return it."
+  (let ((file (make-temp-file "blueprint-test-" nil ".svg")))
+    (with-temp-file file
+      (insert "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+              header "<g/></svg>"))
+    file))
+
+(ert-deftest blueprint-test-export/svg-dimension-units ()
+  "SVG lengths convert to pixels for px, unitless and pt values only."
+  (should (= (blueprint--svg-dimension-to-pixels "1619px") 1619.0))
+  (should (= (blueprint--svg-dimension-to-pixels "200") 200.0))
+  (should (= (blueprint--svg-dimension-to-pixels "72pt") 96.0))
+  (should-not (blueprint--svg-dimension-to-pixels "10cm"))
+  (should-not (blueprint--svg-dimension-to-pixels "100%"))
+  (should-not (blueprint--svg-dimension-to-pixels nil)))
+
+(ert-deftest blueprint-test-export/svg-size-from-attributes ()
+  "The size comes from width/height, then from the viewBox."
+  (let ((plantuml (blueprint-test--write-svg
+                   "<svg xmlns=\"http://www.w3.org/2000/svg\" height=\"1256px\" style=\"width:1619px;height:1256px;\" viewBox=\"0 0 1619 1256\" width=\"1619px\">"))
+        (viewbox (blueprint-test--write-svg
+                  "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 800 600\">"))
+        (none (blueprint-test--write-svg
+               "<svg xmlns=\"http://www.w3.org/2000/svg\" stroke-width=\"2\">")))
+    (unwind-protect
+        (progn
+          (should (equal (blueprint--svg-size-in-pixels plantuml) '(1619.0 . 1256.0)))
+          (should (equal (blueprint--svg-size-in-pixels viewbox) '(800.0 . 600.0)))
+          (should-not (blueprint--svg-size-in-pixels none)))
+      (mapc #'delete-file (list plantuml viewbox none)))))
+
+(ert-deftest blueprint-test-export/odt-svg-keeps-aspect-ratio ()
+  "A wide SVG is fitted to the page width with its own aspect ratio,
+instead of the 5x5 cm fallback used when Org cannot measure it."
+  (let ((file (blueprint-test--write-svg
+               "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1619px\" height=\"1256px\">"))
+        (info '(:odt-pixels-per-inch 96.0)))
+    (unwind-protect
+        (let ((size (org-odt--image-size file info)))
+          (should (< (abs (- (car size) (car org-odt-max-image-size))) 0.01))
+          (should (< (abs (- (/ (car size) (cdr size)) (/ 1619.0 1256.0))) 0.01)))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-export/odt-svg-small-keeps-natural-size ()
+  "An SVG smaller than the page keeps its natural size (px at 96 dpi)."
+  (let ((file (blueprint-test--write-svg
+               "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"192px\" height=\"96px\">")))
+    (unwind-protect
+        (let ((size (org-odt--image-size file '(:odt-pixels-per-inch 96.0))))
+          (should (< (abs (- (car size) 5.08)) 0.01))
+          (should (< (abs (- (cdr size) 2.54)) 0.01)))
+      (delete-file file))))
+
+(ert-deftest blueprint-test-export/odt-svg-user-width-honoured ()
+  "An explicit :width keeps priority; the height follows the ratio."
+  (let ((file (blueprint-test--write-svg
+               "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400px\" height=\"200px\">")))
+    (unwind-protect
+        (let ((size (org-odt--image-size file '(:odt-pixels-per-inch 96.0) 10.0)))
+          (should (< (abs (- (car size) 10.0)) 0.01))
+          (should (< (abs (- (cdr size) 5.0)) 0.01)))
+      (delete-file file))))
+
 (provide 'blueprint-test-export)
 ;;; blueprint-test-export.el ends here
