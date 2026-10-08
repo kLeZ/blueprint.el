@@ -175,6 +175,17 @@ block silently exports as a code listing instead of a diagram."
       (should (eq org-confirm-babel-evaluate 'custom-confirm-fn))
       (should (eq org-plantuml-exec-mode 'executable)))))
 
+(ert-deftest blueprint-test-export/odt-caption-numbering-continuous ()
+  "Captions get one counter for the whole document, not one per chapter;
+a value customized away from the stock 2 is left alone."
+  (let ((org-odt-display-outline-level 2))
+    (blueprint--with-plantuml-export
+      (should (eql org-odt-display-outline-level 0)))
+    (should (eql org-odt-display-outline-level 2)))
+  (let ((org-odt-display-outline-level 1))
+    (blueprint--with-plantuml-export
+      (should (eql org-odt-display-outline-level 1)))))
+
 (ert-deftest blueprint-test-export/plantuml-export-registers-babel-language ()
   "blueprint--with-plantuml-export ensures PlantUML is a loaded Babel language."
   (blueprint--with-plantuml-export

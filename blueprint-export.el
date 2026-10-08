@@ -32,15 +32,24 @@ former and switching the latter to the `plantuml' executable, every
 source-code listing instead of the rendered diagram -- no error, no
 warning (`org-odt-export-to-odt' and friends report success either
 way).  An interactive session usually works by accident because the
-user's own init.el already sets these.  Bindings here apply only for
-the duration of BODY, and only for a variable still at its stock
-default, so a user's own customization -- interactive or in a batch
-wrapper -- is never overridden."
+user's own init.el already sets these.
+
+The same goes for `org-odt-display-outline-level': at its stock 2,
+captions are numbered per chapter (\"2.1.1\"), and an ODT template
+whose headings carry no outline numbering -- such as a corporate
+letterhead -- drops the chapter part, so every chapter restarts at
+\"Figura 1\".  Here it becomes 0: one counter for the whole document.
+
+Bindings here apply only for the duration of BODY, and only for a
+variable still at its stock default, so a user's own customization
+-- interactive or in a batch wrapper -- is never overridden."
   (declare (indent 0) (debug t))
   `(let ((org-confirm-babel-evaluate
           (if (eq org-confirm-babel-evaluate t) nil org-confirm-babel-evaluate))
          (org-plantuml-exec-mode
-          (if (eq org-plantuml-exec-mode 'jar) 'plantuml org-plantuml-exec-mode)))
+          (if (eq org-plantuml-exec-mode 'jar) 'plantuml org-plantuml-exec-mode))
+         (org-odt-display-outline-level
+          (if (eql org-odt-display-outline-level 2) 0 org-odt-display-outline-level)))
      (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
      ,@body))
 
@@ -538,7 +547,8 @@ interactively instead of fixed in advance."
   (interactive)
   (let ((file (blueprint--master-or-error)))
     (with-current-buffer (find-file-noselect file)
-      (call-interactively #'org-export-dispatch))))
+      (blueprint--with-plantuml-export
+        (call-interactively #'org-export-dispatch)))))
 
 (provide 'blueprint-export)
 ;;; blueprint-export.el ends here

@@ -733,6 +733,22 @@ invisibili con un tema scuro) e il raggio dell'arco. Test in
 Lato utente, per vedere gli SVG anche visitandoli con =find-file=:
 =(add-to-list 'imagemagick-types-inhibit 'SVG)= nella configurazione.
 
+** 9.27 Didascalie numerate per capitolo nell'export ODT (FATTO)
+
+Trovato dal progetto pilota (2026-10-08), dopo aver tolto
+dalle didascalie il prefisso manuale ("Figura DS-2 -- "): nel PDF più
+figure risultavano "Figura 1". Causa: =org-odt-display-outline-level=
+vale 2 di serie, Org numera per capitolo (=2.1.1=) e dichiara le
+sequenze con =text:display-outline-level="2"=; il template aziendale
+non ha numerazione di struttura sui titoli, quindi LibreOffice mostra
+solo il contatore, che riparte a ogni capitolo.
+
+Fatto: =blueprint--with-plantuml-export= porta la variabile a 0 (un
+contatore per tutto il documento) se è ancora al valore di serie, come
+già fa per Babel e PlantUML; anche =blueprint-export-dispatch= ora usa
+la macro. Verificato sul pilota: figure da 1 a 23 senza ripetizioni.
+Test in =test/blueprint-test-export.el=.
+
 ** 9.26 Diagrammi SVG ridotti a 5x5 cm nell'export ODT (FATTO)
 
 Segnalato dal progetto pilota (2026-10-08): nel PDF
