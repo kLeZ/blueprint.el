@@ -12,6 +12,7 @@
 (require 'blueprint-core)
 (require 'blueprint-health)
 (require 'blueprint-lint)
+(require 'blueprint-ci)
 
 ;;; --- blueprint--lint-component ---
 
@@ -241,6 +242,69 @@ project."
     (should-not (cl-some (lambda (w) (string-match-p "unknown component" w))
                          (blueprint--lint-component
                           "svc" (blueprint--component-file "svc"))))))
+
+;;; --- Lint of every file of the document (PLAN 9.31) ---
+
+(defun blueprint-test--full-arc42 (name)
+  "Return an arc42.org body for NAME with every expected heading and text."
+  (concat "#+TITLE: " name "\n#+BLUEPRINT_DEPENDS:\n\n"
+          (mapconcat (lambda (h) (format "* %s\n\nText of %s.\n\n" h h))
+                     blueprint--lint-expected-headings "")))
+
+(ert-deftest blueprint-test-lint/project-checks-included-files ()
+  "Marker threshold and empty content run on every included file.
+Arc42 headings are checked on arc42.org only, not on the other files."
+  (blueprint-test--with-project
+    (let ((blueprint-lint-marker-threshold 2))
+      (blueprint-test--write-component "svc" (blueprint-test--full-arc42 "svc"))
+      (blueprint-test--write-document
+       "svc" "functional.org" "#+TITLE: f\n\n* A\n\nTBD TBD TBD\n")
+      (blueprint-test--write-master ".blueprint/components/svc/arc42.org"
+                                    ".blueprint/components/svc/functional.org"
+                                    "nfr/risks.org" "glossary.org")
+      (blueprint-test--write-file "nfr/risks.org" "* R\n\nQUESTION QUESTION FIXME\n")
+      (blueprint-test--write-file "glossary.org" "#+TITLE: G\n\n* Glossario\n")
+      (let ((warnings (blueprint--lint-project)))
+        (should (member "svc/functional.org: 3 unresolved markers (0 QUESTION, 3 TBD, 0 FIXME)"
+                        warnings))
+        (should (member "nfr/risks.org: 3 unresolved markers (2 QUESTION, 0 TBD, 1 FIXME)"
+                        warnings))
+        (should (member "glossary.org: file has no content (only headings, keywords and anchors)"
+                        warnings))
+        (should-not (cl-some (lambda (w) (string-match-p "missing heading" w))
+                             warnings))))))
+
+(ert-deftest blueprint-test-lint/project-skips-files-not-included ()
+  "Files outside the document are not linted for content."
+  (blueprint-test--with-project
+    (let ((blueprint-lint-marker-threshold 0))
+      (blueprint-test--write-component "svc" (blueprint-test--full-arc42 "svc"))
+      (blueprint-test--write-document "svc" "functional.org" "#+TITLE: f\n\nTBD\n")
+      (blueprint-test--write-master "glossary.org")
+      (blueprint-test--write-file "glossary.org" "* G\n\nTermine.\n")
+      (blueprint-test--write-file "notes.org" "QUESTION\n")
+      ;; svc is not in master.org: only its structural checks run.
+      (should (null (blueprint--lint-project))))))
+
+(ert-deftest blueprint-test-lint/project-missing-include ()
+  "An #+INCLUDE: of a missing file is a lint warning."
+  (blueprint-test--with-project
+    (blueprint-test--write-master "nfr/ghost.org")
+    (should (equal (blueprint--lint-project)
+                   '("master.org: included file \"nfr/ghost.org\" not found")))))
+
+(ert-deftest blueprint-test-lint/ci-lint-exit-code-from-included-files ()
+  "`blueprint-ci-lint' fails on a warning found in an included part."
+  (blueprint-test--with-project
+    (let ((blueprint-lint-marker-threshold 0)
+          (code nil))
+      (blueprint-test--write-master "nfr/risks.org")
+      (blueprint-test--write-file "nfr/risks.org" "* R\n\nQUESTION\n")
+      (cl-letf (((symbol-function 'kill-emacs) (lambda (c) (setq code c)))
+                ((symbol-function 'message) #'ignore))
+        (let ((noninteractive t))
+          (blueprint-ci-lint)))
+      (should (equal code 1)))))
 
 (provide 'blueprint-test-lint)
 ;;; blueprint-test-lint.el ends here

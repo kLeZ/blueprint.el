@@ -8,7 +8,8 @@
 
 ;; AST-based insertion of open questions into component arc42.org files.
 ;; Uses `org-element' to find the "Open Questions" heading and insert
-;; items without fragile regex manipulation.
+;; items without fragile regex manipulation.  The list of open
+;; questions reads every document of each component.
 
 ;;; Code:
 
@@ -61,39 +62,66 @@ Returns the position where new content should be inserted, or nil."
     (message "Added question to %s" component)))
 
 ;;;###autoload
-(defun blueprint-list-questions ()
-  "List all open questions across all components."
+(defun blueprint-questions-visit ()
+  "Visit the question at point, in the document that holds it."
   (interactive)
+  (let ((data (tabulated-list-get-id)))
+    (when data
+      (find-file (nth 1 data))
+      (goto-char (point-min))
+      (forward-line (1- (nth 2 data))))))
+
+(defvar blueprint-questions-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map tabulated-list-mode-map)
+    (define-key map (kbd "RET") #'blueprint-questions-visit)
+    map)
+  "Keymap for `blueprint-questions-mode'.")
+
+(define-derived-mode blueprint-questions-mode tabulated-list-mode
+  "Blueprint Questions"
+  "Major mode for the list of open questions of a Blueprint project."
+  (setq tabulated-list-format [("Component" 20 t) ("Question" 60 t)
+                               ("Document" 20 t)])
+  (tabulated-list-init-header))
+
+(defun blueprint--question-entries ()
+  "Return the tabulated-list entries of the open questions.
+One entry per \"- QUESTION\" list item in exported text of every
+document of every component (arc42.org, functional.org,
+infrastructure.org; see `blueprint--component-document-paths').
+The entry id is (COMPONENT FILE LINE)."
   (let ((entries '()))
-    (maphash
-     (lambda (id _dir)
-       (let ((file (blueprint--component-file id)))
-         (when (and file (file-exists-p file))
-           (with-temp-buffer
-             (blueprint--insert-org-file file)
-             ;; Questions in non-exported text (template guides) are
-             ;; examples, not open questions.
-             (dolist (pos (blueprint--marker-positions
-                           "^-[ \t]*QUESTION[ \t]+\\(.*\\)"))
-               (goto-char pos)
-               (looking-at "^-[ \t]*QUESTION[ \t]+\\(.*\\)")
-               (push (list (cons id file)
-                           (vector id (match-string 1)))
-                     entries))))))
-     (blueprint--components))
+    (dolist (id (sort (hash-table-keys (blueprint--components)) #'string<))
+      (dolist (file (blueprint--component-document-paths id))
+        (with-temp-buffer
+          (blueprint--insert-org-file file)
+          ;; Questions in non-exported text (template guides) are
+          ;; examples, not open questions.
+          (dolist (pos (blueprint--marker-positions
+                        "^-[ \t]*QUESTION[ \t]+\\(.*\\)"))
+            (goto-char pos)
+            (looking-at "^-[ \t]*QUESTION[ \t]+\\(.*\\)")
+            (push (list (list id file (line-number-at-pos))
+                        (vector id (match-string 1)
+                                (file-name-nondirectory file)))
+                  entries)))))
+    (nreverse entries)))
+
+;;;###autoload
+(defun blueprint-list-questions ()
+  "List all open questions across all components.
+Questions are collected from every document of each component
+\(arc42.org, functional.org, infrastructure.org).  In the list,
+\\<blueprint-questions-mode-map>\\[blueprint-questions-visit] opens the document at the question."
+  (interactive)
+  (let ((entries (blueprint--question-entries)))
     (if (null entries)
         (message "No open questions found.")
       (with-current-buffer (get-buffer-create "*Blueprint Questions*")
-        (setq tabulated-list-format [("Component" 20 t) ("Question" 60 t)]
-              tabulated-list-entries (nreverse entries))
-        (tabulated-list-mode)
-        (tabulated-list-init-header)
+        (blueprint-questions-mode)
+        (setq tabulated-list-entries entries)
         (tabulated-list-print)
-        (local-set-key (kbd "RET")
-                       (lambda ()
-                         (interactive)
-                         (let ((data (tabulated-list-get-id)))
-                           (when data (find-file (cdr data))))))
         (switch-to-buffer (current-buffer))))))
 
 (provide 'blueprint-questions)

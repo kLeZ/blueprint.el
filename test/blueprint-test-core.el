@@ -133,6 +133,108 @@
         (should (= 2 count-a))   ; recomputed
         (should (= 1 count-b)))))) ; still cached
 
+(ert-deftest blueprint-test-cache/kind-keys-do-not-collide ()
+  "Entries with a KIND are keyed apart from the plain FILE entry.
+Invalidating FILE drops both."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component "comp-k" "content")))
+      (blueprint--invalidate-cache)
+      (should (equal '(1 2 3)
+                     (blueprint--cached-metrics file (lambda (_) '(1 2 3)))))
+      (should (equal 'other
+                     (blueprint--cached-metrics file (lambda (_) 'other)
+                                                'some-kind)))
+      ;; Each key returns its own value from the cache.
+      (should (equal '(1 2 3)
+                     (blueprint--cached-metrics file (lambda (_) 'wrong))))
+      (should (equal 'other
+                     (blueprint--cached-metrics file (lambda (_) 'wrong)
+                                                'some-kind)))
+      (blueprint--invalidate-cache file)
+      (should-not (gethash file blueprint--metrics-cache))
+      (should-not (gethash (cons file 'some-kind) blueprint--metrics-cache)))))
+
+;;; --- Component navigation ---
+
+(ert-deftest blueprint-test-navigation/single-document-no-prompt ()
+  "With only arc42.org the chooser returns it without asking."
+  (blueprint-test--with-project
+    (let ((arc42 (blueprint-test--write-component "solo")))
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (&rest _) (error "Should not prompt"))))
+        (should (equal arc42 (blueprint--read-component-document "solo")))))))
+
+(ert-deftest blueprint-test-navigation/chooser-offers-existing-documents ()
+  "The chooser offers the existing documents, arc42.org preselected."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (let ((func (blueprint-test--write-document "svc" "functional.org" "x\n"))
+          offered default)
+      (cl-letf (((symbol-function 'completing-read)
+                 (lambda (_prompt collection &rest args)
+                   (setq offered collection
+                         default (nth 4 args))
+                   "functional.org")))
+        (should (equal func (blueprint--read-component-document "svc"))))
+      (should (equal offered '("arc42.org" "functional.org")))
+      (should (equal default "arc42.org")))))
+
+(ert-deftest blueprint-test-navigation/visit-each-document ()
+  "`blueprint-visit-component' opens each of the three documents."
+  (blueprint-test--with-project
+    (let* ((arc42 (blueprint-test--write-component "svc"))
+           (func (blueprint-test--write-document "svc" "functional.org" "f\n"))
+           (infra (blueprint-test--write-document
+                   "svc" "infrastructure.org" "i\n")))
+      (dolist (pair (list (cons "arc42.org" arc42)
+                          (cons "functional.org" func)
+                          (cons "infrastructure.org" infra)))
+        ;; Explicit document argument.
+        (with-current-buffer (blueprint-visit-component "svc" (car pair))
+          (should (equal (buffer-file-name) (cdr pair))))
+        ;; Chosen interactively through the chooser.
+        (cl-letf (((symbol-function 'completing-read)
+                   (lambda (&rest _) (car pair))))
+          (with-current-buffer (blueprint-visit-component "svc")
+            (should (equal (buffer-file-name) (cdr pair)))))))))
+
+(ert-deftest blueprint-test-navigation/visit-missing-document-errors ()
+  "Asking for a document the component lacks is a user error."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (should-error (blueprint-visit-component "svc" "functional.org")
+                  :type 'user-error)
+    (should-error (blueprint-visit-component "ghost") :type 'user-error)))
+
+(ert-deftest blueprint-test-navigation/components-list-keys ()
+  "The components list has its own keymap: RET asks, a/f/i open directly.
+Its bindings do not leak into `tabulated-list-mode-map'."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (let ((infra (blueprint-test--write-document
+                  "svc" "infrastructure.org" "i\n")))
+      (unwind-protect
+          (progn
+            (blueprint-list-components)
+            (with-current-buffer "*Blueprint Components*"
+              (should (eq major-mode 'blueprint-components-mode))
+              (should (eq (key-binding (kbd "RET"))
+                          #'blueprint-components-visit))
+              (should (eq (key-binding (kbd "i"))
+                          #'blueprint-components-visit-infrastructure))
+              (should (equal (aref (cadr (assoc "svc" tabulated-list-entries)) 1)
+                             "arc42.org infrastructure.org"))
+              (goto-char (point-min))
+              (while (and (not (equal (tabulated-list-get-id) "svc"))
+                          (not (eobp)))
+                (forward-line 1))
+              (call-interactively #'blueprint-components-visit-infrastructure)
+              (should (equal (buffer-file-name) infra))))
+        (when (get-buffer "*Blueprint Components*")
+          (kill-buffer "*Blueprint Components*")))
+      (should-not (eq (lookup-key tabulated-list-mode-map (kbd "RET"))
+                      #'blueprint-components-visit)))))
+
 ;;; --- blueprint-init ---
 
 (ert-deftest blueprint-test-init/creates-directories ()
@@ -405,6 +507,121 @@ boundary and produced \"identity-db\", a component that does not exist."
                    (expand-file-name "content/blueprint/components" tmpdir)))
           (should-not (file-exists-p (expand-file-name ".blueprint" tmpdir))))
       (delete-directory tmpdir t))))
+
+;;; --- Document files: master.org and its includes (PLAN 9.31) ---
+
+(ert-deftest blueprint-test-document/nested-includes-relative-to-includer ()
+  "Includes are followed recursively, each resolved against its includer.
+nfr/all.org includes \"risks.org\", which is nfr/risks.org, not the
+risks.org at the root."
+  (blueprint-test--with-project
+    (let* ((master (blueprint-test--write-master "glossary.org" "nfr/all.org"))
+           (glossary (blueprint-test--write-file "glossary.org" "* G\n\nTerm.\n"))
+           (all (blueprint-test--write-file
+                 "nfr/all.org" "* NFR\n\n#+INCLUDE: \"risks.org\" :minlevel 3\n"))
+           (risks (blueprint-test--write-file "nfr/risks.org" "* R\n\nRisk.\n")))
+      (blueprint-test--write-file "risks.org" "* Wrong\n")
+      (should (equal (blueprint--document-files)
+                     (list master glossary all risks))))))
+
+(ert-deftest blueprint-test-document/missing-files-reported ()
+  "A missing included file is left out of the files and reported."
+  (blueprint-test--with-project
+    (let* ((master (blueprint-test--write-master "glossary.org" "nfr/ghost.org"))
+           (glossary (blueprint-test--write-file "glossary.org" "* G\n")))
+      (should (equal (blueprint--document-files) (list master glossary)))
+      (should (equal (plist-get (blueprint--document-walk) :missing)
+                     (list (cons (expand-file-name "nfr/ghost.org") master)))))))
+
+(ert-deftest blueprint-test-document/cycle-terminates ()
+  "Files that include each other are listed once."
+  (blueprint-test--with-project
+    (let ((master (blueprint-test--write-master "a.org"))
+          (a (blueprint-test--write-file "a.org" "#+INCLUDE: \"b.org\"\n"))
+          (b (blueprint-test--write-file
+              "b.org" "#+INCLUDE: \"a.org\"\n#+INCLUDE: \"master.org\"\n")))
+      (should (equal (blueprint--document-files) (list master a b))))))
+
+(ert-deftest blueprint-test-document/skips-non-exported-includes ()
+  "Includes in :noexport: subtrees, comments and blocks are not followed.
+An include as a src/example block is not live text either."
+  (blueprint-test--with-project
+    (let ((master (blueprint-test--write-file
+                   "master.org"
+                   (concat "#+TITLE: Doc\n\n"
+                           "# #+INCLUDE: \"commented.org\"\n"
+                           "* Guide :noexport:\n#+INCLUDE: \"hidden.org\"\n"
+                           "* Body\n"
+                           "#+begin_example\n#+INCLUDE: \"example.org\"\n#+end_example\n"
+                           "#+INCLUDE: \"code.org\" src org\n"
+                           "#+INCLUDE: \"shown.org\" :minlevel 2\n"))))
+      (dolist (f '("commented.org" "hidden.org" "example.org" "code.org"))
+        (blueprint-test--write-file f "QUESTION\n"))
+      (let ((shown (blueprint-test--write-file "shown.org" "* S\n")))
+        (should (equal (blueprint--document-files) (list master shown)))))))
+
+(ert-deftest blueprint-test-document/parse-include-value ()
+  "File, search suffix, block type and partial options are recognized."
+  (let ((dir "/p/"))
+    (should (equal (blueprint--parse-include-value "\"a.org\" :minlevel 3" dir)
+                   '(:path "/p/a.org" :block nil :partial nil)))
+    (should (equal (blueprint--parse-include-value "b.org::*Head" dir)
+                   '(:path "/p/b.org" :block nil :partial t)))
+    (should (equal (blueprint--parse-include-value "\"c.org\" :lines \"1-5\"" dir)
+                   '(:path "/p/c.org" :block nil :partial t)))
+    (should (plist-get (blueprint--parse-include-value "\"d.el\" src emacs-lisp" dir)
+                       :block))
+    (should (equal (plist-get (blueprint--parse-include-value "\"sub/e.org\"" "/p/q/")
+                              :path)
+                   "/p/q/sub/e.org"))
+    (should-not (blueprint--parse-include-value "" dir))))
+
+(ert-deftest blueprint-test-document/fallback-without-master ()
+  "Without master.org the document is every component document."
+  (blueprint-test--with-project
+    (let* ((a (blueprint-test--write-component "a"))
+           (af (blueprint-test--write-document "a" "functional.org" "f\n"))
+           (b (blueprint-test--write-component "b")))
+      (blueprint-test--write-file "notes.org" "QUESTION\n")
+      (should (equal (blueprint--document-files) (list a af b))))))
+
+(ert-deftest blueprint-test-document/units-components-then-parts ()
+  "Each document file belongs to one row: components, then other files."
+  (blueprint-test--with-project
+    (let* ((arc (blueprint-test--write-component "svc"))
+           (_fun (blueprint-test--write-document "svc" "functional.org" "f\n"))
+           (_off (blueprint-test--write-component "off"))
+           (master (blueprint-test--write-master
+                    ".blueprint/components/svc/arc42.org" "nfr/risks.org"))
+           (risks (blueprint-test--write-file "nfr/risks.org" "* R\n")))
+      (should (equal (blueprint--document-units)
+                     (list (list :id "off" :kind 'component :files nil :included nil)
+                           (list :id "svc" :kind 'component :files (list arc)
+                                 :included t)
+                           (list :id "master.org" :kind 'part :files (list master)
+                                 :included t)
+                           (list :id "nfr/risks.org" :kind 'part :files (list risks)
+                                 :included t)))))))
+
+(ert-deftest blueprint-test-document/visit-part ()
+  "`blueprint-visit-component' opens a part of the document by its path."
+  (blueprint-test--with-project
+    (blueprint-test--write-master "nfr/risks.org")
+    (let ((risks (blueprint-test--write-file "nfr/risks.org" "* R\n")))
+      (with-current-buffer (blueprint-visit-component "nfr/risks.org")
+        (should (equal (buffer-file-name) risks))))
+    (should-error (blueprint-visit-component "notes.org") :type 'user-error)))
+
+(ert-deftest blueprint-test-document/includes-cached-and-invalidated ()
+  "The include list of a file is cached under the kind `includes'."
+  (blueprint-test--with-project
+    (let ((master (blueprint-test--write-master "a.org")))
+      (blueprint-test--write-file "a.org" "* A\n")
+      (blueprint--document-files)
+      (should (gethash (cons master 'includes) blueprint--metrics-cache))
+      (blueprint-test--write-master "a.org" "b.org")
+      (let ((b (blueprint-test--write-file "b.org" "* B\n")))
+        (should (member b (blueprint--document-files)))))))
 
 (provide 'blueprint-test-core)
 ;;; blueprint-test-core.el ends here

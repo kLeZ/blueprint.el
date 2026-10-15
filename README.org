@@ -75,7 +75,7 @@ These declarations are parsed to generate C4 container diagrams --- no manual
 diagramming required.
 
 ** Health scoring as motivation
-The health score (0--100) penalizes markers like =QUESTION=, =TBD=, and =FIXME= left in component files, relative to how much text they contain. It is intentionally simple --- a gamified nudge to clean
+The health score (0--100) penalizes markers like =QUESTION=, =TBD=, and =FIXME= left in the document (=master.org= and every file it includes), relative to how much text it contains. It is intentionally simple --- a gamified nudge to clean
 up open items rather than a rigorous metric. The SVG gauge makes it visual
 enough to show a client during a review session.
 
@@ -83,19 +83,16 @@ enough to show a client during a review session.
 - *Project initialization* --- creates =.blueprint/= directory structure with
   =components/= and =adr/= subdirectories
 - *Component management* --- full CRUD: add, list, rename, and delete
-  components, each with its own =arc42.org= documentation file
+  components, each with up to three documents: =arc42.org= (Parte II), =functional.org= (Parte III) and =infrastructure.org= (Parte IV). The component list (=l=), the dashboard and =blueprint-visit-component= (=j=) open any of the three
 - *Component skeleton wizard* --- interactive prompts for name, responsibility,
   owner, and tech stack that pre-fill the template
 - *Wizard onboarding* --- guided step-by-step project setup
 - *C4 diagram generation* --- produces PlantUML C4 container diagrams by parsing
   =#+BLUEPRINT_DEPENDS:= keywords from component files
-- *Dependency graph* --- PlantUML/Graphviz visualization of component
-  dependencies with health-based coloring
+- *Dependency graph* --- PlantUML/Graphviz visualization of component dependencies (=G=); Graphviz nodes are colored by each component's health score over its documents in =master.org=. =h= draws the same colored graph with Graphviz whatever the backend
 - *Health score gauge* --- calculates a quality score and renders it as an SVG
   semicircular gauge with metrics caching
-- *Dashboard buffer* --- Magit-style status buffer showing all components with
-  columns for Owner, Tech stack, Questions, TBDs, FIXMEs, and Status, navigable
-  with =RET= to open component files
+- *Dashboard buffer* --- Magit-style status buffer with one row per component and one per other file of the document (master.org, glossary, Parte I and V, references): Owner, Tech stack, Scope, marker counts, penalty points, health score and Status, navigable with =RET= to open the row's file
 - *Focus mode* --- filtered dashboard showing only components that need
   attention
 - *SVG dashboard* --- Graphviz-based visual overview with risk-based coloring
@@ -139,8 +136,7 @@ enough to show a client during a review session.
   questions, TBDs, and FIXMEs (falls back to grep)
 - *Quick capture* --- =org-capture=-style note taking for notes, questions, and
   glossary terms
-- *Daily workflow command* --- one-key triage sequence (dashboard → focus →
-  select component → edit)
+- *Daily workflow command* --- one-key triage sequence (dashboard → focus → select component, ordered by penalty points over all its documents → select document → edit)
 - *Org-roam integration* --- components as navigable org-roam nodes with
   backlink support (requires =org-roam=)
 - *Incremental functional spec* --- four commands to build =functional.org=
@@ -161,9 +157,7 @@ enough to show a client during a review session.
 - *Methodology marker tracking* --- =blueprint-list-findings= and
   =blueprint-list-unvalidated= scan all Org files project-wide and display
   results in a navigable read-only buffer with file and line references
-- *Pre-delivery check* --- =blueprint-pre-delivery-check= runs all automatable
-  readiness checks (health score, unresolved markers, lint warnings, master sync
-  status) and produces a pass/warn report
+- *Pre-delivery check* --- =blueprint-pre-delivery-check= runs all automatable readiness checks (health score, unresolved =[DA VALIDARE]= and =[DA REVISIONARE]= markers, lint warnings, master sync status) and produces a pass/warn report; the =[FINDING]= count is shown for information only and never affects the outcome
 - *CI/headless mode* --- =emacs --batch= entry points for linting, validation,
   and export with appropriate exit codes
 - *Metrics caching* --- MD5-based hash-table cache invalidated on file change
@@ -237,8 +231,8 @@ Download the latest =.tar.gz= from the
    questions, and dependencies.
 5. Declare dependencies with =#+BLUEPRINT_DEPENDS: other-component=.
 6. Open the dashboard with =C-c b B= to see all components at a glance.
-7. Generate a C4 diagram with =C-c b C=, a dependency graph with =C-c b G=, or a
-   health SVG with =C-c b H=.
+7. Generate a C4 diagram with =C-c b C=, a dependency graph with =C-c b G=, the
+   health-colored component graph with =C-c b h=, or a health SVG with =C-c b H=.
 8. Run =C-c b L= to lint the project, =C-c b s= for risk suggestions.
 
 * Usage
@@ -254,9 +248,11 @@ logical groups:
 |                | =R= | rename component      |
 |                | =X= | delete component      |
 |                | =l= | list components       |
+|                | =j= | visit document        |
 | *Architecture* | =C= | generate C4           |
 |                | =V= | enterprise C4         |
 |                | =G= | dependency graph      |
+|                | =h= | health-colored graph  |
 |                | =S= | sync master           |
 | *Quality*      | =H= | health SVG            |
 |                | =L= | lint                  |
@@ -296,6 +292,8 @@ logical groups:
 | *NFR*          | =p= | add quality scenario  |
 |                | =c= | add constraint        |
 |                | =t= | add risk entry        |
+
+=blueprint-command-map= binds the same keys to the same commands, for plain keybindings without Transient: =(global-set-key (kbd "C-c b") blueprint-command-map)=.
 
 ** Initializing a project
 =blueprint-init= creates the following structure in the current directory:
@@ -411,7 +409,7 @@ to them --- untouched on every regeneration, the same way =blueprint-sync=
 preserves manual content in =master.org=.
 
 ** Health scoring
-=blueprint-health-score= weighs the open markers found in the files of each component that reach the document (=arc42.org=, =functional.org=, =infrastructure.org=; absent files are skipped):
+=blueprint-health-score= weighs the open markers found in the document: =master.org= and every file it includes with =#+INCLUDE:=, recursively, each path resolved against the file that includes it. Parte 0 (the text of =master.org=), the glossary, Parte I, the component documents, Parte V and the references all count; files =master.org= does not include (notes, knowledge base, a component document not synced yet) do not. Every count of the package uses the same files: dashboard, pre-delivery check, lint, risks and the marker lists.
 
 | Marker             | Weight | Meaning                                   |
 |--------------------+--------+-------------------------------------------|
@@ -442,10 +440,12 @@ being one). Matching is case-sensitive, so "question" in prose is not a
 same rule applies to the lint marker threshold, the marker lists, the
 pre-delivery check and =blueprint-list-questions=.
 
-Two additional commands list methodology markers project-wide:
+An =#+INCLUDE:= inside a non-exported subtree or a comment is not followed, and a file included as a block (=src=, =example=, =export=) does not count, since it is code in the document. Known limits: a file included only in part (=:lines=, =file.org::*Heading=) counts whole, a file included twice counts once, =#+EXCLUDE_TAGS:= applies only to the file that declares it (the exporter applies master.org's to the whole document) and =#+SELECT_TAGS:= is not supported. Without =master.org= the counts use the documents of every component, as =blueprint-sync= would include them.
 
-- =blueprint-list-findings= (=C-c b d=) --- all =[FINDING]= occurrences
-- =blueprint-list-unvalidated= (=C-c b g=) --- all =[DA VALIDARE]= sections
+Two additional commands list methodology markers in the document:
+
+- =blueprint-list-findings= (=C-c b g=) --- all =[FINDING]= occurrences
+- =blueprint-list-unvalidated= (=C-c b u=) --- all =[DA VALIDARE]= sections
 
 =blueprint-health-svg= generates a semicircular gauge as an SVG file
 (=health.svg=) in the project root and shows it in the =*Blueprint Health*=
@@ -453,12 +453,15 @@ buffer. The file is a standalone SVG with its own white background, so it
 can be opened in a browser or dropped into a document for the client.
 
 ** Dashboard
-=blueprint-dashboard= opens a =tabulated-list-mode= buffer showing all
-components with columns for Owner (=#+BLUEPRINT_OWNER:=), Tech
-(=#+BLUEPRINT_TECH:=), Scope (=#+BLUEPRINT_STATUS:=), Questions, TBDs,
-FIXMEs, and Status. Navigation: =RET= opens a component, =g= refreshes, =F=
-toggles focus mode, =O= toggles the out-of-scope filter (show only
-=out-of-scope=/=tbd= components), =q= closes.
+=blueprint-dashboard= opens a =tabulated-list-mode= buffer with one row per component, in alphabetical order, then one row per other file of the document in the order =master.org= includes it (=master.org= itself, glossary, =enterprise/*=, =nfr/*=, references), named by its path relative to the root. Every file of the document is in exactly one row, so the rows add up to the health score of the whole document. The header line holds the column titles, aligned with the rows also when line numbers are displayed; the mode line shows the document's health score, the number of components and of other files, and the active filters.
+
+Columns: Name; Owner (=#+BLUEPRINT_OWNER:=), Tech (=#+BLUEPRINT_TECH:=) and Scope (=#+BLUEPRINT_STATUS:=) from a component's =arc42.org=; the counts of =QUESTION=, =TBD=, =FIXME=, =[DA VALIDARE]= (DA VAL), =[DA REVISIONARE]= (DA REV) and =[FINDING]=; Penalty and Health, with the weights and formula of =blueprint-health-score= applied to the row alone (=[FINDING]= is counted but weighs 0); Status. A component row counts only its documents included in =master.org=. Status is =FIXME=, =NEEDS-WORK= (more than two =QUESTION=), =IN-PROGRESS= (any other open marker, methodology markers included), =OK=, or =NOT-INCLUDED= for a component none of whose documents is in =master.org= (Health shows =-=).
+
+Navigation: =RET= opens the row's file (for a component with more than one document, it asks which, =arc42.org= preselected), =g= refreshes, =F= toggles focus mode (rows with penalty points and =NOT-INCLUDED= components, so a row with only =[FINDING]= is hidden), =O= toggles the out-of-scope filter (show only =out-of-scope=/=tbd= components), =G= draws the colored graph (=blueprint-dashboard-svg=), =q= closes. Numeric columns sort by value.
+
+The same per-component figures drive the other views. =blueprint-dashboard-svg= (=C-c b h=) and the Graphviz dependency graph color each node by its score: red below 50 (the =blueprint-ci-validate= warning threshold), yellow below 80 (the default =blueprint-delivery-score-threshold=), green otherwise, grey when =master.org= includes none of the component's documents. With the default =blueprint-graph-backend= (=plantuml=), =C-c b G= writes an uncolored =.puml=. =blueprint-daily= lists the components and the other files with penalty points, most first; for a component it then asks which document to open, preselecting the one with most penalty points.
+
+The component list (=blueprint-list-components=, =l=) shows which documents each component has: =RET= asks which one to open, =a=, =f= and =i= open =arc42.org=, =functional.org= and =infrastructure.org= directly. =blueprint-visit-component= (=j=) does the same from anywhere, and =blueprint-list-questions= collects =- QUESTION= items from all three documents.
 
 ** Template management
 Blueprint uses a three-tier template resolution order:

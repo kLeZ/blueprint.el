@@ -67,4 +67,5 @@ jobs:
             -l test/blueprint-test-capture.el \
             -l test/blueprint-test-e2e.el \
             -l test/blueprint-test-export.el \
+            -l test/blueprint-test-keys.el \
             -f ert-run-tests-batch-and-exit

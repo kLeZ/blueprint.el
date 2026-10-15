@@ -513,5 +513,66 @@ on a dark theme."
       (when (get-buffer "*Blueprint Health*")
         (kill-buffer "*Blueprint Health*")))))
 
+;;; --- Only the document counts: master.org and its includes (PLAN 9.31) ---
+
+(defun blueprint-test--document-project ()
+  "Write a project whose master.org includes component and other files.
+Component svc: arc42.org included (QUESTION), functional.org not
+included (FIXME).  Other files: master.org (TBD), glossary.org
+\([DA VALIDARE]), nfr/risks.org ([DA REVISIONARE], [FINDING]).
+notes.org (FIXME FIXME) is not included."
+  (blueprint-test--write-component
+   "svc" "#+TITLE: svc\n\n* Introduction\n\nText QUESTION here.\n")
+  (blueprint-test--write-document
+   "svc" "functional.org" "#+TITLE: f\n\n* A\n\nFIXME out of the document.\n")
+  (blueprint-test--write-file
+   "master.org"
+   (concat "#+TITLE: Doc\n\n* Parte 0\n\nPremesse TBD.\n"
+           "#+INCLUDE: \"glossary.org\" :minlevel 3\n"
+           "* Parte II\n"
+           "#+INCLUDE: \".blueprint/components/svc/arc42.org\" :minlevel 3\n"
+           "* Parte V\n"
+           "#+INCLUDE: \"nfr/risks.org\" :minlevel 2\n"))
+  (blueprint-test--write-file "glossary.org" "* Glossario\n\nTermine [DA VALIDARE].\n")
+  (blueprint-test--write-file
+   "nfr/risks.org" "* Rischi\n\nR-1 [DA REVISIONARE] [FINDING] rischio.\n")
+  (blueprint-test--write-file "notes.org" "* Note\n\nFIXME FIXME\n"))
+
+(ert-deftest blueprint-test-health-score/counts-document-only ()
+  "The score covers master.org and its includes, nothing else.
+Penalty: QUESTION 3 + TBD 2 + [DA VALIDARE] 1 + [DA REVISIONARE] 1;
+the FIXME of the non-included functional.org and notes.org do not
+count, the parts outside the components do."
+  (blueprint-test--with-project
+    (blueprint-test--document-project)
+    (let ((summary (blueprint--document-health-summary)))
+      (should (= 7 (plist-get summary :penalty)))
+      (should (= 0 (blueprint--health-marker-count
+                    (plist-get summary :counts) "\\<FIXME\\>")))
+      (should (= (blueprint-health-score)
+                 (blueprint--health-score-from 7 (plist-get summary :words)))))
+    ;; The component counts only its included arc42.org.
+    (should (= 3 (blueprint-test--health-penalty "svc")))))
+
+(ert-deftest blueprint-test-health-score/rows-add-up-to-document ()
+  "Penalty and words of the document rows add up to the health inputs."
+  (blueprint-test--with-project
+    (blueprint-test--document-project)
+    (let ((rows (mapcar #'blueprint--unit-health-summary (blueprint--document-units)))
+          (doc (blueprint--document-health-summary)))
+      (should (= (plist-get doc :penalty)
+                 (apply #'+ (mapcar (lambda (r) (plist-get r :penalty)) rows))))
+      (should (= (plist-get doc :words)
+                 (apply #'+ (mapcar (lambda (r) (plist-get r :words)) rows)))))))
+
+(ert-deftest blueprint-test-list-unvalidated/document-only ()
+  "The marker lists scan the document files only."
+  (blueprint-test--with-project
+    (blueprint-test--document-project)
+    (blueprint-test--write-file "kb/notes.org" "[DA VALIDARE] interno\n")
+    (let ((hits (blueprint--scan-marker-occurrences "[DA VALIDARE]")))
+      (should (= 1 (length hits)))
+      (should (string-suffix-p "glossary.org" (car (car hits)))))))
+
 (provide 'blueprint-test-health)
 ;;; blueprint-test-health.el ends here

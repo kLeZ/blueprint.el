@@ -37,6 +37,7 @@ emacs -Q --batch \
   -l test/blueprint-test-dashboard.el -l test/blueprint-test-migrate.el \
   -l test/blueprint-test-watch.el -l test/blueprint-test-capture.el \
   -l test/blueprint-test-e2e.el -l test/blueprint-test-export.el \
+  -l test/blueprint-test-keys.el \
   -f ert-run-tests-batch-and-exit
 
 # Single test by name pattern
@@ -117,7 +118,7 @@ modules; no logic lives there.
 ### Data flow for a typical command
 
 1. Command reads `blueprint--root` to find `.blueprint/`
-2. Calls `blueprint--components` to enumerate `arc42.org` files
+2. Calls `blueprint--components` to enumerate components; `blueprint--component-file` gives the main file (`arc42.org`, for keywords and for writing), `blueprint--component-document-paths` the files of a component that can reach the deliverable (`arc42.org`, `functional.org`, `infrastructure.org`). Anything that counts (health, dashboard, pre-delivery, lint, risks, marker lists, graph colors, daily) reads only `blueprint--document-files`: `master.org` and every file it includes with `#+INCLUDE:`, recursively, each path resolved against the including file (without `master.org`, the component documents). `blueprint--document-units` splits those files into rows (one per component, with `blueprint--component-included-paths`, then one per other file) and `blueprint--files-health-summary` counts a list of files; never build a separate file list
 3. Parses files via `org-element` (never regex on Org content)
 4. Uses `blueprint--cached-metrics` to avoid re-reading unchanged files
 5. Writes output (`.puml`, `.svg`, buffer) to project root
@@ -175,7 +176,7 @@ the same keyword.
 `blueprint.el` also `require`s several single-purpose modules that still have
 no dedicated ERT suite and are not part of the test commands above:
 
-- `blueprint-daily.el` — one-key daily triage (dashboard -> focus -> component)
+- `blueprint-daily.el` — one-key daily triage (dashboard -> focus -> component -> document)
 - `blueprint-search.el` — project-wide search via ripgrep, with a fallback
 - `blueprint-graph.el` — dependency graphs in PlantUML/Graphviz (dot)
 - `blueprint-wizard.el` — interactive onboarding/component-creation wizards
@@ -184,7 +185,7 @@ no dedicated ERT suite and are not part of the test commands above:
 Treat diffs touching these as untested until a suite is added.
 `blueprint-dashboard.el`, `blueprint-migrate.el`, `blueprint-watch.el`, and
 `blueprint-capture.el` (one regression test, not full coverage) are covered
-(see the Test structure table below).
+(see the Test structure table below). `blueprint-daily.el` and `blueprint-graph.el` have a few tests in `test/blueprint-test-dashboard.el` (daily candidates and document choice, graph node colors), loaded there through `require`; the rest of the two modules (file output, Graphviz/PlantUML rendering) is still untested.
 
 ## Test structure
 
@@ -194,25 +195,26 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | File                           | Scope                                         |
 | ------------------------------ | --------------------------------------------- |
 | `blueprint-test-helpers.el`    | Macro e utility condivise                     |
-| `blueprint-test-core.el`       | Root, cache, CRUD                             |
-| `blueprint-test-health.el`     | Metriche e health score                       |
-| `blueprint-test-lint.el`       | Linter (incluso fix file mancante)            |
+| `blueprint-test-core.el`       | Root, cache (incl. KIND keys), CRUD, navigation to the three documents, document files from master.org includes (nested, missing, cycles, non-exported), document rows |
+| `blueprint-test-health.el`     | Metriche e health score (solo il documento: master.org e inclusi) |
+| `blueprint-test-lint.el`       | Linter (incluso fix file mancante), lint di progetto su tutti i file inclusi, include mancanti |
 | `blueprint-test-c4.el`         | Keyword extraction, C4 gen                    |
 | `blueprint-test-adr.el`        | ADR numerazione e creazione                   |
 | `blueprint-test-sync.el`       | Master sync e marker                          |
-| `blueprint-test-content.el`    | Glossario, riferimenti, domande               |
-| `blueprint-test-risks.el`      | Pattern matching e check strutturali          |
+| `blueprint-test-content.el`    | Glossario, riferimenti, domande (anche da functional/infrastructure) |
+| `blueprint-test-risks.el`      | Pattern matching (solo testo esportato dei documenti inclusi) e check strutturali |
 | `blueprint-test-ai.el`         | Sanitizzazione e clamping (no Ollama)         |
 | `blueprint-test-functional.el` | Area/feature/entità/integrazione incrementale |
 | `blueprint-test-runtime.el`    | Flussi runtime e diagrammi UC/sequenza        |
 | `blueprint-test-nfr.el`        | Quality scenarios, vincoli, registro rischi   |
-| `blueprint-test-delivery.el`   | Pre-delivery check e master sync              |
-| `blueprint-test-dashboard.el`  | Entry, status, focus mode, colonne Owner/Tech |
+| `blueprint-test-delivery.el`   | Pre-delivery check e master sync, [FINDING] solo informativi, conteggi solo sui file inclusi |
+| `blueprint-test-dashboard.el`  | Entry, status, focus mode, colonne Owner/Tech, marker sommati su tutti i documenti, titoli delle colonne visibili, righe dei file non di componente, NOT-INCLUDED, colori del grafo, candidati del daily |
 | `blueprint-test-migrate.el`    | Template diff/migrazione non distruttiva, rename directory dati |
 | `blueprint-test-watch.el`      | Minor mode hook install/remove, invalidazione cache |
 | `blueprint-test-capture.el`    | Target del template org-capture glossario (regression, non full coverage) |
 | `blueprint-test-e2e.el`        | Lifecycle completo di un progetto             |
 | `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless, check stili ODT, didascalie dei diagrammi |
+| `blueprint-test-keys.el`       | Transient e command map con gli stessi tasti, tasti e comandi citati in USAGE.org/README.org reali (richiede `blueprint.el`) |
 
 ## Blueprint init: full project structure
 

@@ -7,7 +7,10 @@
 ;;; Commentary:
 
 ;; Generates dependency graphs in PlantUML or Graphviz (dot) format,
-;; with nodes colored by component health score.
+;; with nodes colored by component health score (Graphviz only),
+;; computed over the documents of each component that master.org
+;; includes.  The colored overview without choosing a backend is
+;; `blueprint-dashboard-svg'.
 
 ;;; Code:
 
@@ -36,14 +39,11 @@ Supported values: plantuml, graphviz."
     result))
 
 (defun blueprint--graph-health-color (id)
-  "Return a color string for component ID based on its health markers."
-  (let* ((file (blueprint--component-file id))
-         (metrics (blueprint--cached-metrics
-                   file #'blueprint--component-metrics))
-         (total (apply #'+ metrics)))
-    (cond ((> (nth 2 metrics) 0) "#ff6b6b")   ; has FIXMEs
-          ((> total 3) "#ffd93d")               ; many markers
-          (t "#6bcb77"))))                      ; healthy
+  "Return a color string for component ID based on its health score.
+The score covers the documents of the component that master.org
+includes, with the weights of `blueprint-health-score'; see
+`blueprint--component-health-color'."
+  (blueprint--component-health-color id))
 
 (defun blueprint--graph-plantuml (deps root)
   "Generate a PlantUML dependency diagram from DEPS in ROOT."
@@ -90,7 +90,11 @@ Supported values: plantuml, graphviz."
 ;;;###autoload
 (defun blueprint-dependency-graph ()
   "Generate a dependency graph for the project.
-Uses `blueprint-graph-backend' to select the output format."
+Uses `blueprint-graph-backend' to select the output format.  Only the
+Graphviz backend colors the components by health score; with the
+default PlantUML backend the result is the .puml source.  For the
+colored overview regardless of the backend see
+`blueprint-dashboard-svg'."
   (interactive)
   (let* ((root (blueprint--root))
          (deps (blueprint--graph-deps))
@@ -99,8 +103,10 @@ Uses `blueprint-graph-backend' to select the output format."
                     ('graphviz (blueprint--graph-graphviz deps root))
                     (_ (user-error "Unknown graph backend: %s"
                                    blueprint-graph-backend)))))
-    (find-file outfile)
-    (message "Generated %s" outfile)))
+    (if (string-suffix-p ".svg" outfile)
+        (blueprint--show-svg-file outfile "*Blueprint Dependency Graph*")
+      (find-file outfile)
+      (message "Generated %s" outfile))))
 
 (provide 'blueprint-graph)
 ;;; blueprint-graph.el ends here

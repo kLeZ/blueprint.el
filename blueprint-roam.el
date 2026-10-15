@@ -52,7 +52,7 @@ Adds the data directory's components/ directory to `org-roam-directory' search."
   (let* ((comps (blueprint--components))
          (names (hash-table-keys comps))
          (name (completing-read "Blueprint component: " names nil t))
-         (file (blueprint--component-file name)))
+         (file (blueprint--read-component-document name)))
     (when file (find-file file))))
 
 (provide 'blueprint-roam)

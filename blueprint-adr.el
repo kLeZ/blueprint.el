@@ -123,6 +123,9 @@ RET on an entry opens adr.org and jumps to the corresponding heading."
         (tabulated-list-mode)
         (tabulated-list-init-header)
         (tabulated-list-print)
+        ;; A keymap of its own: `local-set-key' alone would bind RET
+        ;; in the shared `tabulated-list-mode-map'.
+        (use-local-map (make-composed-keymap nil tabulated-list-mode-map))
         (local-set-key (kbd "RET")
                        (lambda ()
                          (interactive)

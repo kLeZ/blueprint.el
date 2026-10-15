@@ -29,15 +29,10 @@
 ;;;###autoload
 (defun blueprint-ci-lint ()
   "Run Blueprint linting in batch mode.
-Prints warnings to stdout and exits with code 1 if any are found."
-  (let ((all-warnings '()))
-    (maphash
-     (lambda (id _dir)
-       (let ((file (blueprint--component-file id)))
-         (setq all-warnings
-               (append all-warnings
-                       (blueprint--lint-component id file)))))
-     (blueprint--components))
+Lints the components and every file of the document (see
+`blueprint--lint-project').  Prints warnings to stdout and exits with
+code 1 if any are found."
+  (let ((all-warnings (blueprint--lint-project)))
     (if (null all-warnings)
         (progn
           (message "Blueprint CI lint: PASS")
@@ -50,17 +45,13 @@ Prints warnings to stdout and exits with code 1 if any are found."
 ;;;###autoload
 (defun blueprint-ci-validate ()
   "Run full validation in batch mode: lint + health check + dependency check.
-Exits with code 0 (pass), 1 (warnings), or 2 (errors)."
+Lint and health score cover the whole document, master.org and the
+files it includes (see `blueprint--lint-project' and
+`blueprint-health-score').  Exits with code 0 (pass), 1 (warnings),
+or 2 (errors)."
   (let ((exit-code 0)
-        (all-warnings '()))
+        (all-warnings (blueprint--lint-project)))
     ;; Lint
-    (maphash
-     (lambda (id _dir)
-       (let ((file (blueprint--component-file id)))
-         (setq all-warnings
-               (append all-warnings
-                       (blueprint--lint-component id file)))))
-     (blueprint--components))
     (when all-warnings
       (setq exit-code 1)
       (message "LINT: %d warning(s)" (length all-warnings))

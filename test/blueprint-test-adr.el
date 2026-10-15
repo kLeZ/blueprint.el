@@ -178,5 +178,18 @@
             (should (string-match-p "Adopt Microservices" content))
             (should (string-match-p "proposed" content))))))))
 
+(ert-deftest blueprint-test-adr-list/ret-does-not-leak ()
+  "RET of the ADR list is bound in its own keymap.
+`local-set-key' alone bound it in the shared `tabulated-list-mode-map'."
+  (blueprint-test--with-project
+    (blueprint-adr-new "Use PostgreSQL")
+    (let ((before (lookup-key tabulated-list-mode-map (kbd "RET"))))
+      (blueprint-adr-list)
+      (with-current-buffer "*Blueprint ADRs*"
+        (should-not (eq (current-local-map) tabulated-list-mode-map))
+        (should (functionp (key-binding (kbd "RET")))))
+      (should (eq (lookup-key tabulated-list-mode-map (kbd "RET")) before))
+      (kill-buffer "*Blueprint ADRs*"))))
+
 (provide 'blueprint-test-adr)
 ;;; blueprint-test-adr.el ends here

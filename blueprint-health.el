@@ -7,16 +7,16 @@
 ;;; Commentary:
 
 ;; Calculates a quality score (0--100) from the open markers left in
-;; the files of each component that reach the document (arc42.org,
-;; functional.org, infrastructure.org): technical markers (QUESTION,
-;; TBD, FIXME) and methodology markers ([DA VALIDARE], [DA REVISIONARE]).
-;; [FINDING] is counted for the lists but does not lower the score: a
-;; finding is a result of the assessment, not an open point.  The
-;; weighted marker count is set against the size of the exported text,
-;; so the score does not drop just because the document grows (see
-;; `blueprint-health-score').  Also renders the result as a
-;; semicircular SVG gauge and provides commands for listing unresolved
-;; methodology markers across the whole project.
+;; the text of the document: master.org and every file it includes with
+;; #+INCLUDE:, recursively (see `blueprint--document-files').  Technical
+;; markers (QUESTION, TBD, FIXME) and methodology markers ([DA VALIDARE],
+;; [DA REVISIONARE]) lower it; [FINDING] is counted for the lists but
+;; does not lower the score: a finding is a result of the assessment,
+;; not an open point.  The weighted marker count is set against the
+;; size of the exported text, so the score does not drop just because
+;; the document grows (see `blueprint-health-score').  Also renders the
+;; result as a semicircular SVG gauge and provides commands for listing
+;; unresolved methodology markers in the document.
 
 ;;; Code:
 
@@ -63,36 +63,133 @@ lower with more.  Must be a positive number."
 not an open point.  It is still counted by the metrics and the
 marker lists.")
 
+(defun blueprint--document-stats (file)
+  "Return (COUNTS PENALTY WORDS) for FILE, uncached.
+COUNTS has one count per marker of `blueprint--health-weights', in
+its order: QUESTION, TBD, FIXME, [DA VALIDARE], [FINDING],
+[DA REVISIONARE].  PENALTY is the sum of each count times its
+weight, WORDS the number of words of exported text (see
+`blueprint--count-words-outside').  All count only outside
+`blueprint--uncounted-regions', computed once.  A nil or missing FILE
+yields zeros."
+  (if (and file (file-exists-p file))
+      (with-temp-buffer
+        (blueprint--insert-org-file file)
+        (let* ((regions (blueprint--uncounted-regions))
+               (counts (cl-loop for (re . _weight) in blueprint--health-weights
+                                collect (length (blueprint--marker-positions
+                                                 re regions)))))
+          (list counts
+                (cl-loop for count in counts
+                         for (_re . weight) in blueprint--health-weights
+                         sum (* count weight))
+                (blueprint--count-words-outside regions))))
+    (list (make-list (length blueprint--health-weights) 0) 0 0)))
+
 (defun blueprint--health-file-stats (file)
   "Return (PENALTY . WORDS) for FILE.
 PENALTY is the sum of the markers of `blueprint--health-weights'
 times their weight, WORDS the number of words of exported text (see
-`blueprint--count-words-outside').  Both count only outside
-`blueprint--uncounted-regions', computed once.  A nil or missing FILE
-yields (0 . 0)."
-  (if (and file (file-exists-p file))
-      (with-temp-buffer
-        (blueprint--insert-org-file file)
-        (let ((regions (blueprint--uncounted-regions)))
-          (cons (cl-loop for (re . weight) in blueprint--health-weights
-                         sum (* weight (length (blueprint--marker-positions
-                                                re regions))))
-                (blueprint--count-words-outside regions))))
-    (cons 0 0)))
+`blueprint--document-stats').  A nil or missing FILE yields (0 . 0)."
+  (pcase-let ((`(,_counts ,penalty ,words) (blueprint--document-stats file)))
+    (cons penalty words)))
+
+(defun blueprint--health-marker-count (counts regexp)
+  "Return the count of marker REGEXP in COUNTS.
+COUNTS is a list in the order of `blueprint--health-weights', as
+returned by `blueprint--document-stats'; REGEXP is one of its keys."
+  (nth (cl-position regexp blueprint--health-weights
+                    :key #'car :test #'equal)
+       counts))
+
+(defun blueprint--files-health-summary (files)
+  "Return the markers of FILES, summed.
+A plist with:
+  :counts     summed counts, in the order of `blueprint--health-weights';
+  :penalty    weighted penalty points, as in `blueprint-health-score'
+              ([FINDING] weighs 0);
+  :open       markers with a non-zero weight (open points);
+  :words      words of exported text;
+  :score      `blueprint--health-score-from' applied to :penalty and
+              :words;
+  :documents  a list of (PATH COUNTS PENALTY WORDS), one per file.
+Per-file results go through `blueprint--cached-metrics' under the kind
+`document-stats', so they do not collide with the technical marker
+counts other modules cache for arc42.org."
+  (let ((counts (make-list (length blueprint--health-weights) 0))
+        (penalty 0) (words 0) (documents '()))
+    (dolist (path files)
+      (pcase-let ((`(,c ,p ,w) (blueprint--cached-metrics
+                                path #'blueprint--document-stats
+                                'document-stats)))
+        (setq counts (cl-mapcar #'+ counts c))
+        (cl-incf penalty p)
+        (cl-incf words w)
+        (push (list path c p w) documents)))
+    (list :counts counts
+          :penalty penalty
+          :open (cl-loop for count in counts
+                         for (_re . weight) in blueprint--health-weights
+                         when (> weight 0) sum count)
+          :words words
+          :score (blueprint--health-score-from penalty words)
+          :documents (nreverse documents))))
+
+(defun blueprint--component-health-summary (id)
+  "Return the markers of component ID across its documents.
+The plist of `blueprint--files-health-summary' over the documents of
+the component (arc42.org, functional.org, infrastructure.org) that
+are part of the document, see `blueprint--component-included-paths'."
+  (blueprint--files-health-summary (blueprint--component-included-paths id)))
+
+(defun blueprint--unit-health-summary (unit)
+  "Return the markers of UNIT, a row of `blueprint--document-units'.
+See `blueprint--files-health-summary'."
+  (blueprint--files-health-summary (plist-get unit :files)))
+
+(defun blueprint--document-health-summary ()
+  "Return the markers of the whole document.
+`blueprint--files-health-summary' over `blueprint--document-files':
+master.org and everything it includes."
+  (blueprint--files-health-summary (blueprint--document-files)))
+
+(defconst blueprint--health-color-thresholds '(50 . 80)
+  "Score thresholds (RED . YELLOW) of `blueprint--health-score-color'.
+Below RED a component is red, below YELLOW yellow, otherwise green.
+They mirror the warning threshold of `blueprint-ci-validate' (50) and
+the default `blueprint-delivery-score-threshold' (80).")
+
+(defun blueprint--health-score-color (score)
+  "Return the fill color for a component with health SCORE.
+Red, yellow or green according to `blueprint--health-color-thresholds'."
+  (cond ((< score (car blueprint--health-color-thresholds)) "#ff6b6b")
+        ((< score (cdr blueprint--health-color-thresholds)) "#ffd93d")
+        (t "#6bcb77")))
+
+(defconst blueprint--not-included-color "#cccccc"
+  "Fill color of a component none of whose documents is in master.org.")
+
+(defun blueprint--component-health-color (id)
+  "Return the fill color of component ID in the graphs.
+`blueprint--health-score-color' of its score over the documents in
+master.org, or `blueprint--not-included-color' when master.org exists
+and includes none of them (a score of 100 would look clean)."
+  (let ((files (blueprint--component-included-paths id)))
+    (if (and (null files) (file-exists-p (blueprint--master-file)))
+        blueprint--not-included-color
+      (blueprint--health-score-color
+       (plist-get (blueprint--files-health-summary files) :score)))))
 
 (defun blueprint--health-component-stats ()
   "Return a list of (ID PENALTY WORDS), one per component, sorted by ID.
-Each component contributes all its files that reach the document (see
-`blueprint--component-document-paths'); absent files count as empty."
+Each component contributes its files that are part of the document
+\(see `blueprint--component-included-paths')."
   (let ((result '()))
     (maphash
      (lambda (id _dir)
-       (let ((penalty 0) (words 0))
-         (dolist (file (blueprint--component-document-paths id))
-           (pcase-let ((`(,p . ,w) (blueprint--health-file-stats file)))
-             (cl-incf penalty p)
-             (cl-incf words w)))
-         (push (list id penalty words) result)))
+       (let ((summary (blueprint--component-health-summary id)))
+         (push (list id (plist-get summary :penalty) (plist-get summary :words))
+               result)))
      (blueprint--components))
     (sort result (lambda (a b) (string< (car a) (car b))))))
 
@@ -112,9 +209,11 @@ penalty gives 100, also with no words; penalty without words gives 0."
 ;;;###autoload
 (defun blueprint-health-score ()
   "Calculate aggregate health score for the current Blueprint project.
-Markers in the files of every component that reach the document
-\(arc42.org, functional.org, infrastructure.org) add penalty points P
-with these weights:
+The score covers exactly the text of the document: master.org and
+every file it includes with #+INCLUDE:, recursively (see
+`blueprint--document-files'), so Parte 0, I and V, glossary and
+references count as much as the documents of the components.
+Markers add penalty points P with these weights:
   QUESTION: 3, TBD: 2, FIXME: 4.
   [DA VALIDARE]: 1, [DA REVISIONARE]: 1, [FINDING]: 0.
 P is set against the size of the same files: W words of exported
@@ -126,25 +225,20 @@ exported text (see `blueprint--uncounted-regions').
 Returns an integer between 0 and 100.  Interactively, also shows
 the score with P and W in the echo area."
   (interactive)
-  (let ((penalty 0) (words 0))
-    (dolist (entry (blueprint--health-component-stats))
-      (cl-incf penalty (nth 1 entry))
-      (cl-incf words (nth 2 entry)))
-    (let ((score (blueprint--health-score-from penalty words)))
-      (when (called-interactively-p 'interactive)
-        (message "Health %d/100 (penalty points %d, words %d)"
-                 score penalty words))
-      score)))
+  (let* ((summary (blueprint--document-health-summary))
+         (score (plist-get summary :score)))
+    (when (called-interactively-p 'interactive)
+      (message "Health %d/100 (penalty points %d, words %d)"
+               score (plist-get summary :penalty) (plist-get summary :words)))
+    score))
 
-(defun blueprint--scan-marker-occurrences (marker)
+(defun blueprint--scan-marker-occurrences (marker &optional files)
   "Return an alist of (FILE LINE-NUM LINE-TEXT) for each MARKER occurrence.
-Scans all .org files in the current Blueprint project recursively,
-skipping occurrences in non-exported text (see
-`blueprint--uncounted-regions')."
-  (let ((root (blueprint--root))
-        (results '()))
-    (dolist (file (directory-files-recursively
-                   root blueprint--org-file-regexp))
+Scans FILES, by default the files of the document (see
+`blueprint--document-files'), skipping occurrences in non-exported
+text (see `blueprint--uncounted-regions')."
+  (let ((results '()))
+    (dolist (file (or files (blueprint--document-files)))
       (with-temp-buffer
         (blueprint--insert-org-file file)
         (dolist (pos (blueprint--marker-positions (regexp-quote marker)))
@@ -167,7 +261,7 @@ skipping occurrences in non-exported text (see
       (erase-buffer)
       (insert (format "%s\n%s\n\n" title (make-string (length title) ?=)))
       (if (null occurrences)
-          (insert (format "Nessun %s trovato nel progetto.\n" marker))
+          (insert (format "Nessun %s trovato nel documento.\n" marker))
         (dolist (entry occurrences)
           (pcase-let ((`(,file ,line ,text) entry))
             (let ((rel (file-relative-name file root)))
@@ -179,7 +273,9 @@ skipping occurrences in non-exported text (see
 
 ;;;###autoload
 (defun blueprint-list-findings ()
-  "List all [FINDING] markers across the current Blueprint project.
+  "List all [FINDING] markers in the document.
+The document is master.org and the files it includes (see
+`blueprint--document-files').
 Opens a read-only buffer with file, line number, and line content
 for each occurrence."
   (interactive)
@@ -187,7 +283,9 @@ for each occurrence."
 
 ;;;###autoload
 (defun blueprint-list-unvalidated ()
-  "List all [DA VALIDARE] markers across the current Blueprint project.
+  "List all [DA VALIDARE] markers in the document.
+The document is master.org and the files it includes (see
+`blueprint--document-files').
 Opens a read-only buffer with file, line number, and line content
 for each occurrence."
   (interactive)
@@ -238,6 +336,29 @@ left an empty box.  Returns the path of the written file."
           (pop-to-buffer (current-buffer)))
       (message "Health %d/100 written to %s" score outfile))
     outfile))
+
+(defun blueprint--show-svg-file (file bufname)
+  "Show the SVG image FILE in buffer BUFNAME, or report it in batch.
+The image is created with an explicit `svg' type (native librsvg), as
+`blueprint-health-svg' does: visiting the file would let `image-mode'
+hand it to ImageMagick, whose security policy forbids SVG on many
+distributions.  Without image support only a message is shown."
+  (if (and (display-images-p) (image-type-available-p 'svg))
+      (with-current-buffer (get-buffer-create bufname)
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (setq default-directory (file-name-directory file))
+          ;; From the data, not the file name: the image cache would
+          ;; show a regenerated file's old content.
+          (insert-image (create-image (with-temp-buffer
+                                        (insert-file-contents file)
+                                        (buffer-string))
+                                      'svg t))
+          (insert (format "\n\n%s\n" file))
+          (goto-char (point-min))
+          (special-mode))
+        (pop-to-buffer (current-buffer)))
+    (message "Generated %s" file)))
 
 (provide 'blueprint-health)
 ;;; blueprint-health.el ends here

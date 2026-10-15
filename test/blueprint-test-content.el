@@ -224,6 +224,38 @@ and a tag."
           (unless (memq buf buffers-before)
             (kill-buffer buf)))))))
 
+(ert-deftest blueprint-test-questions/list-reads-all-documents ()
+  "Questions in functional.org and infrastructure.org are listed too.
+Column 1 keeps the question, column 2 names the document; RET opens
+the document at the question's line."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc" "#+TITLE: svc\n\n* Open Questions\n")
+    (let ((func (blueprint-test--write-document
+                 "svc" "functional.org"
+                 "#+TITLE: f\n\n* Area\n\n- QUESTION funzionale\n"))
+          (buffers-before (buffer-list)))
+      (blueprint-test--write-document
+       "svc" "infrastructure.org"
+       "#+TITLE: i\n\n* Server\n\n- QUESTION infrastruttura\n")
+      (unwind-protect
+          (progn
+            (blueprint-list-questions)
+            (with-current-buffer "*Blueprint Questions*"
+              (should (eq major-mode 'blueprint-questions-mode))
+              (should (equal (mapcar (lambda (e) (list (aref (cadr e) 1)
+                                                       (aref (cadr e) 2)))
+                                     tabulated-list-entries)
+                             '(("funzionale" "functional.org")
+                               ("infrastruttura" "infrastructure.org"))))
+              (cl-letf (((symbol-function 'tabulated-list-get-id)
+                         (lambda () (car (car tabulated-list-entries)))))
+                (blueprint-questions-visit)
+                (should (equal (buffer-file-name) func))
+                (should (looking-at "- QUESTION funzionale")))))
+        (dolist (buf (buffer-list))
+          (unless (memq buf buffers-before)
+            (kill-buffer buf)))))))
+
 (ert-deftest blueprint-test-questions/unknown-component-errors ()
   "Adding a question to a non-existent component raises an error."
   (blueprint-test--with-project

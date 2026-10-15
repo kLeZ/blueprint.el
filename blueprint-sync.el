@@ -112,10 +112,6 @@ components by itself when master.org declares
   (beginning-of-line)
   (insert blueprint--page-break-lines "\n"))
 
-(defun blueprint--master-file ()
-  "Return the path to the master.org file."
-  (expand-file-name "master.org" (blueprint--root)))
-
 (defun blueprint--ensure-master ()
   "Create master.org from template if it does not exist."
   (let ((file (blueprint--master-file)))

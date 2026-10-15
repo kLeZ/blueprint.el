@@ -74,6 +74,36 @@ Returns the path to the created arc42.org file."
       (insert body))
     file))
 
+(defun blueprint-test--write-document (name document content)
+  "Write DOCUMENT (a file name) of component NAME with CONTENT.
+Returns its path."
+  (let ((file (expand-file-name
+               document
+               (expand-file-name
+                name (expand-file-name
+                      "components" (blueprint--data-dir default-directory))))))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file (insert content))
+    file))
+
+(defun blueprint-test--write-file (relative content)
+  "Write CONTENT to RELATIVE, a path under `default-directory'.
+Creates the parent directories.  Returns the absolute path."
+  (let ((file (expand-file-name relative default-directory)))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file (insert content))
+    file))
+
+(defun blueprint-test--write-master (&rest includes)
+  "Write master.org with some text and one #+INCLUDE: per INCLUDES.
+Each element of INCLUDES is a path relative to the project root.
+Returns the path of master.org."
+  (blueprint-test--write-file
+   "master.org"
+   (concat "#+TITLE: Doc\n\n* Parte 0\n\nIntroduzione del documento.\n\n"
+           (mapconcat (lambda (inc) (format "#+INCLUDE: \"%s\" :minlevel 2\n" inc))
+                      includes ""))))
+
 (defun blueprint-test--read-file (path)
   "Return the contents of PATH as a string."
   (with-temp-buffer

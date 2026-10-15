@@ -9,13 +9,18 @@
 ;; `blueprint-pre-delivery-check' produces a structured report showing
 ;; whether the current project is ready to be delivered to the client.
 ;;
-;; Checks performed:
+;; Checks performed, all on the document only (master.org and the
+;; files it includes, see `blueprint--document-files'):
 ;;   - Health score vs. configurable threshold
-;;   - Count of [DA VALIDARE] markers across the project
-;;   - Count of [DA REVISIONARE] markers across the project
-;;   - Count of [FINDING] markers still open
-;;   - Lint (structural issues in component files)
+;;   - Count of [DA VALIDARE] markers in the document
+;;   - Count of [DA REVISIONARE] markers in the document
+;;   - Lint (components, and content of every file of the document)
 ;;   - Master file existence and sync marker presence
+;;
+;; The report also shows the number of [FINDING] markers, for
+;; information only: a finding is a result the assessment delivers
+;; (weight 0 in the health score), so it never counts as an issue
+;; and never changes the outcome.
 
 ;;; Code:
 
@@ -30,16 +35,24 @@
   :group 'blueprint)
 
 (defun blueprint--delivery-count-marker (marker)
-  "Return the total count of MARKER occurrences across all .org files."
-  (let ((count 0))
-    (dolist (entry (blueprint--scan-marker-occurrences marker))
-      (ignore entry)
-      (cl-incf count))
-    count))
+  "Return the number of MARKER occurrences in the document.
+MARKER is one of the literal markers of `blueprint--health-weights'
+\(\"[DA VALIDARE]\", \"[FINDING]\"...).  The document is master.org and
+the files it includes (see `blueprint--document-files'); only
+exported text counts.  The count is the one of the dashboard rows and
+of `blueprint-health-score'."
+  (let ((re (car (cl-find-if (lambda (entry)
+                               (string-match-p (concat "\\`" (car entry) "\\'")
+                                               marker))
+                             blueprint--health-weights))))
+    (unless re
+      (error "Unknown marker %s" marker))
+    (blueprint--health-marker-count
+     (plist-get (blueprint--document-health-summary) :counts) re)))
 
 (defun blueprint--delivery-check-master-sync ()
   "Return t if master.org exists and contains blueprint sync markers."
-  (let ((master (expand-file-name "master.org" (blueprint--root))))
+  (let ((master (blueprint--master-file)))
     (and (file-exists-p master)
          (with-temp-buffer
            (insert-file-contents master)
@@ -47,15 +60,11 @@
            (re-search-forward "@@blueprint-sync-start@@" nil t)))))
 
 (defun blueprint--delivery-collect-lint-warnings ()
-  "Return total number of lint warnings across all components."
-  (let ((total 0))
-    (maphash
-     (lambda (id _dir)
-       (let* ((file (blueprint--component-file id))
-              (warnings (blueprint--lint-component id file)))
-         (cl-incf total (length warnings))))
-     (blueprint--components))
-    total))
+  "Return the number of lint warnings, see `blueprint--lint-project'."
+  (length (blueprint--lint-project)))
+
+(defconst blueprint--delivery-info-badge "[INFO]"
+  "Badge of report rows shown for information, outside the outcome.")
 
 (defun blueprint--delivery-status (value threshold &optional invert)
   "Return a status string and indicator for VALUE vs THRESHOLD.
@@ -69,9 +78,16 @@ If INVERT is non-nil: OK when value <= threshold, WARN otherwise."
 ;;;###autoload
 (defun blueprint-pre-delivery-check ()
   "Run pre-delivery checks and display a readiness report.
-Checks health score, unresolved methodology markers, lint warnings,
-and master file synchronisation.  The health score threshold is
-controlled by `blueprint-delivery-score-threshold'."
+Checks health score, unresolved methodology markers ([DA VALIDARE],
+[DA REVISIONARE]), lint warnings, and master file synchronisation.
+Markers are counted only in the document: master.org and the files
+it includes, recursively (see `blueprint--document-files'); notes,
+knowledge base and other Org files of the project do not count.
+The health score threshold is controlled by
+`blueprint-delivery-score-threshold'.  The number of [FINDING]
+markers is shown with an [INFO] badge: findings are results to
+deliver, not open points, so they never raise a warning or change
+the outcome."
   (interactive)
   (let* ((score        (blueprint-health-score))
          (da-validare  (blueprint--delivery-count-marker "[DA VALIDARE]"))
@@ -83,13 +99,12 @@ controlled by `blueprint-delivery-score-threshold'."
          (s-score      (blueprint--delivery-status score blueprint-delivery-score-threshold))
          (s-dv         (blueprint--delivery-status da-validare 0 t))
          (s-dr         (blueprint--delivery-status da-revis 0 t))
-         (s-fi         (blueprint--delivery-status findings 0 t))
          (s-lint       (blueprint--delivery-status lint-warns 0 t))
          (s-master     (if master-ok (cons "OK  " "[OK]") (cons "WARN" "[ATTENZIONE]")))
          (all-ok       (cl-every (lambda (s) (string= (car s) "OK  "))
-                                 (list s-score s-dv s-dr s-fi s-lint s-master)))
+                                 (list s-score s-dv s-dr s-lint s-master)))
          (warn-count   (cl-count "WARN" (list (car s-score) (car s-dv) (car s-dr)
-                                              (car s-fi) (car s-lint) (car s-master))
+                                              (car s-lint) (car s-master))
                                  :test #'string=))
          (bufname "*Blueprint Pre-Delivery Check*"))
     (with-current-buffer (get-buffer-create bufname)
@@ -107,7 +122,8 @@ controlled by `blueprint-delivery-score-threshold'."
       (insert (format "%-34s %4d  %s\n"
                       "[DA REVISIONARE] residui" da-revis (cdr s-dr)))
       (insert (format "%-34s %4d  %s\n"
-                      "[FINDING] aperti" findings (cdr s-fi)))
+                      "[FINDING] (solo informativo)" findings
+                      blueprint--delivery-info-badge))
       (insert (format "%-34s %4d  %s\n"
                       "Lint warnings" lint-warns (cdr s-lint)))
       (insert (format "%-34s %4s  %s\n"

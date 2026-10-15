@@ -90,11 +90,13 @@
     ("w" "wizard component" blueprint-wizard-component)
     ("R" "rename component" blueprint-rename-component)
     ("X" "delete component" blueprint-delete-component)
-    ("l" "list components" blueprint-list-components)]
+    ("l" "list components" blueprint-list-components)
+    ("j" "visit document" blueprint-visit-component)]
    ["Architecture"
     ("C" "generate C4" blueprint-generate-c4)
     ("V" "enterprise C4" blueprint-generate-enterprise-c4)
-    ("G" "dependency graph" blueprint-dependency-graph)
+    ("G" "dependency graph (puml/dot)" blueprint-dependency-graph)
+    ("h" "health-colored graph (SVG)" blueprint-dashboard-svg)
     ("S" "sync master" blueprint-sync)]
    ["Quality"
     ("H" "health svg" blueprint-health-svg)
@@ -147,45 +149,73 @@
 ;;;###autoload
 (defvar blueprint-command-map
   (let ((map (make-sparse-keymap)))
+    ;; Same keys as `blueprint-menu', group by group, so that one key
+    ;; table documents both (test/blueprint-test-keys.el checks it).
+    ;; Project
     (define-key map (kbd "I") #'blueprint-init)
+    (define-key map (kbd "W") #'blueprint-wizard-init)
     (define-key map (kbd "A") #'blueprint-add-component)
+    (define-key map (kbd "w") #'blueprint-wizard-component)
+    (define-key map (kbd "R") #'blueprint-rename-component)
+    (define-key map (kbd "X") #'blueprint-delete-component)
+    (define-key map (kbd "l") #'blueprint-list-components)
+    (define-key map (kbd "j") #'blueprint-visit-component)
+    ;; Architecture
     (define-key map (kbd "C") #'blueprint-generate-c4)
     (define-key map (kbd "V") #'blueprint-generate-enterprise-c4)
     (define-key map (kbd "G") #'blueprint-dependency-graph)
+    (define-key map (kbd "h") #'blueprint-dashboard-svg)
+    (define-key map (kbd "S") #'blueprint-sync)
+    ;; Quality
     (define-key map (kbd "H") #'blueprint-health-svg)
     (define-key map (kbd "L") #'blueprint-lint)
+    (define-key map (kbd "s") #'blueprint-suggest-risks-all)
+    (define-key map (kbd "d") #'blueprint-pre-delivery-check)
+    (define-key map (kbd "g") #'blueprint-list-findings)
+    (define-key map (kbd "u") #'blueprint-list-unvalidated)
+    ;; Dashboard
     (define-key map (kbd "B") #'blueprint-dashboard)
     (define-key map (kbd "F") #'blueprint-focus)
     (define-key map (kbd "o") #'blueprint-out-of-scope-view)
+    (define-key map (kbd ".") #'blueprint-daily)
+    ;; Content
+    (define-key map (kbd "Q") #'blueprint-add-question)
+    (define-key map (kbd "q") #'blueprint-list-questions)
+    (define-key map (kbd "Y") #'blueprint-glossary-list)
+    (define-key map (kbd "y") #'blueprint-glossary-add)
+    (define-key map (kbd "Z") #'blueprint-reference-list)
+    (define-key map (kbd "z") #'blueprint-reference-add)
+    ;; Templates
     (define-key map (kbd "D") #'blueprint-template-diff)
     (define-key map (kbd "M") #'blueprint-template-migrate)
     (define-key map (kbd "m") #'blueprint-migrate-directory)
-    (define-key map (kbd "S") #'blueprint-sync)
+    ;; Export
     (define-key map (kbd "E") #'blueprint-export)
+    (define-key map (kbd "P") #'blueprint-export-pdf)
     (define-key map (kbd "O") #'blueprint-export-odt)
     (define-key map (kbd "v") #'blueprint-export-dispatch)
     (define-key map (kbd "k") #'blueprint-check-odt-styles)
-    (define-key map (kbd "Q") #'blueprint-add-question)
-    (define-key map (kbd "Y") #'blueprint-glossary-list)
-    (define-key map (kbd "Z") #'blueprint-reference-list)
-    (define-key map (kbd "N") #'blueprint-adr-new)
+    (define-key map (kbd "T") #'blueprint-async-tangle)
+    ;; Search & ADR
     (define-key map (kbd "/") #'blueprint-search)
+    (define-key map (kbd "N") #'blueprint-adr-new)
+    (define-key map (kbd "n") #'blueprint-adr-list)
     (define-key map (kbd "K") #'blueprint-capture)
-    (define-key map (kbd ".") #'blueprint-daily)
+    ;; Functional
     (define-key map (kbd "a") #'blueprint-functional-add-area)
     (define-key map (kbd "f") #'blueprint-functional-add-feature)
     (define-key map (kbd "e") #'blueprint-functional-add-entity)
     (define-key map (kbd "i") #'blueprint-functional-add-integration)
+    ;; Runtime
     (define-key map (kbd "r") #'blueprint-runtime-add-flow)
     (define-key map (kbd "b") #'blueprint-runtime-add-process)
+    ;; NFR
     (define-key map (kbd "p") #'blueprint-nfr-add-quality-scenario)
     (define-key map (kbd "c") #'blueprint-nfr-add-constraint)
     (define-key map (kbd "t") #'blueprint-nfr-add-risk)
-    (define-key map (kbd "d") #'blueprint-pre-delivery-check)
-    (define-key map (kbd "g") #'blueprint-list-findings)
-    (define-key map (kbd "u") #'blueprint-list-unvalidated)
     map)
   "Keymap for Blueprint commands (non-transient).
+It binds the same keys to the same commands as `blueprint-menu'.
 Bind this to a prefix key if you prefer plain keybindings over Transient:
   (global-set-key (kbd \"C-c b\") blueprint-command-map)")
 

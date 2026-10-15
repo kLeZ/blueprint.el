@@ -14,6 +14,7 @@
 (require 'cl-lib)
 (require 'org)
 (require 'org-element)
+(require 'tabulated-list)
 
 (defgroup blueprint nil
   "Text-first architectural assessment toolkit."
@@ -488,24 +489,36 @@ nil or missing."
     (insert-file-contents file)
     (secure-hash 'md5 (buffer-string))))
 
-(defun blueprint--cached-metrics (file metrics-fn)
-  "Return cached metrics for FILE, recomputing via METRICS-FN if stale."
+(defun blueprint--cached-metrics (file metrics-fn &optional kind)
+  "Return cached metrics for FILE, recomputing via METRICS-FN if stale.
+The cache is keyed by FILE alone, not by METRICS-FN: callers that
+store a different kind of data for the same file pass a symbol KIND,
+and the entry is then keyed by (FILE . KIND).  Without KIND the key
+is FILE, which holds the technical marker counts of
+`blueprint--component-metrics' (dashboard, graph, daily and risks
+used to share it for arc42.org)."
   (if (and file (file-exists-p file))
-      (let* ((current-hash (blueprint--file-hash file))
-             (cached (gethash file blueprint--metrics-cache))
+      (let* ((key (if kind (cons file kind) file))
+             (current-hash (blueprint--file-hash file))
+             (cached (gethash key blueprint--metrics-cache))
              (cached-hash (car cached)))
         (if (equal current-hash cached-hash)
             (cdr cached)
           (let ((metrics (funcall metrics-fn file)))
-            (puthash file (cons current-hash metrics) blueprint--metrics-cache)
+            (puthash key (cons current-hash metrics) blueprint--metrics-cache)
             metrics)))
     (funcall metrics-fn file)))
 
 (defun blueprint--invalidate-cache (&optional file)
-  "Invalidate metrics cache for FILE, or all entries if FILE is nil."
+  "Invalidate metrics cache for FILE, or all entries if FILE is nil.
+For FILE this drops both the plain entry and every (FILE . KIND)
+entry (see `blueprint--cached-metrics')."
   (if file
       (let ((abs (expand-file-name file)))
         (remhash file blueprint--metrics-cache)
+        (dolist (k (hash-table-keys blueprint--metrics-cache))
+          (when (and (consp k) (equal (car k) file))
+            (remhash k blueprint--metrics-cache)))
         ;; Stamps alone miss a same-size edit within one mtime tick on
         ;; coarse-mtime filesystems (FAT, some network mounts).
         (dolist (k (hash-table-keys blueprint--org-keyword-cache))
@@ -519,31 +532,324 @@ nil or missing."
   (when buffer-file-name
     (blueprint--invalidate-cache buffer-file-name)))
 
+;;; --- Document files (master.org and what it includes) ---
+
+(defun blueprint--master-file (&optional root)
+  "Return the path to the master.org file of the project at ROOT.
+ROOT defaults to `blueprint--root'."
+  (expand-file-name "master.org" (or root (blueprint--root))))
+
+(defun blueprint--parse-include-value (value dir)
+  "Parse VALUE, the value of an #+INCLUDE: keyword in a file in DIR.
+Returns a plist:
+  :path     the included file, absolute, resolved against DIR (the
+            directory of the including file, as the Org exporter does),
+            without any \"::search\" suffix;
+  :block    non-nil when the file is included as a block (\"src\",
+            \"example\", \"export\" or any other block name): its
+            content is then not live text;
+  :partial  non-nil when only a part of the file is included
+            (\":lines\" option or \"::search\" suffix).
+Returns nil when VALUE names no file.  Options with a value such as
+\":minlevel 3\" do not change the included text and are ignored."
+  (when (string-match "\\`[ \t]*\\(\"\\(?:[^\"\\]\\|\\\\.\\)*\"\\|<[^>]*>\\|[^ \t]+\\)"
+                      value)
+    (let* ((raw (match-string 1 value))
+           (rest (substring value (match-end 0)))
+           (file (if (memq (aref raw 0) '(?\" ?<)) (substring raw 1 -1) raw))
+           (search nil))
+      (when (string-match "::\\(.*\\)\\'" file)
+        (setq search (match-string 1 file)
+              file (substring file 0 (match-beginning 0))))
+      (unless (string-empty-p file)
+        (let ((words (split-string
+                      (replace-regexp-in-string
+                       ":[[:alnum:]-]+[ \t]+\\(\"[^\"]*\"\\|[^ \t]+\\)" "" rest))))
+          (list :path (expand-file-name file dir)
+                :block (and words t)
+                :partial (and (or search (string-match-p ":lines\\>" rest)) t)))))))
+
+(defun blueprint--file-includes (file)
+  "Return the #+INCLUDE: keywords of FILE that reach the export.
+A list of plists, see `blueprint--parse-include-value', in file
+order.  Keywords inside a subtree the export leaves out (see
+`blueprint--non-exported-subtrees') are skipped; commented lines and
+lines inside blocks are not keywords for `org-element' to begin with."
+  (with-temp-buffer
+    (blueprint--insert-org-file file)
+    (let* ((tree (org-element-parse-buffer 'element))
+           (excluded (blueprint--non-exported-subtrees tree))
+           (dir (file-name-directory (expand-file-name file))))
+      (delq nil
+            (org-element-map tree 'keyword
+              (lambda (kw)
+                (when (and (string= (org-element-property :key kw) "INCLUDE")
+                           (not (blueprint--in-regions-p
+                                 (org-element-property :begin kw) excluded)))
+                  (blueprint--parse-include-value
+                   (org-element-property :value kw) dir))))))))
+
+(defun blueprint--document-walk (&optional root)
+  "Walk master.org of the project at ROOT and everything it includes.
+Returns a plist:
+  :files    master.org followed by every included file, depth first in
+            document order, each file once; files included as a block
+            are left out (their content is not live text);
+  :missing  a list of (PATH . INCLUDING-FILE) for each include whose
+            file does not exist;
+  :partial  the files included only in part (\":lines\" or
+            \"::search\"): they are counted whole.
+Includes are followed recursively; a file already visited is not
+walked again, so include cycles terminate.  Each file's include list
+is cached (`blueprint--cached-metrics', kind `includes').  Returns
+nil when master.org does not exist."
+  (let ((master (blueprint--master-file root)))
+    (when (file-exists-p master)
+      (let ((files (list master))
+            (missing '())
+            (partial '()))
+        (cl-labels
+            ((walk (file)
+               (dolist (inc (blueprint--cached-metrics
+                             file #'blueprint--file-includes 'includes))
+                 (let ((path (plist-get inc :path)))
+                   (cond
+                    ((plist-get inc :block))
+                    ((not (file-exists-p path))
+                     (push (cons path file) missing))
+                    ((member path files))
+                    (t
+                     (when (plist-get inc :partial)
+                       (push path partial))
+                     (push path files)
+                     (walk path)))))))
+          (walk master))
+        (list :files (nreverse files)
+              :missing (nreverse missing)
+              :partial (nreverse partial))))))
+
+(defun blueprint--document-files (&optional root)
+  "Return the files whose text makes up the document, in document order.
+The document is the one of the project at ROOT, `blueprint--root' by
+default: master.org and every file it includes with #+INCLUDE:,
+recursively, resolving each path against the including file (see
+`blueprint--document-walk').  Every count of the package (health
+score, dashboard, pre-delivery check, lint, risks) reads only these
+files, and in them only the exported text (see
+`blueprint--uncounted-regions').
+
+Limits: a file included in part (\":lines\", \"::search\") counts
+whole; a file included twice counts once; each file's
+#+EXCLUDE_TAGS: applies to that file only, while the exporter applies
+the tags of master.org (and of every included file) to the whole
+expanded document, and #+SELECT_TAGS: is not supported.  Without master.org the
+document is not assembled yet, and the files are those that
+`blueprint-sync' would include: the existing documents of every
+component (`blueprint--component-document-paths'), components in
+alphabetical order."
+  (let ((walk (blueprint--document-walk root)))
+    (if walk
+        (plist-get walk :files)
+      (let ((comps (let ((default-directory (or root default-directory)))
+                     (blueprint--components))))
+        (cl-loop for id in (sort (hash-table-keys comps) #'string<)
+                 append (cl-loop for name in blueprint--component-document-files
+                                 for path = (expand-file-name name (gethash id comps))
+                                 when (file-exists-p path) collect path))))))
+
+(defun blueprint--component-of-file (file comps)
+  "Return the id of the component in COMPS whose directory holds FILE.
+COMPS is a table as returned by `blueprint--components'.  Nil when
+FILE lies outside every component directory."
+  (catch 'found
+    (maphash (lambda (id dir)
+               (when (string-prefix-p (file-name-as-directory dir) file)
+                 (throw 'found id)))
+             comps)
+    nil))
+
+(defun blueprint--document-units ()
+  "Return the rows the document is split into, for counts and navigation.
+A list of plists with :id, :kind, :files and :included:
+- one row of kind `component' per component, in alphabetical order:
+  :files are its documents (`blueprint--component-document-paths')
+  that are part of the document (`blueprint--document-files'),
+  :included is nil when none is (component not synced into
+  master.org);
+- then one row of kind `part' per document file outside every
+  component (master.org, glossary, Parte I and Parte V files,
+  references...), in document order, with :id its path relative to
+  the project root and :files the file alone.
+Every document file belongs to exactly one row, so the rows add up
+to the whole document."
+  (let* ((root (blueprint--root))
+         (comps (blueprint--components))
+         (docs (blueprint--document-files))
+         (units '()))
+    (dolist (id (sort (hash-table-keys comps) #'string<))
+      (let ((files (cl-remove-if-not (lambda (p) (member p docs))
+                                     (blueprint--component-document-paths id))))
+        (push (list :id id :kind 'component :files files :included (and files t))
+              units)))
+    (dolist (file docs)
+      (unless (blueprint--component-of-file file comps)
+        (push (list :id (file-relative-name file root) :kind 'part
+                    :files (list file) :included t)
+              units)))
+    (nreverse units)))
+
+(defun blueprint--document-part-file (id)
+  "Return the absolute path of document part ID, or nil.
+ID is a path relative to the project root as in the :id of a `part'
+row of `blueprint--document-units'."
+  (let ((path (expand-file-name id (blueprint--root))))
+    (when (member path (blueprint--document-files)) path)))
+
+(defun blueprint--component-included-paths (id)
+  "Return the documents of component ID that are part of the document.
+See `blueprint--document-units'."
+  (let ((docs (blueprint--document-files)))
+    (cl-remove-if-not (lambda (p) (member p docs))
+                      (blueprint--component-document-paths id))))
+
 ;;; --- Component CRUD ---
+
+;;; --- Component navigation ---
+
+(defun blueprint--read-component-document (id &optional default label-fn)
+  "Return the path of a document of component ID, asking which one.
+The candidates are the existing files of
+`blueprint--component-document-paths' (arc42.org, functional.org,
+infrastructure.org).  With a single document no question is asked.
+DEFAULT is the path or file name preselected, arc42.org when nil.
+LABEL-FN, when non-nil, is called with each path and returns a
+string shown after the file name (for example its marker counts).
+Returns nil when ID is not a component."
+  (let ((paths (blueprint--component-document-paths id)))
+    (cond
+     ((null paths) (blueprint--component-file id))
+     ((null (cdr paths)) (car paths))
+     (t
+      (let* ((alist (mapcar
+                     (lambda (path)
+                       (cons (let ((name (file-name-nondirectory path)))
+                               (if label-fn
+                                   (format "%s %s" name (funcall label-fn path))
+                                 name))
+                             path))
+                     paths))
+             (default-name (file-name-nondirectory
+                            (or default (car paths))))
+             (default-label
+              (car (cl-find-if
+                    (lambda (cell)
+                      (equal (file-name-nondirectory (cdr cell)) default-name))
+                    alist)))
+             (choice (completing-read
+                      (format "Document of %s: " id)
+                      (mapcar #'car alist) nil t nil nil
+                      (or default-label (caar alist)))))
+        (cdr (assoc choice alist)))))))
+
+;;;###autoload
+(defun blueprint-visit-component (id &optional document)
+  "Visit a document of component ID, or the document part ID.
+DOCUMENT is one of `blueprint--component-document-files'; when nil
+and the component has more than one, ask which (arc42.org,
+functional.org or infrastructure.org, existing files only).
+
+ID may also name a part of the document outside the components, by
+its path relative to the project root (\"master.org\",
+\"nfr/risks.org\"...; see `blueprint--document-units'): the file is
+visited directly.  Interactively both components and parts are
+offered."
+  (interactive
+   (list (completing-read "Component or part: "
+                          (mapcar (lambda (u) (plist-get u :id))
+                                  (blueprint--document-units))
+                          nil t)))
+  (let* ((part (and (not (gethash id (blueprint--components)))
+                    (blueprint--document-part-file id)))
+         (file (cond
+                (part)
+                (document
+                 (let ((dir (gethash id (blueprint--components))))
+                   (when dir (expand-file-name document dir))))
+                (t (blueprint--read-component-document id)))))
+    (unless file (user-error "Component %s not found" id))
+    (unless (file-exists-p file)
+      (user-error "Component %s has no %s" id (file-name-nondirectory file)))
+    (find-file file)))
+
+(defun blueprint-components-visit ()
+  "Visit a document of the component at point, asking which one."
+  (interactive)
+  (let ((id (tabulated-list-get-id)))
+    (when id (blueprint-visit-component id))))
+
+(defun blueprint-components-visit-arc42 ()
+  "Visit arc42.org of the component at point."
+  (interactive)
+  (let ((id (tabulated-list-get-id)))
+    (when id (blueprint-visit-component id "arc42.org"))))
+
+(defun blueprint-components-visit-functional ()
+  "Visit functional.org of the component at point."
+  (interactive)
+  (let ((id (tabulated-list-get-id)))
+    (when id (blueprint-visit-component id "functional.org"))))
+
+(defun blueprint-components-visit-infrastructure ()
+  "Visit infrastructure.org of the component at point."
+  (interactive)
+  (let ((id (tabulated-list-get-id)))
+    (when id (blueprint-visit-component id "infrastructure.org"))))
+
+(defvar blueprint-components-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map tabulated-list-mode-map)
+    (define-key map (kbd "RET") #'blueprint-components-visit)
+    (define-key map (kbd "a") #'blueprint-components-visit-arc42)
+    (define-key map (kbd "f") #'blueprint-components-visit-functional)
+    (define-key map (kbd "i") #'blueprint-components-visit-infrastructure)
+    map)
+  "Keymap for `blueprint-components-mode'.")
+
+(define-derived-mode blueprint-components-mode tabulated-list-mode
+  "Blueprint Components"
+  "Major mode for the list of Blueprint components.
+\\<blueprint-components-mode-map>\\[blueprint-components-visit] asks which document of the component to open;
+\\[blueprint-components-visit-arc42], \\[blueprint-components-visit-functional] and \\[blueprint-components-visit-infrastructure] open arc42.org,
+functional.org and infrastructure.org directly."
+  (setq tabulated-list-format [("Component" 30 t) ("Documents" 40 t)
+                               ("Directory" 60 t)])
+  (tabulated-list-init-header))
 
 ;;;###autoload
 (defun blueprint-list-components ()
-  "Display a list of all components in the current Blueprint project."
+  "Display a list of all components in the current Blueprint project.
+The Documents column lists the files of each component that reach
+the document (see `blueprint-components-mode' for the keys that
+open them)."
   (interactive)
   (let ((comps (blueprint--components))
         (entries '()))
     (maphash (lambda (id dir)
-               (push (list id (vector id (abbreviate-file-name dir))) entries))
+               (push (list id (vector
+                               id
+                               (mapconcat #'file-name-nondirectory
+                                          (blueprint--component-document-paths id)
+                                          " ")
+                               (abbreviate-file-name dir)))
+                     entries))
              comps)
     (if (null entries)
         (message "No components found.")
       (with-current-buffer (get-buffer-create "*Blueprint Components*")
-        (setq tabulated-list-format [("Component" 30 t) ("Directory" 60 t)]
-              tabulated-list-entries entries)
-        (tabulated-list-mode)
-        (tabulated-list-init-header)
+        (blueprint-components-mode)
+        (setq tabulated-list-entries
+              (sort entries (lambda (a b) (string< (car a) (car b)))))
         (tabulated-list-print)
-        (local-set-key (kbd "RET")
-                       (lambda ()
-                         (interactive)
-                         (let ((id (tabulated-list-get-id)))
-                           (when id
-                             (find-file (blueprint--component-file id))))))
         (switch-to-buffer (current-buffer))))))
 
 (defun blueprint--rename-dependency (file old-name new-name)

@@ -84,7 +84,7 @@ senza dover attraversare materiale irrilevante.
 ** Azione 1: Inizializzare la struttura
 
 #+begin_src
-M-x blueprint-init  (oppure: C-c b i)
+M-x blueprint-init  (oppure: C-c b I)
 #+end_src
 
 Crea la struttura completa =.blueprint/= nella directory corrente. Il comando e'
@@ -178,7 +178,7 @@ Queste sezioni sono editoriali e richiedono input specifico del progetto.
 ** Aggiungere un componente
 
 #+begin_src
-M-x blueprint-add-component  (oppure: C-c b a)
+M-x blueprint-add-component  (oppure: C-c b A)
 Component name: order-service
 #+end_src
 
@@ -217,7 +217,7 @@ degli altri componenti.
 ** Eliminare un componente
 
 #+begin_src
-M-x blueprint-delete-component  (oppure: C-c b D)
+M-x blueprint-delete-component  (oppure: C-c b X)
 #+end_src
 
 Sposta la directory in =.blueprint/_archive/= (non elimina definitivamente).
@@ -225,7 +225,7 @@ Sposta la directory in =.blueprint/_archive/= (non elimina definitivamente).
 ** Verificare lo stato del perimetro
 
 #+begin_src
-M-x blueprint-lint  (oppure: C-c b l)
+M-x blueprint-lint  (oppure: C-c b L)
 #+end_src
 
 Segnala: componenti con dipendenze verso componenti non esistenti, sezioni
@@ -245,10 +245,13 @@ obbligatorie mancanti, file di template assenti.
 4. Poi =Constraints= e =Solution Strategy= (ricostruite dal codice)
 5. Per ultimo =Risks= e =Open Questions= (emergono durante l'analisi)
 
-** Aprire il file di un componente
+** Aprire i documenti di un componente
 
-Navigare in =.blueprint/components/<nome>/arc42.org= con =find-file=, o
-partire dalla dashboard (=C-c b B=, poi ~RET~ sul componente).
+Ogni componente ha fino a tre documenti, uno per parte del deliverable: =arc42.org= (Parte II), =functional.org= (Parte III) e =infrastructure.org= (Parte IV), tutti in =.blueprint/components/<nome>/=. Per aprirne uno:
+
+- =M-x blueprint-visit-component= (=C-c b j=): chiede il componente e poi il documento, tra quelli che esistono, con =arc42.org= preselezionato; se il componente ha solo =arc42.org= lo apre senza chiedere. Fra le scelte ci sono anche gli altri file del documento (=master.org=, glossario, =enterprise/*=, =nfr/*=, riferimenti), indicati con il percorso relativo alla radice: scelti, si aprono direttamente.
+- Lista dei componenti (=C-c b l=): la colonna Documents mostra quali file ha ogni componente; ~RET~ chiede quale aprire, =a=, =f= e =i= aprono direttamente =arc42.org=, =functional.org= e =infrastructure.org=.
+- Dashboard (=C-c b B=): ~RET~ sul componente chiede il documento come =blueprint-visit-component=; sulla riga di un altro file del documento lo apre.
 
 ** Gestire i flussi runtime
 
@@ -326,7 +329,7 @@ punteggio.
 ** Aggiungere domande aperte durante l'analisi
 
 #+begin_src
-M-x blueprint-add-question  (oppure: C-c b q)
+M-x blueprint-add-question  (oppure: C-c b Q)
 Component: order-service
 Question: Chi autorizza il rimborso quando il pagamento e' gia' contabilizzato?
 #+end_src
@@ -356,7 +359,7 @@ Il file =functional.org= si organizza in:
 ** Aggiungere un'area funzionale
 
 #+begin_src
-M-x blueprint-functional-add-area  (oppure: C-c b F a)
+M-x blueprint-functional-add-area  (oppure: C-c b a)
 Component: order-service
 Area name: Gestione ordini
 #+end_src
@@ -364,7 +367,7 @@ Area name: Gestione ordini
 ** Aggiungere una feature
 
 #+begin_src
-M-x blueprint-functional-add-feature  (oppure: C-c b F f)
+M-x blueprint-functional-add-feature  (oppure: C-c b f)
 Component: order-service
 Area: Gestione ordini
 Feature name: Calcolo importo netto
@@ -376,7 +379,7 @@ Logica di calcolo, Regole di validazione, Casi limite.
 ** Aggiungere un'entita' di dominio
 
 #+begin_src
-M-x blueprint-functional-add-entity  (oppure: C-c b F e)
+M-x blueprint-functional-add-entity  (oppure: C-c b e)
 Component: order-service
 Entity name: Ordine
 #+end_src
@@ -386,7 +389,7 @@ Inserisce una tabella attributi e un blocco PlantUML per il diagramma ER.
 ** Aggiungere un punto di integrazione
 
 #+begin_src
-M-x blueprint-functional-add-integration  (oppure: C-c b F i)
+M-x blueprint-functional-add-integration  (oppure: C-c b i)
 Component: order-service
 Integration name: Invio a sistema di fatturazione
 #+end_src
@@ -528,7 +531,7 @@ Tre categorie:
 Il rilevamento automatico di pattern di rischio e' disponibile:
 
 #+begin_src
-M-x blueprint-detect-risks  (oppure: C-c b k)
+M-x blueprint-suggest-risks-all  (oppure: C-c b s)
 #+end_src
 
 Rileva pattern come: "no backup", "single point of failure", "hardcoded credentials",
@@ -548,7 +551,7 @@ probabilita', impatto, livello, mitigazione, owner.
 ** Aggiungere un termine al glossario
 
 #+begin_src
-M-x blueprint-glossary-add  (oppure: C-c b g a)
+M-x blueprint-glossary-add  (oppure: C-c b y)
 Term: SLA
 Definition: Service Level Agreement - accordo contrattuale sui livelli di servizio
 Source: contratto-cliente-2024
@@ -598,7 +601,7 @@ decisioni del progetto di assessment stesso.
 ** Aggiungere un ADR
 
 #+begin_src
-M-x blueprint-adr-new  (oppure: C-c b A n)
+M-x blueprint-adr-new  (oppure: C-c b N)
 ADR title: Adozione di PostgreSQL come database primario
 #+end_src
 
@@ -632,7 +635,7 @@ Aggiornare manualmente il campo =:STATUS:= dopo la validazione con il cliente.
 ** Visualizzare la lista degli ADR
 
 #+begin_src
-M-x blueprint-adr-list  (oppure: C-c b A l)
+M-x blueprint-adr-list  (oppure: C-c b n)
 #+end_src
 
 Apre un buffer =*Blueprint ADRs*= con titolo e stato di ogni ADR. Premere =RET=
@@ -647,10 +650,12 @@ su un ADR per aprire =adr.org= posizionato sull'heading corrispondente.
 ** Health score
 
 #+begin_src
-M-x blueprint-health-score  (oppure: C-c b h)
+M-x blueprint-health-score
 #+end_src
 
-Restituisce un punteggio 0-100. Ogni marcatore irrisolto nei file dei componenti che confluiscono nel documento (=arc42.org=, =functional.org=, =infrastructure.org=; i file assenti si ignorano) aggiunge punti di penalità secondo il suo peso:
+Non ha un tasto nel menu: il punteggio compare anche in testa alla dashboard (=C-c b B=) e nel controllo pre-consegna (=C-c b d=), e =C-c b H= lo disegna come indicatore SVG.
+
+Restituisce un punteggio 0-100 calcolato esattamente sul testo del documento: =master.org= e tutti i file che include con =#+INCLUDE:=, anche annidati (un file incluso che ne include altri), con i percorsi risolti rispetto al file che li include. Quindi contano Parte 0 (il testo di =master.org=), glossario, Parte I (=enterprise/=), i documenti dei componenti, Parte V (=nfr/=) e riferimenti; non contano i file che =master.org= non include (note, knowledge base, domande, interviste), né un documento di componente non ancora sincronizzato. Ogni marcatore irrisolto aggiunge punti di penalità secondo il suo peso:
 
 | Marcatore          | Peso |
 |--------------------+------|
@@ -672,35 +677,55 @@ Il punteggio vale 50 con un punto di penalità ogni N parole. Con P = 0 vale 100
 
 Un punteggio di 100 significa che tutti i marcatori sono stati risolti. Un punteggio basso non significa "documentazione scarsa" ma "lavoro ancora da fare".
 
+Lo stesso perimetro vale per tutti i conteggi del pacchetto: dashboard, controllo pre-consegna, lint, rischi, liste di =[FINDING]= e =[DA VALIDARE]=. Nei file inclusi i marcatori contano solo nel testo esportato: sono esclusi i sottoalberi =:noexport:= (o con un tag di =#+EXCLUDE_TAGS:=) e =COMMENT=, i blocchi src/example/export/comment, le righe di commento e il testo =verbatim=/~code~. Gli =#+INCLUDE:= dentro un sottoalbero non esportato o in un commento non si seguono; un file incluso come blocco (=#+INCLUDE: "x.org" src org=) non conta, perché nel documento compare come codice.
+
+Limiti noti: un file incluso solo in parte (=:lines=, =file.org::*Titolo=) conta per intero; un file incluso due volte conta una volta; =#+EXCLUDE_TAGS:= vale solo nel file che lo dichiara, mentre l'esportazione applica quello di =master.org= (e dei file inclusi) a tutto il documento, e =#+SELECT_TAGS:= non è gestito; =:minlevel= non cambia il testo e non ha effetto sui conteggi. Senza =master.org= il documento non è ancora assemblato e i conteggi usano i documenti di tutti i componenti, come li includerebbe =blueprint-sync=.
+
 ** Lint
 
 #+begin_src
-M-x blueprint-lint  (oppure: C-c b l)
+M-x blueprint-lint  (oppure: C-c b L)
 #+end_src
 
 Verifica:
-- Sezioni obbligatorie mancanti in =arc42.org=
-- Dipendenze verso componenti non esistenti (dangling deps)
-- Componenti con contenuto vuoto o insufficiente
-- File di template assenti
+- Sezioni obbligatorie mancanti in =arc42.org= (solo lì: gli altri file non hanno le intestazioni arc42)
+- Dipendenze verso componenti non esistenti (dangling deps) e componenti nel perimetro che dipendono da componenti fuori perimetro
+- In ogni file del documento (=master.org= e i file inclusi, componenti e no): troppi =QUESTION=/=TBD=/=FIXME= (oltre =blueprint-lint-marker-threshold=) e file senza contenuto
+- =#+INCLUDE:= verso file che non esistono
+
+Gli avvisi su un file di componente diverso da =arc42.org= sono nella forma =componente/functional.org: ...=, quelli sugli altri file con il percorso relativo alla radice (=nfr/risks.org: ...=). =blueprint-ci-lint=, =blueprint-ci-validate= e il controllo pre-consegna usano lo stesso lint.
 
 ** Dashboard
 
 #+begin_src
-M-x blueprint-dashboard  (oppure: C-c b d)
+M-x blueprint-dashboard  (oppure: C-c b B)
 #+end_src
 
-Mostra per ogni componente: health score, markers irrisolti, owner, tecnologia.
+Una riga per componente, in ordine alfabetico, poi una riga per ogni altro file del documento nell'ordine in cui =master.org= lo include (=master.org= stesso, glossario, =enterprise/*=, =nfr/*=, riferimenti), identificata dal percorso relativo alla radice. Ogni file del documento sta in una sola riga, quindi le righe sommate danno l'health score del documento. La prima riga del buffer contiene i titoli delle colonne; la riga di intestazione in alto mostra l'health score del documento, quanti componenti e quanti altri file ci sono, e i filtri attivi.
+
+| Colonna            | Contenuto                                                                    |
+|--------------------+------------------------------------------------------------------------------|
+| Name               | Id del componente, o percorso del file                                       |
+| Owner/Tech/Scope   | =#+BLUEPRINT_OWNER=, =#+BLUEPRINT_TECH=, =#+BLUEPRINT_STATUS= di =arc42.org= |
+| QUESTION/TBD/FIXME | Marcatori tecnici                                                            |
+| DA VAL             | =[DA VALIDARE]=                                                              |
+| DA REV             | =[DA REVISIONARE]=                                                           |
+| FINDING            | =[FINDING]= (peso 0, solo informativo)                                       |
+| Penalty            | Punti di penalità, con i pesi dell'health score                              |
+| Health             | Punteggio della sola riga (=-= per un componente fuori dal documento)        |
+| Status             | OK, IN-PROGRESS, NEEDS-WORK, FIXME, o NOT-INCLUDED                           |
+
+Per un componente si contano solo i suoi documenti inclusi in =master.org=; un componente di cui =master.org= non include nessun documento ha stato NOT-INCLUDED (va sincronizzato con =C-c b S=). Il focus mode (=F=) tiene le righe con punti di penalità e i componenti NOT-INCLUDED, quindi una riga che ha solo =[FINDING]= non compare. ~RET~ apre il file della riga; per un componente chiede quale documento. =g= ricalcola, =O= filtra i componenti fuori perimetro, =G= genera il grafo SVG colorato (=blueprint-dashboard-svg=).
+
+Gli stessi numeri guidano i colori del grafo: =C-c b h= (=blueprint-dashboard-svg=) disegna i componenti con le dipendenze, colorati in base al punteggio: rosso sotto 50 (la soglia di avviso di =blueprint-ci-validate=), giallo sotto 80 (il valore di default di =blueprint-delivery-score-threshold=), verde altrimenti, grigio se =master.org= non include nessun documento del componente. Richiede Graphviz (=dot=). Il grafo delle dipendenze di =C-c b G= (=blueprint-dependency-graph=) usa =blueprint-graph-backend=: con il default =plantuml= produce il sorgente =.puml= senza colori, con =graphviz= lo stesso SVG colorato. =blueprint-daily= (=C-c b .=) propone i componenti e gli altri file del documento con punti di penalità, dal più carico; per un componente chiede poi quale documento aprire e preseleziona quello con più penalità.
 
 ** Rilevamento automatico rischi
 
 #+begin_src
-M-x blueprint-detect-risks  (oppure: C-c b k)
+M-x blueprint-suggest-risks-all  (oppure: C-c b s)
 #+end_src
 
-Scansiona tutti i componenti in cerca di pattern di rischio: nessun backup,
-single point of failure, credenziali hardcoded, dipendenza da tecnologie
-deprecate, nessun monitoring.
+Cerca pattern di rischio (nessun backup, single point of failure, valori hardcoded, tecnologie deprecate, nessun monitoring, processi manuali) nel testo esportato del documento: per ogni componente in tutti i suoi documenti inclusi in =master.org=, poi in ogni altro file del documento. Segnala anche i componenti isolati (nessuna dipendenza in entrata o in uscita) e la documentazione immatura (più di 8 =QUESTION=/=TBD=/=FIXME= nei file della riga). =M-x blueprint-suggest-risks= fa lo stesso per un solo componente.
 
 -----
 
@@ -709,7 +734,7 @@ deprecate, nessun monitoring.
 /Quando: periodicamente, e prima di ogni consegna intermedia./
 
 #+begin_src
-M-x blueprint-sync  (oppure: C-c b s)
+M-x blueprint-sync  (oppure: C-c b S)
 #+end_src
 
 Aggiorna le tre sezioni auto-gestite di =master.org= con i file attuali dei
@@ -860,6 +885,8 @@ Per ambienti CI/CD o workflow automatizzati:
   emacs -Q --batch -l blueprint.el -f blueprint-ci-export
 #+end_src
 
+Lint e health score coprono tutto il documento (=master.org= e i file inclusi), quindi un avviso in Parte 0, I o V cambia il codice di uscita come un avviso in un componente.
+
 -----
 
 * Flusso 12 — Ciclo di revisione e approvazione
@@ -867,6 +894,8 @@ Per ambienti CI/CD o workflow automatizzati:
 /Quando: prima di ogni consegna al cliente e prima della consegna finale./
 
 ** Checklist pre-consegna
+
+=M-x blueprint-pre-delivery-check= (=C-c b d=) verifica in automatico health score, =[DA VALIDARE]= e =[DA REVISIONARE]= residui, avvisi del lint e sincronizzazione di =master.org=. Tutti i conteggi riguardano solo il documento, cioè =master.org= e i file che include (vedi l'health score): marcatori in note, knowledge base o altri file =.org= del progetto non contano. Il numero di =[FINDING]= compare con l'etichetta =[INFO]=, solo a titolo informativo: un finding è un risultato da consegnare, quindi non genera avvisi e non cambia l'esito.
 
 Prima di consegnare il documento al cliente, verificare manualmente:
 
