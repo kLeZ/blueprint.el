@@ -112,6 +112,14 @@ arc42.org is blueprint-lint's job, not blueprint-health-score's."
 
 ;;; --- blueprint-health-score ---
 
+(defun blueprint-test--health-penalty (id)
+  "Return the penalty points of component ID in the health stats."
+  (nth 1 (assoc id (blueprint--health-component-stats))))
+
+(defun blueprint-test--health-words (id)
+  "Return the exported words of component ID in the health stats."
+  (nth 2 (assoc id (blueprint--health-component-stats))))
+
 (ert-deftest blueprint-test-health-score/perfect ()
   "A project with no markers scores 100."
   (blueprint-test--with-project
@@ -120,57 +128,187 @@ arc42.org is blueprint-lint's job, not blueprint-health-score's."
     (should (= 100 (blueprint-health-score)))))
 
 (ert-deftest blueprint-test-health-score/question-penalty ()
-  "Each QUESTION deducts 3 points."
+  "Each QUESTION weighs 3 penalty points."
   (blueprint-test--with-project
     (blueprint-test--write-component
      "comp"
      "#+TITLE: comp\n\n* Open Questions\n\n- QUESTION one\n- QUESTION two\n")
-    (blueprint--invalidate-cache)
-    (should (= 94 (blueprint-health-score)))))  ; 100 - 2*3
+    (should (= 6 (blueprint-test--health-penalty "comp")))
+    (should (< (blueprint-health-score) 100))))
 
 (ert-deftest blueprint-test-health-score/tbd-penalty ()
-  "Each TBD deducts 2 points."
+  "Each TBD weighs 2 penalty points."
   (blueprint-test--with-project
     (blueprint-test--write-component
      "comp"
      "#+TITLE: comp\n\n* Section\n\nTBD here.\n")
-    (blueprint--invalidate-cache)
-    (should (= 98 (blueprint-health-score)))))  ; 100 - 1*2
+    (should (= 2 (blueprint-test--health-penalty "comp")))))
 
 (ert-deftest blueprint-test-health-score/fixme-penalty ()
-  "Each FIXME deducts 4 points."
+  "Each FIXME weighs 4 penalty points."
   (blueprint-test--with-project
     (blueprint-test--write-component
      "comp"
      "#+TITLE: comp\n\n* Section\n\nFIXME urgent.\n")
-    (blueprint--invalidate-cache)
-    (should (= 96 (blueprint-health-score)))))  ; 100 - 1*4
-
-(ert-deftest blueprint-test-health-score/clamped-at-zero ()
-  "Score is never negative."
-  (blueprint-test--with-project
-    ;; 30 FIXMEs = -120 penalty → clamped to 0
-    (blueprint-test--write-component
-     "comp"
-     (concat "#+TITLE: comp\n\n"
-             (mapconcat (lambda (_) "FIXME item\n") (make-list 30 nil) "")))
-    (blueprint--invalidate-cache)
-    (should (= 0 (blueprint-health-score)))))
+    (should (= 4 (blueprint-test--health-penalty "comp")))))
 
 (ert-deftest blueprint-test-health-score/multiple-components ()
-  "Penalties accumulate across all components."
+  "Penalties and words accumulate across all components."
   (blueprint-test--with-project
     (blueprint-test--write-component
-     "a" "#+TITLE: a\n\n* S\n\nQUESTION one\n")   ; -3
+     "a" "#+TITLE: a\n\n* S\n\nQUESTION one\n")   ; 3
     (blueprint-test--write-component
-     "b" "#+TITLE: b\n\n* S\n\nFIXME one\n")       ; -4
-    (blueprint--invalidate-cache)
-    (should (= 93 (blueprint-health-score)))))
+     "b" "#+TITLE: b\n\n* S\n\nFIXME one\n")       ; 4
+    (let* ((stats (blueprint--health-component-stats))
+           (penalty (apply #'+ (mapcar #'cadr stats)))
+           (words (apply #'+ (mapcar #'caddr stats))))
+      (should (equal '("a" "b") (mapcar #'car stats)))
+      (should (= 7 penalty))
+      (should (= (blueprint--health-score-from penalty words)
+                 (blueprint-health-score))))))
 
 (ert-deftest blueprint-test-health-score/empty-project ()
   "An empty project (no components) scores 100."
   (blueprint-test--with-project
     (should (= 100 (blueprint-health-score)))))
+
+;;; --- Health score formula (PLAN 9.28) ---
+
+(ert-deftest blueprint-test-health-score/formula ()
+  "Score is round (100 * U / (U + P)) with U = W / N."
+  (let ((blueprint-health-words-per-point 100))
+    (should (= 50 (blueprint--health-score-from 1 100)))
+    (should (= 75 (blueprint--health-score-from 1 300)))
+    (should (= 25 (blueprint--health-score-from 3 100)))
+    (should (= 91 (blueprint--health-score-from 1 1000))))
+  (let ((blueprint-health-words-per-point 50))
+    (should (= 67 (blueprint--health-score-from 1 100))))
+  (let ((blueprint-health-words-per-point 100.0))
+    (should (= 50 (blueprint--health-score-from 1 100)))))
+
+(ert-deftest blueprint-test-health-score/edge-cases ()
+  "No penalty gives 100 (also with no words); penalty with no words gives 0."
+  (should (= 100 (blueprint--health-score-from 0 0)))
+  (should (= 100 (blueprint--health-score-from 0 5000)))
+  (should (= 0 (blueprint--health-score-from 5 0)))
+  (should (= 0 (blueprint--health-score-from 1000000 1)))
+  (should (= 100 (blueprint--health-score-from 1 100000000))))
+
+(ert-deftest blueprint-test-health-score/size-normalized ()
+  "Doubling the document with the same markers per word keeps the score.
+The old score subtracted absolute points, so it fell as the document
+grew even when the share of open points did not change."
+  (let* ((blueprint-health-words-per-point 100)
+         (body (concat "* Sezione\n\n"
+                       (mapconcat #'identity (make-list 60 "parola") " ")
+                       "\nQUESTION aperta e TBD da scrivere.\n"))
+         single double)
+    (blueprint-test--with-project
+      (blueprint-test--write-component "comp" body)
+      (setq single (list (blueprint-test--health-penalty "comp")
+                         (blueprint-test--health-words "comp")
+                         (blueprint-health-score))))
+    (blueprint-test--with-project
+      (blueprint-test--write-component "comp" (concat body body))
+      (setq double (list (blueprint-test--health-penalty "comp")
+                         (blueprint-test--health-words "comp")
+                         (blueprint-health-score))))
+    (should (= (* 2 (nth 0 single)) (nth 0 double)))
+    (should (= (* 2 (nth 1 single)) (nth 1 double)))
+    (should (< 0 (nth 2 single) 100))
+    (should (= (nth 2 single) (nth 2 double)))
+    ;; Same check with the growth spread over a second component.
+    (blueprint-test--with-project
+      (blueprint-test--write-component "a" body)
+      (blueprint-test--write-component "b" body)
+      (should (= (nth 2 single) (blueprint-health-score))))))
+
+(ert-deftest blueprint-test-health-score/counts-functional-and-infrastructure ()
+  "Markers and words of functional.org and infrastructure.org count too."
+  (blueprint-test--with-project
+    (let* ((arc42 (blueprint-test--write-component
+                   "comp" "#+TITLE: comp\n\n* S\n\nQUESTION uno\n"))
+           (dir (file-name-directory arc42)))
+      (with-temp-file (expand-file-name "functional.org" dir)
+        (insert "* F\n\nTBD due tre\n"))
+      (with-temp-file (expand-file-name "infrastructure.org" dir)
+        (insert "* I\n\nFIXME quattro\n"))
+      (should (= 9 (blueprint-test--health-penalty "comp"))) ; 3 + 2 + 4
+      (should (= (+ (cdr (blueprint--health-file-stats arc42))
+                    (cdr (blueprint--health-file-stats
+                          (expand-file-name "functional.org" dir)))
+                    (cdr (blueprint--health-file-stats
+                          (expand-file-name "infrastructure.org" dir))))
+                 (blueprint-test--health-words "comp"))))))
+
+(ert-deftest blueprint-test-health-score/absent-files-ignored ()
+  "A component without infrastructure.org counts its other files only."
+  (blueprint-test--with-project
+    (let* ((arc42 (blueprint-test--write-component
+                   "comp" "#+TITLE: comp\n\n* S\n\nQUESTION uno\n"))
+           (dir (file-name-directory arc42)))
+      (with-temp-file (expand-file-name "functional.org" dir)
+        (insert "* F\n\nTBD due\n"))
+      (should (equal (list arc42 (expand-file-name "functional.org" dir))
+                     (blueprint--component-document-paths "comp")))
+      (should (= 5 (blueprint-test--health-penalty "comp"))))))
+
+(ert-deftest blueprint-test-health-score/finding-weighs-zero ()
+  "[FINDING] is still counted but does not lower the score."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "comp"
+                 "#+TITLE: comp\n\n* Rischi\n\n[FINDING] anomalia rilevata\n")))
+      (should (= 1 (nth 1 (blueprint--methodology-metrics file))))
+      (should (= 0 (blueprint-test--health-penalty "comp")))
+      (should (= 100 (blueprint-health-score))))))
+
+(ert-deftest blueprint-test-health-score/dangling-functional-ignored ()
+  "A component whose only file is functional.org does not error."
+  (blueprint-test--with-project
+    (let ((dir (file-name-directory (blueprint-test--write-component "svc"))))
+      (delete-file (expand-file-name "arc42.org" dir))
+      (with-temp-file (expand-file-name "functional.org" dir)
+        (insert "* F\n\nTBD\n"))
+      (should (= 2 (blueprint-test--health-penalty "svc")))
+      ;; Two words ("F", "TBD") against 2 points: round (100 * 2 / (2 + 200)) = 1.
+      (let ((blueprint-health-words-per-point 100))
+        (should (= 2 (blueprint-test--health-words "svc")))
+        (should (= 1 (blueprint-health-score)))))))
+
+;;; --- Exported word count ---
+
+(ert-deftest blueprint-test-words/count-exported-text-only ()
+  "Words count only outside `blueprint--uncounted-regions'.
+Nested regions (verbatim inside a :noexport: subtree) are not
+subtracted twice."
+  (with-temp-buffer
+    (insert "* Intro\n"
+            "uno due tre =verbatim= ~code~\n"
+            "#+begin_src emacs-lisp\n(setq x 1)\n#+end_src\n"
+            "# commento ignorato\n"
+            "* Guida :noexport:\n"
+            "quattro =cinque= sei\n"
+            "** Sotto\nsette\n"
+            "#+begin_example\notto\n#+end_example\n"
+            "* COMMENT Nota\nnove\n"
+            "* Coda\ndieci undici\n")
+    (let ((org-inhibit-startup t))
+      (delay-mode-hooks (org-mode)))
+    ;; Intro uno due tre + Coda dieci undici
+    (should (= 7 (blueprint--count-words-outside)))))
+
+(ert-deftest blueprint-test-words/merge-regions ()
+  "Overlapping and nested regions merge into disjoint ones."
+  (should (equal '((1 . 10) (12 . 20))
+                 (blueprint--merge-regions
+                  '((1 . 10) (2 . 5) (4 . 8) (12 . 15) (15 . 20))))))
+
+(ert-deftest blueprint-test-words/missing-file ()
+  "A missing file contributes no penalty and no words."
+  (should (equal '(0 . 0) (blueprint--health-file-stats nil)))
+  (should (equal '(0 . 0) (blueprint--health-file-stats
+                           "/tmp/this-file-does-not-exist.org"))))
 
 ;;; --- blueprint--methodology-metrics ---
 
@@ -233,22 +371,19 @@ arc42.org is blueprint-lint's job, not blueprint-health-score's."
 ;;; --- Health score with methodology markers ---
 
 (ert-deftest blueprint-test-health-score/da-validare-penalty ()
-  "Each [DA VALIDARE] deducts 1 from health score."
+  "Each [DA VALIDARE] weighs 1 penalty point."
   (blueprint-test--with-project
     (blueprint-test--write-component
      "comp"
      "#+TITLE: comp\n#+BLUEPRINT_DEPENDS:\n\n[DA VALIDARE]\n[DA VALIDARE]\n\n* Introduction\n\n* Context and Scope\n\n* Constraints\n\n* Solution Strategy\n\n* Building Blocks\n\n* Runtime Behavior\n\n* Deployment\n\n* Responsibility\n\n* Risks\n\n* Open Questions\n\n* Diagrams\n")
-    (blueprint--invalidate-cache)
-    (should (= 98 (blueprint-health-score)))))  ; 100 - 2*1
+    (should (= 2 (blueprint-test--health-penalty "comp")))))
 
-(ert-deftest blueprint-test-health-score/finding-penalty ()
-  "Each [FINDING] deducts 2 from health score."
+(ert-deftest blueprint-test-health-score/da-revisionare-penalty ()
+  "Each [DA REVISIONARE] weighs 1 penalty point."
   (blueprint-test--with-project
     (blueprint-test--write-component
-     "comp"
-     "#+TITLE: comp\n#+BLUEPRINT_DEPENDS:\n\n[FINDING] anomalia rilevata\n\n* Introduction\n\n* Context and Scope\n\n* Constraints\n\n* Solution Strategy\n\n* Building Blocks\n\n* Runtime Behavior\n\n* Deployment\n\n* Responsibility\n\n* Risks\n\n* Open Questions\n\n* Diagrams\n")
-    (blueprint--invalidate-cache)
-    (should (= 98 (blueprint-health-score)))))  ; 100 - 1*2
+     "comp" "#+TITLE: comp\n\n* S\n\n[DA REVISIONARE] bozza\n")
+    (should (= 1 (blueprint-test--health-penalty "comp")))))
 
 ;;; --- blueprint-list-findings / blueprint-list-unvalidated ---
 

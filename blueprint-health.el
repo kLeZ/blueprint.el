@@ -6,11 +6,17 @@
 
 ;;; Commentary:
 
-;; Calculates a quality score (0--100) by scanning component files for
-;; open markers (QUESTION, TBD, FIXME) and methodology markers
-;; ([DA VALIDARE], [FINDING], [DA REVISIONARE]).  Also renders the result
-;; as a semicircular SVG gauge and provides commands for listing
-;; unresolved methodology markers across the whole project.
+;; Calculates a quality score (0--100) from the open markers left in
+;; the files of each component that reach the document (arc42.org,
+;; functional.org, infrastructure.org): technical markers (QUESTION,
+;; TBD, FIXME) and methodology markers ([DA VALIDARE], [DA REVISIONARE]).
+;; [FINDING] is counted for the lists but does not lower the score: a
+;; finding is a result of the assessment, not an open point.  The
+;; weighted marker count is set against the size of the exported text,
+;; so the score does not drop just because the document grows (see
+;; `blueprint-health-score').  Also renders the result as a
+;; semicircular SVG gauge and provides commands for listing unresolved
+;; methodology markers across the whole project.
 
 ;;; Code:
 
@@ -34,26 +40,101 @@ in exported text count (see `blueprint--uncounted-regions')."
   (blueprint--count-file-markers
    file '("\\[DA VALIDARE\\]" "\\[FINDING\\]" "\\[DA REVISIONARE\\]")))
 
+;;; --- Health score ---
+
+(defcustom blueprint-health-words-per-point 100
+  "Words of exported text that balance one penalty point.
+`blueprint-health-score' is 50 when the project has one weighted
+penalty point every this many words, higher with fewer points and
+lower with more.  Must be a positive number."
+  :type '(restricted-sexp
+          :match-alternatives ((lambda (v) (and (numberp v) (> v 0)))))
+  :group 'blueprint)
+
+(defconst blueprint--health-weights
+  '(("\\<QUESTION\\>"          . 3)
+    ("\\<TBD\\>"               . 2)
+    ("\\<FIXME\\>"             . 4)
+    ("\\[DA VALIDARE\\]"       . 1)
+    ("\\[FINDING\\]"           . 0)
+    ("\\[DA REVISIONARE\\]"    . 1))
+  "Penalty weight of each marker regexp in `blueprint-health-score'.
+[FINDING] weighs 0: a finding is a result the assessment delivers,
+not an open point.  It is still counted by the metrics and the
+marker lists.")
+
+(defun blueprint--health-file-stats (file)
+  "Return (PENALTY . WORDS) for FILE.
+PENALTY is the sum of the markers of `blueprint--health-weights'
+times their weight, WORDS the number of words of exported text (see
+`blueprint--count-words-outside').  Both count only outside
+`blueprint--uncounted-regions', computed once.  A nil or missing FILE
+yields (0 . 0)."
+  (if (and file (file-exists-p file))
+      (with-temp-buffer
+        (blueprint--insert-org-file file)
+        (let ((regions (blueprint--uncounted-regions)))
+          (cons (cl-loop for (re . weight) in blueprint--health-weights
+                         sum (* weight (length (blueprint--marker-positions
+                                                re regions))))
+                (blueprint--count-words-outside regions))))
+    (cons 0 0)))
+
+(defun blueprint--health-component-stats ()
+  "Return a list of (ID PENALTY WORDS), one per component, sorted by ID.
+Each component contributes all its files that reach the document (see
+`blueprint--component-document-paths'); absent files count as empty."
+  (let ((result '()))
+    (maphash
+     (lambda (id _dir)
+       (let ((penalty 0) (words 0))
+         (dolist (file (blueprint--component-document-paths id))
+           (pcase-let ((`(,p . ,w) (blueprint--health-file-stats file)))
+             (cl-incf penalty p)
+             (cl-incf words w)))
+         (push (list id penalty words) result)))
+     (blueprint--components))
+    (sort result (lambda (a b) (string< (car a) (car b))))))
+
+(defun blueprint--health-score-from (penalty words)
+  "Return the health score for PENALTY points over WORDS exported words.
+The score is round (100 * U / (U + PENALTY)), with
+U = WORDS / `blueprint-health-words-per-point', computed exactly in
+integers as round (100 * WORDS / (WORDS + N * PENALTY)).  No
+penalty gives 100, also with no words; penalty without words gives 0."
+  (if (zerop penalty)
+      100
+    (let ((n blueprint-health-words-per-point))
+      (if (integerp n)
+          (round (* 100 words) (+ words (* n penalty)))
+        (round (/ (* 100.0 words) (+ words (* n penalty))))))))
+
 ;;;###autoload
 (defun blueprint-health-score ()
   "Calculate aggregate health score for the current Blueprint project.
-Starts at 100 and deducts points for unresolved markers:
-  QUESTION: -3, TBD: -2, FIXME: -4.
-  [DA VALIDARE]: -1, [FINDING]: -2, [DA REVISIONARE]: -1.
-Returns an integer between 0 and 100."
+Markers in the files of every component that reach the document
+\(arc42.org, functional.org, infrastructure.org) add penalty points P
+with these weights:
+  QUESTION: 3, TBD: 2, FIXME: 4.
+  [DA VALIDARE]: 1, [DA REVISIONARE]: 1, [FINDING]: 0.
+P is set against the size of the same files: W words of exported
+text, U = W / `blueprint-health-words-per-point'.  The score is
+round (100 * U / (U + P)), so it stays the same when the document
+doubles with the same ratio of markers to words.  P = 0 gives 100;
+P > 0 with no words gives 0.  Markers and words count only in
+exported text (see `blueprint--uncounted-regions').
+Returns an integer between 0 and 100.  Interactively, also shows
+the score with P and W in the echo area."
   (interactive)
-  (let ((score 100))
-    (maphash
-     (lambda (id _dir)
-       (let ((file (blueprint--component-file id)))
-         (pcase-let ((`(,questions ,tbds ,fixmes)
-                      (blueprint--cached-metrics file #'blueprint--component-metrics))
-                     (`(,da-validare ,findings ,da-revisionare)
-                      (blueprint--methodology-metrics file)))
-           (cl-decf score (+ (* 3 questions) (* 2 tbds) (* 4 fixmes)
-                             (* 1 da-validare) (* 2 findings) (* 1 da-revisionare))))))
-     (blueprint--components))
-    (max 0 score)))
+  (let ((penalty 0) (words 0))
+    (dolist (entry (blueprint--health-component-stats))
+      (cl-incf penalty (nth 1 entry))
+      (cl-incf words (nth 2 entry)))
+    (let ((score (blueprint--health-score-from penalty words)))
+      (when (called-interactively-p 'interactive)
+        (message "Health %d/100 (penalty points %d, words %d)"
+                 score penalty words))
+      score)))
 
 (defun blueprint--scan-marker-occurrences (marker)
   "Return an alist of (FILE LINE-NUM LINE-TEXT) for each MARKER occurrence.

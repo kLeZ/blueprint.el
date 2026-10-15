@@ -113,9 +113,14 @@
       (should (string-match-p "Rel(frontend, backend" c4-content))
       (should (string-match-p "Rel(backend, database" c4-content)))
 
-    ;; Health score: backend has 1 TBD (-2), database has 1 FIXME (-4)
-    ;; → expected: 100 - 2 - 4 = 94
-    (should (= 94 (blueprint-health-score)))
+    ;; Health: backend has 1 TBD (2 points), database has 1 FIXME (4)
+    (let* ((stats (blueprint--health-component-stats))
+           (penalty (apply #'+ (mapcar #'cadr stats)))
+           (words (apply #'+ (mapcar #'caddr stats))))
+      (should (= 6 penalty))
+      (should (= (blueprint--health-score-from penalty words)
+                 (blueprint-health-score)))
+      (should (< 0 (blueprint-health-score) 100)))
 
     ;; Lint: frontend should have no heading warnings; database should
     ;; have no dangling deps
@@ -197,9 +202,9 @@
       (should (string-match-p "card transactions" content))
       (should (string-match-p "retry strategy" content)))
 
-    ;; Health score is reduced by 2 QUESTIONs = -6
-    (blueprint--invalidate-cache)
-    (should (= 94 (blueprint-health-score)))))
+    ;; Health: 2 QUESTIONs weigh 6 penalty points
+    (should (= 6 (nth 1 (assoc "payment" (blueprint--health-component-stats)))))
+    (should (< (blueprint-health-score) 100))))
 
 (ert-deftest blueprint-test-e2e/template-migration ()
   "Template migration copies system templates to the project."

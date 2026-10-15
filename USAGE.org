@@ -311,8 +311,7 @@ Usare le marcature definite dalla metodologia:
 | =[APPROVATO YYYY-MM-DD]= | Sezione approvata dal referente nella data indicata     |
 | =[FONTE: X]=             | Specificare la fonte (es. FONTE: intervista Mario R.)   |
 
-I marcatori =QUESTION=, =TBD=, =FIXME= sono rilevati automaticamente dal
-sistema di health scoring e penalizzano il punteggio di salute del progetto.
+I marcatori =QUESTION=, =TBD=, =FIXME=, =[DA VALIDARE]= e =[DA REVISIONARE]= sono rilevati automaticamente dal sistema di health scoring e penalizzano il punteggio di salute del progetto; =[FINDING]= viene contato ma non penalizza, perché è un risultato dell'assessment e non un punto aperto.
 
 Contano solo le marcature nel testo che l'export mostra davvero: vengono
 ignorati i sottoalberi con un tag di esclusione (=:noexport:= o quelli
@@ -333,7 +332,7 @@ Question: Chi autorizza il rimborso quando il pagamento e' gia' contabilizzato?
 #+end_src
 
 Le domande vengono inserite nella sezione =* Open Questions= del componente
-e tracciate nel health score (penalita' -3 per =QUESTION= non risolta).
+e tracciate nel health score (peso 3 per ogni =QUESTION= non risolta).
 
 -----
 
@@ -651,17 +650,27 @@ su un ADR per aprire =adr.org= posizionato sull'heading corrispondente.
 M-x blueprint-health-score  (oppure: C-c b h)
 #+end_src
 
-Restituisce un punteggio 0-100. Ogni marcatore irrisolto nei file dei componenti
-penalizza il punteggio:
+Restituisce un punteggio 0-100. Ogni marcatore irrisolto nei file dei componenti che confluiscono nel documento (=arc42.org=, =functional.org=, =infrastructure.org=; i file assenti si ignorano) aggiunge punti di penalità secondo il suo peso:
 
-| Marcatore  | Penalita' |
-|------------+-----------|
-| =QUESTION= |        -3 |
-| =TBD=      |        -2 |
-| =FIXME=    |        -4 |
+| Marcatore          | Peso |
+|--------------------+------|
+| =QUESTION=         |    3 |
+| =TBD=              |    2 |
+| =FIXME=            |    4 |
+| =[DA VALIDARE]=    |    1 |
+| =[DA REVISIONARE]= |    1 |
+| =[FINDING]=        |    0 |
 
-Un punteggio di 100 significa che tutti i marcatori sono stati risolti.
-Un punteggio basso non significa "documentazione scarsa" ma "lavoro ancora da fare".
+La somma P dei pesi si confronta con la dimensione degli stessi file, così il punteggio non scende solo perché il documento cresce. Con W il numero di parole del testo esportato (stesse esclusioni dei marcatori) e N la variabile =blueprint-health-words-per-point= (100 di default):
+
+#+begin_example
+U         = W / N
+punteggio = round(100 * U / (U + P))
+#+end_example
+
+Il punteggio vale 50 con un punto di penalità ogni N parole. Con P = 0 vale 100, anche su un progetto vuoto; con P > 0 e nessuna parola vale 0. Raddoppiare il documento mantenendo la stessa proporzione di marcatori lascia il punteggio invariato. Lanciato con =M-x=, il comando mostra anche P e W.
+
+Un punteggio di 100 significa che tutti i marcatori sono stati risolti. Un punteggio basso non significa "documentazione scarsa" ma "lavoro ancora da fare".
 
 ** Lint
 
@@ -950,15 +959,11 @@ associato e' un gap attuale dello strumento (vedi Appendice C).
 | =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso/dichiarato | Automatica   |
 | =[APPROVATO YYYY-MM-DD]= | Sezione validata dal cliente nella data indicata            | Manuale      |
 | =[FONTE: X]=             | Attribuzione specifica della fonte informativa              | Manuale      |
-| =QUESTION=               | Domanda aperta irrisolta (penalizza health score: -3)       | Automatica   |
-| =TBD=                    | Sezione da completare (penalizza health score: -2)          | Automatica   |
-| =FIXME=                  | Problema identificato da correggere (penalizza h.s.: -4)    | Automatica   |
+| =QUESTION=               | Domanda aperta irrisolta (health score: peso 3)             | Automatica   |
+| =TBD=                    | Sezione da completare (health score: peso 2)                | Automatica   |
+| =FIXME=                  | Problema identificato da correggere (health score: peso 4)  | Automatica   |
 
-=[DA VALIDARE]= (-1), =[DA REVISIONARE]= (-1) e =[FINDING]= (-2) penalizzano
-il health score esattamente come =QUESTION=/=TBD=/=FIXME=, e compaiono in
-=blueprint-list-findings= / =blueprint-list-unvalidated=
-(=C-c b g= / =C-c b u=). Solo =[APPROVATO]= e =[FONTE: X]= restano puramente
-manuali: non penalizzano e non sono cercate da alcun comando dedicato.
+=[DA VALIDARE]= e =[DA REVISIONARE]= (peso 1) penalizzano il health score come =QUESTION=/=TBD=/=FIXME=; =[FINDING]= ha peso 0, perché è un risultato consegnato e non un punto aperto. Tutte e tre compaiono in =blueprint-list-findings= / =blueprint-list-unvalidated= (=C-c b g= / =C-c b u=). Solo =[APPROVATO]= e =[FONTE: X]= restano puramente manuali: non penalizzano e non sono cercate da alcun comando dedicato.
 
 -----
 

@@ -733,6 +733,23 @@ invisibili con un tema scuro) e il raggio dell'arco. Test in
 Lato utente, per vedere gli SVG anche visitandoli con =find-file=:
 =(add-to-list 'imagemagick-types-inhibit 'SVG)= nella configurazione.
 
+** 9.28 Health score: finding a peso 0, tutti i file del componente, normalizzazione sulle dimensioni (FATTO)
+
+Segnalato dal progetto pilota (2026-10-15): health 37/100 su un documento ormai ampio. Il punteggio partiva da 100 e sottraeva penalità assolute, contava solo =arc42.org= di ogni componente e pesava =[FINDING]= -2. Così scendeva a ogni pagina scritta anche a parità di punti aperti per pagina, ignorava Parte III e Parte IV, e penalizzava i risultati dell'assessment come se fossero lavoro mancante.
+
+Decisione dell'utente (2026-10-15), fatto in =blueprint-health.el=:
+- =[FINDING]= pesa 0 (=blueprint--health-weights=): un finding è un risultato consegnato, non un punto aperto. Le metriche e =blueprint-list-findings= continuano a contarlo.
+- Contano tutti i file di un componente che =blueprint-sync= include in =master.org=: =arc42.org=, =functional.org=, =infrastructure.org=; i file assenti si ignorano. Nel codice non esisteva un elenco condiviso (sync passa i nomi come letterali): aggiunti =blueprint--component-document-files= e =blueprint--component-document-paths= in =blueprint-core.el=.
+- Normalizzazione: score = round(100 * U / (U + P)), con P la somma pesata dei marker su tutti i componenti, U = W / N, W le parole del testo esportato (stesse esclusioni di =blueprint--uncounted-regions=, via =blueprint--count-words-outside=, che fonde le regioni annidate) e N la defcustom =blueprint-health-words-per-point= (100). P = 0 dà 100, P > 0 senza parole dà 0. Calcolo intero esatto, quindi un documento raddoppiato con la stessa proporzione ha lo stesso punteggio.
+
+=blueprint--health-component-stats= restituisce P e W per componente; con =M-x blueprint-health-score= il comando mostra P e W. Il punteggio non passa più per =blueprint--cached-metrics= (la cache è indicizzata solo per file e altri moduli vi tengono le metriche tecniche di =arc42.org=): un parse per file a ogni chiamata. Test in =test/blueprint-test-health.el= e =test/blueprint-test-e2e.el=.
+
+Le soglie restano 50 (=blueprint-ci-validate=) e 80 (=blueprint-delivery-score-threshold=): decisione dell'utente (2026-10-15), il documento del pilota a 81 è di fatto consegnabile. Restano aperti, in voci proprie: il conteggio delle parole (9.29), il pre-delivery check che segnala ancora i =[FINDING]= e dashboard, grafo, daily e navigazione limitati ad =arc42.org=.
+
+** 9.29 Conteggio delle parole dell'health score: solo testo di contenuto (RINVIATA)
+
+Segnalato dal progetto pilota (2026-10-15). W in =blueprint-health-score= conta il testo esportato in senso letterale: entrano anche keyword (=#+TITLE:=, =#+BLUEPRINT_DEPENDS:=), drawer di proprietà, intestazioni, ancore =<<...>>= e URL dei link, che gonfiano il denominatore. Da restringere al testo di contenuto (paragrafi, voci di elenco, celle di tabella). Rinviata su decisione dell'utente: problema reale ma complesso, non da affrontare ora.
+
 ** 9.27 Didascalie numerate per capitolo nell'export ODT (FATTO)
 
 Trovato dal progetto pilota (2026-10-08), dopo aver tolto

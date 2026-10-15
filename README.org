@@ -75,8 +75,7 @@ These declarations are parsed to generate C4 container diagrams --- no manual
 diagramming required.
 
 ** Health scoring as motivation
-The health score (0--100) penalizes markers like =QUESTION=, =TBD=, and =FIXME=
-left in component files. It is intentionally simple --- a gamified nudge to clean
+The health score (0--100) penalizes markers like =QUESTION=, =TBD=, and =FIXME= left in component files, relative to how much text they contain. It is intentionally simple --- a gamified nudge to clean
 up open items rather than a rigorous metric. The SVG gauge makes it visual
 enough to show a client during a review session.
 
@@ -412,20 +411,27 @@ to them --- untouched on every regeneration, the same way =blueprint-sync=
 preserves manual content in =master.org=.
 
 ** Health scoring
-=blueprint-health-score= computes a quality score starting at 100 and deducting
-points for markers found across all component files:
+=blueprint-health-score= weighs the open markers found in the files of each component that reach the document (=arc42.org=, =functional.org=, =infrastructure.org=; absent files are skipped):
 
-| Marker             | Penalty | Meaning                                   |
-|--------------------+---------+-------------------------------------------|
-| =QUESTION=         | -3      | Unresolved architectural question         |
-| =TBD=              | -2      | To-be-determined item                     |
-| =FIXME=            | -4      | Known defect or urgent issue              |
-| =[DA VALIDARE]=    | -1      | Section not yet confirmed by stakeholders |
-| =[FINDING]=        | -2      | Confirmed discrepancy from primary source |
-| =[DA REVISIONARE]= | -1      | Needs re-review after a change            |
+| Marker             | Weight | Meaning                                   |
+|--------------------+--------+-------------------------------------------|
+| =QUESTION=         | 3      | Unresolved architectural question         |
+| =TBD=              | 2      | To-be-determined item                     |
+| =FIXME=            | 4      | Known defect or urgent issue              |
+| =[DA VALIDARE]=    | 1      | Section not yet confirmed by stakeholders |
+| =[DA REVISIONARE]= | 1      | Needs re-review after a change            |
+| =[FINDING]=        | 0      | Confirmed discrepancy from primary source |
 
-The score is clamped to a minimum of 0. Technical marker results are cached
-using MD5 hashes and automatically invalidated when files change.
+=[FINDING]= weighs 0: a finding is a result the assessment delivers, not an open point. It is still listed by =blueprint-list-findings= and counted by the metrics.
+
+The weighted sum P is set against the size of the same files, so the score does not fall just because the document grows. With W the number of words of exported text (same exclusions as the markers, see below) and N the custom variable =blueprint-health-words-per-point= (default 100):
+
+#+begin_example
+U     = W / N
+score = round(100 * U / (U + P))
+#+end_example
+
+The score is 50 with one penalty point every N words, higher with fewer. P = 0 gives 100 (also for an empty project); P > 0 with no words gives 0. Doubling the document with the same share of markers leaves the score unchanged. Called interactively, the command also shows P and W in the echo area. The score is computed on every call, with one parse per file.
 
 Markers count only where the export shows them as live text. Blueprint skips
 subtrees with an export exclude tag (=:noexport:= or anything in

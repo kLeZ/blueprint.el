@@ -278,6 +278,21 @@ Creates the following structure (the data directory is named after
           (puthash (file-name-nondirectory d) d tbl))))
     tbl))
 
+(defconst blueprint--component-document-files
+  '("arc42.org" "functional.org" "infrastructure.org")
+  "Files of a component that `blueprint-sync' includes in master.org.
+arc42.org goes to Parte II, functional.org to Parte III and
+infrastructure.org to Parte IV.  Only arc42.org is mandatory.")
+
+(defun blueprint--component-document-paths (id)
+  "Return the existing files of component ID that reach the document.
+See `blueprint--component-document-files'.  Absent files are left out."
+  (let ((dir (gethash id (blueprint--components))))
+    (when dir
+      (cl-loop for name in blueprint--component-document-files
+               for path = (expand-file-name name dir)
+               when (file-exists-p path) collect path))))
+
 (defun blueprint--component-file (id)
   "Return the path to the arc42.org file for component ID."
   (let ((dir (gethash id (blueprint--components))))
@@ -423,6 +438,32 @@ be in `org-mode' (see `blueprint--insert-org-file')."
         (unless (blueprint--in-regions-p (match-beginning 0) regions)
           (push (match-beginning 0) found))))
     (nreverse found)))
+
+(defun blueprint--merge-regions (regions)
+  "Merge REGIONS, a list of (BEG . END) sorted by BEG, into disjoint ones.
+Uncounted regions nest (a verbatim object inside a :noexport: subtree)."
+  (let ((merged '()))
+    (dolist (r regions)
+      (if (and merged (<= (car r) (cdar merged)))
+          (setcdr (car merged) (max (cdr r) (cdar merged)))
+        (push (cons (car r) (cdr r)) merged)))
+    (nreverse merged)))
+
+(defun blueprint--count-words-outside (&optional regions)
+  "Return the number of words in the current buffer outside REGIONS.
+REGIONS defaults to `blueprint--uncounted-regions', so the result is
+the size of the text the export shows, measured with `count-words'.
+The buffer must be in `org-mode' (see `blueprint--insert-org-file')."
+  (let ((pos (point-min))
+        (words 0))
+    (dolist (r (blueprint--merge-regions
+                (or regions (blueprint--uncounted-regions))))
+      (when (> (car r) pos)
+        (cl-incf words (count-words pos (min (car r) (point-max)))))
+      (setq pos (max pos (cdr r))))
+    (when (< pos (point-max))
+      (cl-incf words (count-words pos (point-max))))
+    words))
 
 (defun blueprint--count-file-markers (file regexps)
   "Count each regexp of REGEXPS in FILE, outside uncounted regions.
