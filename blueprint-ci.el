@@ -18,13 +18,17 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+(require 'json)
 (require 'blueprint-core)
+(require 'blueprint-c4)
 (require 'blueprint-lint)
 (require 'blueprint-health)
 
 (declare-function blueprint-sync "blueprint-sync" ())
 (declare-function blueprint-export "blueprint-export" ())
 (declare-function blueprint--check-odt-styles-missing "blueprint-export" ())
+(declare-function blueprint--graph-deps "blueprint-graph" ())
 
 ;;;###autoload
 (defun blueprint-ci-lint ()
@@ -121,6 +125,133 @@ styles) or 2 (missing styles found)."
           (when noninteractive (kill-emacs 2))))
     (error
      (message "Blueprint CI check-odt-styles: FAIL — %s" (error-message-string err))
+     (when noninteractive (kill-emacs 2)))))
+
+;;; --- JSON report for external CI tooling ---
+
+(defcustom blueprint-ci-report-file "blueprint-report.json"
+  "Name of the JSON report written by `blueprint-ci-export-json',
+relative to the project root."
+  :type 'string
+  :group 'blueprint)
+
+(defun blueprint--ci-report--table (&rest pairs)
+  "Return a hash table of the PAIRS, each (SYMBOL-OR-STRING . VALUE).
+`json-serialize' takes hash tables with string keys directly, and a
+hash tree is unambiguous where an alist value that is a list is not
+\(\(a . (\"x\")) reads back as the flat list (a \"x\")\)."
+  (let ((table (make-hash-table :test 'equal)))
+    (dolist (pair pairs)
+      (puthash (if (symbolp (car pair)) (symbol-name (car pair)) (car pair))
+               (cdr pair) table))
+    table))
+
+(defun blueprint--ci-report--marker-name (regexp)
+  "Turn a marker REGEXP of `blueprint--health-weights' into a JSON key.
+\"\\\\<QUESTION\\\\>\" becomes \"question\" and
+\"\\\\[DA VALIDARE\\\\]\" becomes \"da-validare\": the markers are
+delimited by the two-character escapes \\\\< / \\\\> and \\\\[ / \\\\],
+so the name between them is enough and the report keys stay stable
+wherever the weights are reordered."
+  (let ((name (if (and (> (length regexp) 4)
+                       (member (substring regexp 0 2) '("\\<" "\\[")))
+                  (substring regexp 2 -2)
+                regexp)))
+    (downcase (replace-regexp-in-string "[ \t]+" "-" name))))
+
+(defun blueprint--ci-report--marker-table (counts)
+  "Return the marker COUNTS as a hash table keyed by marker name.
+COUNTS is aligned with `blueprint--health-weights'."
+  (let ((table (make-hash-table :test 'equal))
+        (weights blueprint--health-weights))
+    (while (and weights counts)
+      (puthash (blueprint--ci-report--marker-name (caar weights))
+               (car counts) table)
+      (setq weights (cdr weights) counts (cdr counts)))
+    table))
+
+(defun blueprint--ci-report-object (&optional root)
+  "Return the report object of `blueprint-ci-export-json' for ROOT.
+A pure tree of hash tables (string keys), vectors and scalars, taken
+by `json-serialize' as it is: no files are written, nothing printed.
+The counts follow the same principles as the dashboard: only the
+document (master.org and what it includes) and only exported text.
+Top-level keys: generated-at, project, health, document-files,
+components, dependencies, lint-warnings; component keys: id, scope,
+owner, tech, depends, included, documents, score, penalty, words,
+markers."
+  (let* ((root (or root (blueprint--root)))
+         (summary (blueprint--document-health-summary))
+         (comps (blueprint--components))
+         (components
+          (mapcar
+           (lambda (id)
+             (let* ((file (blueprint--component-file id))
+                    (s (blueprint--component-health-summary id))
+                    (deps (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
+               (blueprint--ci-report--table
+                `(id . ,id)
+                `(scope . ,(blueprint--component-scope-status id))
+                `(owner . ,(blueprint--org-keyword file "BLUEPRINT_OWNER"))
+                `(tech . ,(blueprint--org-keyword file "BLUEPRINT_TECH"))
+                `(depends . ,(if deps (vconcat (split-string deps)) []))
+                `(included . ,(and (plist-get s :documents) t))
+                `(documents
+                  . ,(vconcat (mapcar (lambda (doc)
+                                        (file-relative-name (car doc) root))
+                                      (plist-get s :documents))))
+                `(score . ,(plist-get s :score))
+                `(penalty . ,(plist-get s :penalty))
+                `(words . ,(plist-get s :words))
+                `(markers . ,(blueprint--ci-report--marker-table
+                              (plist-get s :counts))))))
+           (sort (hash-table-keys comps) #'string<)))
+         (dependencies
+          (when (fboundp 'blueprint--graph-deps)
+            (require 'blueprint-graph nil t)
+            (apply #'append
+                   (mapcar
+                    (lambda (entry)
+                      (mapcar (lambda (dep)
+                                (blueprint--ci-report--table
+                                 `(from . ,(car entry)) `(to . ,dep)))
+                              (cdr entry)))
+                    (blueprint--graph-deps))))))
+    (blueprint--ci-report--table
+     `(generated-at . ,(format-time-string "%Y-%m-%dT%H:%M:%S%z"))
+     `(project . ,(file-name-nondirectory (directory-file-name root)))
+     `(health . ,(blueprint--ci-report--table
+                  `(score . ,(plist-get summary :score))
+                  `(penalty . ,(plist-get summary :penalty))
+                  `(words . ,(plist-get summary :words))
+                  `(markers . ,(blueprint--ci-report--marker-table
+                                (plist-get summary :counts)))))
+     `(document-files
+       . ,(vconcat (mapcar (lambda (f) (file-relative-name f root))
+                           (blueprint--document-files root))))
+     `(components . ,(vconcat components))
+     `(dependencies . ,(vconcat (or dependencies nil)))
+     `(lint-warnings . ,(vconcat (blueprint--lint-project))))))
+
+;;;###autoload
+(defun blueprint-ci-export-json ()
+  "Write a JSON report about the project and return the file path.
+The report goes to `blueprint-ci-report-file' at the project root and
+holds the health score of the document, per-component marker counts,
+scores and scope, the dependency list and the lint warnings: what a
+CI pipeline that does not run Emacs needs.  In batch mode exits with
+0 on success and 2 on error."
+  (interactive)
+  (condition-case err
+      (let* ((root (blueprint--root))
+             (file (expand-file-name blueprint-ci-report-file root))
+             (json (json-serialize (blueprint--ci-report-object root))))
+        (with-temp-file file (insert json "\n"))
+        (message "Blueprint CI report written to %s" file)
+        (when noninteractive (kill-emacs 0))
+        file)
+    (error
+     (message "Blueprint CI export-json: FAIL — %s" (error-message-string err))
      (when noninteractive (kill-emacs 2)))))
 
 (provide 'blueprint-ci)
