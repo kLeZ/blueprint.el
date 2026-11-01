@@ -22,6 +22,12 @@ jobs:
         with:
           version: ${{ matrix.emacs-version }}
 
+      # Graphviz for the live preview test (blueprint-test-preview),
+      # which renders the dependency graph with dot and is skipped
+      # without it.
+      - name: Install Graphviz
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq graphviz
+
       - name: Run ERT test suite
         run: |
           emacs -Q --batch \

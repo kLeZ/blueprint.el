@@ -233,13 +233,14 @@ degli altri componenti.
 M-x blueprint-delete-component  (oppure: C-c b X)
 #+end_src
 
-Chiede conferma e cancella la directory del componente. Prima di
-confermare, rimuove da master.org le righe =#+INCLUDE= e le headline del
-componente dentro le sezioni sincronizzate (il prossimo =blueprint-sync=
-riporta la sezione al formato esatto), e chiede una conferma aggiuntiva
-quando altri componenti dichiarano ancora il nome in =#+BLUEPRINT_DEPENDS:=:
-quelle dipendenze restano in vita (giudizio umano) e il lint le segnala come
-pendenti finché non vengono rimosse a mano.
+Chiede conferma e cancella la directory del componente. La conferma
+avverte quando altri componenti dichiarano ancora il nome in
+=#+BLUEPRINT_DEPENDS:=: quelle dipendenze restano in vita (giudizio umano)
+e il lint le segnala come pendenti finché non vengono rimosse a mano. Dopo
+la conferma, prima di cancellare la directory, rimuove da master.org le
+righe =#+INCLUDE= e le headline del componente dentro le sezioni
+sincronizzate (il prossimo =blueprint-sync= riporta la sezione al formato
+esatto).
 
 ** Verificare lo stato del perimetro
 
@@ -1006,9 +1007,11 @@ si può limitare a =SINCE..HEAD=) e dalle ADR con =:STATUS: accepted=. Il file
 ** Confronto fra versioni di un componente
 
 =M-x blueprint-component-diff= mostra il =git diff= della directory del
-componente con in testa una sintesi semantica: file toccati, heading
+componente rispetto all'ultimo commit (=HEAD=, modifiche già in stage
+comprese) con in testa una sintesi semantica: file toccati, heading
 cambiati, marker aggiunti/rimossi, domande risolte. Con argomento prefisso
-si può confrontare contro una revisione (tag o commit). Nella lista
+si può confrontare contro una revisione (tag o commit). I file mai
+aggiunti a git (untracked) non compaiono. Nella lista
 componenti (=C-c b l=) il tasto =d= fa lo stesso per il componente al punto.
 Il comando è di sola lettura.
 
@@ -1081,7 +1084,7 @@ noti.
 - *Verifiche di Blueprint*: lo stile =PageBreak= e' nella lista degli
   stili extra di =blueprint-check-odt-styles=, segnalato se un
   template aziendale non lo definisce.
-- *Limiti*: una macro Org non e' usable qui (si espanderebbe dentro un
+- *Limiti*: una macro Org non e' utilizzabile qui (si espanderebbe dentro un
   paragrafo, producendo un =<text:p>= annidato in ODT).
 
 ** Keyword di export per backend

@@ -80,5 +80,42 @@ org-roam is missing, and lists every component."
         (should (= 2 (length clusters)))
         (should (equal (car clusters) '("api" "db" "payments")))))))
 
+(ert-deftest blueprint-test-roam/clusters-follow-roam-links ()
+  "Roam links join clusters: the links of a component are found
+through its nodes (a link's source is a node ID, not a file) and an
+id: destination is mapped back to its node's file.  The database is
+stubbed, so the test runs without org-roam."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "api" "#+TITLE: api\n")
+    (blueprint-test--write-component "billing" "#+TITLE: billing\n")
+    (blueprint-test--write-component "warehouse" "#+TITLE: warehouse\n")
+    (let* ((comps (blueprint--components))
+           (api (expand-file-name "arc42.org" (gethash "api" comps)))
+           (billing (expand-file-name "arc42.org" (gethash "billing" comps)))
+           (queries '()))
+      (cl-letf (((symbol-function 'blueprint--roam-available-p) (lambda () t))
+                ((symbol-function 'org-roam-db-query)
+                 (lambda (query &rest args)
+                   (push (cons query args) queries)
+                   (cond
+                    ;; Links of the nodes of a file: api links billing.
+                    ((memq :inner-join (append query nil))
+                     (if (equal (car args) api)
+                         '(("node-billing" "id") ("https://x" "https"))
+                       nil))
+                    ;; File of a node.
+                    ((equal (car args) "node-billing")
+                     (list (list billing)))
+                    (t nil)))))
+        (let ((clusters (blueprint-roam-clusters)))
+          (should (equal (car clusters) '("api" "billing")))
+          (should (member '("warehouse") clusters))
+          ;; The links query never matched a file path against
+          ;; links.source.
+          (should-not (seq-find (lambda (q)
+                                  (and (not (memq :inner-join (append (car q) nil)))
+                                       (member 'source (append (car q) nil))))
+                                queries)))))))
+
 (provide 'blueprint-test-roam)
 ;;; blueprint-test-roam.el ends here

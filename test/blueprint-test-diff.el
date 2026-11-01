@@ -90,5 +90,26 @@ summary and the diff body."
             (should (string-match-p "Domande risolte (righe ANSWERED aggiunte): 1" text))
             (should (string-match-p "^diff --git a/" text))))))))
 
+(ert-deftest blueprint-test-diff/staged-changes-and-empty-revision ()
+  "The default diff is against HEAD, so a change already staged with
+`git add' still shows; an empty revision (the interactive prompt left
+blank) means the default, not an argument for git."
+  (blueprint-test--with-project
+    (let* ((git (lambda (&rest args)
+                  (apply #'call-process "git" nil nil nil args)))
+           (arc (blueprint-test--write-component
+                 "svc" "#+TITLE: svc\n\n* Introduction\n")))
+      (funcall git "init" "-q")
+      (funcall git "config" "user.email" "test@example.com")
+      (funcall git "config" "user.name" "Test")
+      (funcall git "add" ".")
+      (funcall git "commit" "-q" "-m" "Componente iniziale")
+      (with-temp-file arc
+        (insert "#+TITLE: svc\n\n* Introduction\n\nFIXME staged\n"))
+      (funcall git "add" ".")
+      (dolist (revision '(nil ""))
+        (with-current-buffer (blueprint-component-diff "svc" revision)
+          (should (string-match-p "FIXME: \\+1/-0" (buffer-string))))))))
+
 (provide 'blueprint-test-diff)
 ;;; blueprint-test-diff.el ends here

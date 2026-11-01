@@ -57,28 +57,33 @@ Returns a list of (HASH DATE SUBJECT), most recent first."
   "Return the accepted ADRs of the project as (NUMBER TITLE DATE) lists.
 The ADRs are the level-1 headings `* ADR NNNN: Title' of
 .blueprint/adr.org with :STATUS: accepted in their PROPERTIES drawer;
-DATE is the :DATE: property.  nil without adr.org or without accepted
-ADRs."
+DATE is the :DATE: property.  Headings the export leaves out
+\(:noexport: or COMMENT) are skipped: the example \"ADR 0000\" of the
+adr.org template is one of them and is not a decision of the project.
+nil without adr.org or without accepted ADRs."
   (let ((file (blueprint--data-path "adr.org"))
         (adrs '()))
     (when (file-exists-p file)
       (with-temp-buffer
         (blueprint--insert-org-file file)
-        (org-element-map (org-element-parse-buffer 'headline) 'headline
-          (lambda (hl)
-            (when (and (= (org-element-property :level hl) 1)
-                       (string= (downcase
-                                 (or (org-element-property :STATUS hl) ""))
-                                "accepted"))
-              (let ((raw (org-element-property :raw-value hl))
-                    (date (org-element-property :DATE hl)))
-                (when (and raw
-                           (string-match
-                            "\\`ADR \\([0-9]\\{4\\}\\):[ \t]*\\(.*\\)\\'" raw))
-                  (push (list (match-string 1 raw)
-                              (match-string 2 raw)
-                              date)
-                        adrs)))))))
+        (let* ((tree (org-element-parse-buffer 'headline))
+               (exclude (blueprint--export-exclude-tags tree)))
+          (org-element-map tree 'headline
+            (lambda (hl)
+              (when (and (= (org-element-property :level hl) 1)
+                         (not (blueprint--excluded-headline-p hl exclude))
+                         (string= (downcase
+                                   (or (org-element-property :STATUS hl) ""))
+                                  "accepted"))
+                (let ((raw (org-element-property :raw-value hl))
+                      (date (org-element-property :DATE hl)))
+                  (when (and raw
+                             (string-match
+                              "\\`ADR \\([0-9]\\{4\\}\\):[ \t]*\\(.*\\)\\'" raw))
+                    (push (list (match-string 1 raw)
+                                (match-string 2 raw)
+                                date)
+                          adrs))))))))
       (nreverse adrs))))
 
 (defun blueprint--changelog-assembly (log-entries adrs project)

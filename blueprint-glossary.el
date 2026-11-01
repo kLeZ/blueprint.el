@@ -102,7 +102,10 @@ readable by `blueprint-glossary-lookup'."
                         ;; Contents of the section: insert before the
                         ;; next level-1 heading, or at the end of the
                         ;; file when this is the last one.
-                        (goto-char (org-element-property :contents-begin hl))
+                        ;; An empty section has no contents: start
+                        ;; from its end, which is the next heading.
+                        (goto-char (or (org-element-property :contents-begin hl)
+                                       (org-element-property :end hl)))
                         (throw 'found
                                (save-excursion
                                  (when (re-search-forward "^\\* " nil t)

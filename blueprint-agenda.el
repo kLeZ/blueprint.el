@@ -48,7 +48,9 @@ whatever this value."
   "Return the stable ID of an agenda entry.
 FILE, TEXT and OCCURRENCE (the nth same-text marker in FILE) hash to
 the same ID however the lines move, so a refresh preserves the
-DEADLINE and the state of each entry."
+DEADLINE and the state of each entry.  FILE is the path relative to
+the project root: an absolute path would change every ID when the
+project is moved or cloned elsewhere."
   (substring (md5 (format "%s|%s|%d" file text occurrence)) 0 10))
 
 (defun blueprint--agenda-marker-regexp (type)
@@ -90,7 +92,9 @@ construction."
                           :text text
                           :file file
                           :line (line-number-at-pos)
-                          :id (blueprint--agenda-id file text occurrence))
+                          :id (blueprint--agenda-id
+                               (file-relative-name file root)
+                               text occurrence))
                     entries))))))
     (nreverse entries)))
 
@@ -131,7 +135,9 @@ Returns the file path."
   (let* ((file (blueprint--agenda-file))
          (existing (or (blueprint--agenda-read-existing file)
                        (make-hash-table :test 'equal)))
-         (root (blueprint--root)))
+         ;; Links are resolved against the directory of the agenda
+         ;; file (the data directory), not against the project root.
+         (link-dir (file-name-directory file)))
     (make-directory (file-name-directory file) t)
     (with-temp-file file
       (insert "#+TITLE: Blueprint — punti aperti del documento\n\n"
@@ -157,7 +163,8 @@ Returns the file path."
                 (insert ":PROPERTIES:\n"
                         (format ":ID: %s\n" (plist-get e :id))
                         (format ":ORIGIN: [[file:%s][%s:%d]]\n"
-                                (file-relative-name (plist-get e :file) root)
+                                (file-relative-name (plist-get e :file)
+                                                    link-dir)
                                 (file-name-nondirectory (plist-get e :file))
                                 (plist-get e :line))
                         ":BLUEPRINT_MARKER: " type "\n"
@@ -177,9 +184,16 @@ added to `org-agenda-files'.  Returns the file path."
     (when blueprint-agenda-add-to-org-agenda
       (require 'org-agenda nil t)
       (let ((abs (expand-file-name file)))
-        (unless (member abs org-agenda-files)
+        (cond
+         ;; A string names a file that lists the agenda files: it is
+         ;; the user's to edit, appending to it as a list would turn
+         ;; the name into a list of characters.
+         ((stringp org-agenda-files)
+          (message "org-agenda-files is the file %s: add %s to it by hand"
+                   org-agenda-files abs))
+         ((not (member abs org-agenda-files))
           (customize-set-variable 'org-agenda-files
-                                  (append org-agenda-files (list abs))))))
+                                  (append org-agenda-files (list abs)))))))
     (message "Blueprint agenda written to %s" file)
     file))
 

@@ -10,6 +10,9 @@ jobs:
   byte-compile:
     runs-on: ubuntu-latest
     strategy:
+      # As in test.yml: a failure on one version must not cancel the
+      # others and hide their results.
+      fail-fast: false
       matrix:
         emacs-version: ['29.1', '29.4', 'snapshot']
     steps:

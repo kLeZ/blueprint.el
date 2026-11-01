@@ -353,6 +353,24 @@ components are checked for the deprecated dependency."
         (should (cl-some (lambda (w) (string-match-p "active component has 1 FIXME" w))
                          warnings))))))
 
+(ert-deftest blueprint-test-lint/active-fixme-counts-included-documents ()
+  "The FIXMEs of the life-cycle check are those of the component's
+documents in master.org: functional.org counts, a document master.org
+does not include does not."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "svc"
+                 (concat "#+TITLE: svc\n\n"
+                         "* Introduction\n\nFIXME not in the document.\n"))))
+      (blueprint-test--write-file ".blueprint/components/svc/functional.org"
+                                  "#+TITLE: f\n\n* Area\n\nFIXME one.\nFIXME two.\n")
+      (blueprint-test--write-file
+       "master.org"
+       "#+TITLE: M\n\n#+INCLUDE: \".blueprint/components/svc/functional.org\"\n")
+      (let ((warnings (blueprint--lint-component "svc" file t)))
+        (should (cl-some (lambda (w) (string-match-p "active component has 2 FIXME" w))
+                         warnings))))))
+
 (ert-deftest blueprint-test-lint/lifecycle-checks-can-be-disabled ()
   "With `blueprint-lint-lifecycle-checks' nil there are no life-cycle
 warnings, for pipelines that want the pre-9.2 lint only."

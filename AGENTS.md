@@ -541,6 +541,30 @@ Templates follow the methodology from
   lo scheletro che i comandi `blueprint-functional-add-*` /
   `blueprint-runtime-add-*` inseriscono per le sezioni che creano.
 
+- **Revisione della 0.3.0 (CI rossa e difetti dei moduli nuovi)**: il
+  byte-compile falliva perché `blueprint-sync.el` leggeva
+  `blueprint-history-on-sync` con un `require` soft (variabile void se
+  `blueprint-history` non era caricato) e `blueprint-roam.el` chiamava
+  `blueprint--dependency-clusters` senza `require 'blueprint-graph`;
+  ora sono `require` normali (nessun ciclo: history -> health -> core).
+  Il test `blueprint-test-preview/update-refreshes-preview-buffer`
+  richiede `dot`: il workflow installa Graphviz e il test ha
+  `skip-unless`. Altri difetti corretti, con test di regressione:
+  `;;;###autoload` spostato per errore sul `defconst` dei template
+  (`blueprint-add-component` non più autoload); `:ORIGIN:` dell'agenda
+  relativo alla root ma scritto in un file della data directory (link
+  rotto) e ID basati sul path assoluto; il changelog elencava l'ADR
+  d'esempio `:noexport:` del template; `json-serialize` scrive `nil`
+  come `{}` (usare `:null`/`:false`); in org-roam `links.source` è un
+  ID di nodo, non un file; il timer del preview risolveva la root dal
+  buffer corrente allo scatto; `blueprint-component-diff` senza
+  revisione ignorava le modifiche in stage e passava `""` a git;
+  `blueprint-roam-clusters` falliva alla seconda chiamata (buffer
+  read-only); il lint del ciclo di vita contava i FIXME del solo
+  arc42.org; lo stato delle domande veniva dal prefisso della riga e
+  non dal marker; `blueprint-glossary-add` su sezione vuota faceva
+  `goto-char nil`.
+
 ## Health scoring
 
 Score starts at 100, deducting per unresolved marker across all component files:

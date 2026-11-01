@@ -11,6 +11,7 @@
 (require 'ert)
 (require 'blueprint-test-helpers)
 (require 'blueprint-changelog)
+(require 'blueprint-adr)
 
 (ert-deftest blueprint-test-changelog/parse-log ()
   "Log lines of the form hash|date|subject parse into entries."
@@ -49,16 +50,27 @@
     (should (string-match-p "Nessuna ADR accettata" content))))
 
 (ert-deftest blueprint-test-changelog/adr-accepted-only ()
-  "Only the ADRs with :STATUS: accepted are listed, in file order."
+  "Only the ADRs with :STATUS: accepted are listed, in file order; the
+ones the export leaves out (:noexport:, COMMENT) are not."
   (blueprint-test--with-project
     (blueprint-test--write-file
      ".blueprint/adr.org"
-     (concat "* ADR 0001: Primo :noexport:\n:PROPERTIES:\n:STATUS: accepted\n:DATE: 2026-10-01\n:END:\n\n"
+     (concat "* ADR 0001: Primo\n:PROPERTIES:\n:STATUS: accepted\n:DATE: 2026-10-01\n:END:\n\n"
              "* ADR 0002: Secondo\n:PROPERTIES:\n:STATUS: proposed\n:DATE: 2026-10-02\n:END:\n\n"
-             "* ADR 0003: Terzo\n:PROPERTIES:\n:STATUS: accepted\n:DATE: 2026-10-03\n:END:\n\n"))
+             "* ADR 0003: Terzo\n:PROPERTIES:\n:STATUS: accepted\n:DATE: 2026-10-03\n:END:\n\n"
+             "* ADR 0004: Esempio :noexport:\n:PROPERTIES:\n:STATUS: accepted\n:DATE: 2026-10-04\n:END:\n\n"
+             "* COMMENT ADR 0005: Bozza\n:PROPERTIES:\n:STATUS: accepted\n:DATE: 2026-10-05\n:END:\n\n"))
     (should (equal (blueprint--changelog-adr-accepted)
                    '(("0001" "Primo" "2026-10-01")
                      ("0003" "Terzo" "2026-10-03"))))))
+
+(ert-deftest blueprint-test-changelog/template-example-adr-not-listed ()
+  "The accepted example ADR of the adr.org template lives in a
+:noexport: heading: a fresh project has no accepted ADR."
+  (blueprint-test--with-project
+    (blueprint--adr-ensure-file)
+    (should (file-exists-p (blueprint--data-path "adr.org")))
+    (should (null (blueprint--changelog-adr-accepted)))))
 
 (ert-deftest blueprint-test-changelog/generate-writes-file ()
   "The command writes CHANGELOG.org with the git history and the ADRs."

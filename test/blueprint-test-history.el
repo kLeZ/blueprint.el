@@ -108,6 +108,21 @@ Row layout: (DATE SCORE PENALTY WORDS QUESTION TBD FIXME DA-VAL DA-REV)."
         (should (= (nth 4 row) 1))          ; QUESTION
         (should (= (nth 6 row) 1))))))      ; FIXME
 
+(ert-deftest blueprint-test-history/rows-skip-hand-edited-lines ()
+  "A row whose cells are not numbers is left out, not read as zeros."
+  (let ((file (make-temp-file "blueprint-history-" nil ".org")))
+    (unwind-protect
+        (progn
+          (with-temp-file file
+            (insert "| Data | Score | Penalty | Words | QUESTION | TBD | FIXME | DA VAL | DA REV |\n"
+                    "|------+-------+---------+-------+----------+-----+-------+--------+--------|\n"
+                    "| 2026-11-01 10:00 | 90 | 3 | 120 | 1 | 0 | 0 | 0 | 0 |\n"
+                    "| 2026-11-01 11:00 | n/a | 3 | 120 | 1 | 0 | 0 | 0 | 0 |\n"))
+          (let ((rows (blueprint--history-rows file)))
+            (should (= (length rows) 1))
+            (should (= (nth 1 (car rows)) 90))))
+      (delete-file file))))
+
 (ert-deftest blueprint-test-history/chart-svg-contains-points ()
   "The chart is a self-contained SVG with one point per row."
   (blueprint-test--with-project

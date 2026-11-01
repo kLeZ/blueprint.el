@@ -192,10 +192,14 @@ markers."
                (blueprint--ci-report--table
                 `(id . ,id)
                 `(scope . ,(blueprint--component-scope-status id))
-                `(owner . ,(blueprint--org-keyword file "BLUEPRINT_OWNER"))
-                `(tech . ,(blueprint--org-keyword file "BLUEPRINT_TECH"))
+                ;; `json-serialize' writes nil as {}: absent keywords
+                ;; are JSON null and booleans JSON false explicitly.
+                `(owner . ,(or (blueprint--org-keyword file "BLUEPRINT_OWNER")
+                               :null))
+                `(tech . ,(or (blueprint--org-keyword file "BLUEPRINT_TECH")
+                              :null))
                 `(depends . ,(if deps (vconcat (split-string deps)) []))
-                `(included . ,(and (plist-get s :documents) t))
+                `(included . ,(if (plist-get s :documents) t :false))
                 `(documents
                   . ,(vconcat (mapcar (lambda (doc)
                                         (file-relative-name (car doc) root))
@@ -207,8 +211,8 @@ markers."
                               (plist-get s :counts))))))
            (sort (hash-table-keys comps) #'string<)))
          (dependencies
-          (when (fboundp 'blueprint--graph-deps)
-            (require 'blueprint-graph nil t)
+          (when (progn (require 'blueprint-graph nil t)
+                       (fboundp 'blueprint--graph-deps))
             (apply #'append
                    (mapcar
                     (lambda (entry)

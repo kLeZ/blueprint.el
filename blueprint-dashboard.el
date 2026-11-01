@@ -336,6 +336,9 @@ is shared by `blueprint-dashboard-svg' and the live preview
   (unless (executable-find "dot")
     (user-error "Graphviz (dot) not found; install it to generate SVG dashboards"))
   (let* ((root (or root (blueprint--root)))
+         ;; The component and health lookups below resolve the project
+         ;; from `default-directory': bind it, so ROOT is honoured.
+         (default-directory (file-name-as-directory root))
          (dot-file (expand-file-name "dashboard.dot" root))
          (svg-file (expand-file-name "dashboard.svg" root))
          (comps (blueprint--components))

@@ -13,6 +13,7 @@
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'blueprint-graph)
 
 ;; org-roam is a soft dependency: loaded with `require ... nil t' in
 ;; the commands below.  Its database functions are declared here so the
@@ -160,6 +161,31 @@ buffer sorted by score, best first."
           (tabulated-list-print)
           (switch-to-buffer (current-buffer)))))))
 
+(defun blueprint--roam-linked-files (file)
+  "Return the files the org-roam nodes of FILE link to.
+In the org-roam database the source of a link is a node ID, not a
+file, and the destination of an id: link is a node ID too: the links
+are joined with the nodes of FILE and every id: destination is mapped
+back to the file of its node.  file: links keep their path, expanded
+against the directory of FILE.  Other link types (http, ...) are not
+files and are left out."
+  (let ((files '()))
+    (dolist (row (org-roam-db-query
+                  [:select [links:dest links:type] :from links
+                   :inner-join nodes :on (= links:source nodes:id)
+                   :where (= nodes:file $s1)]
+                  file))
+      (pcase-let ((`(,dest ,type) row))
+        (cond
+         ((equal type "id")
+          (dolist (target (org-roam-db-query
+                           [:select [file] :from nodes :where (= id $s1)]
+                           dest))
+            (push (car target) files)))
+         ((equal type "file")
+          (push (expand-file-name dest (file-name-directory file)) files)))))
+    (delete-dups (nreverse files))))
+
 (defun blueprint-roam-clusters ()
   "Show the clusters of components joined by dependencies or links.
 The clusters are the connected components of the graph that joins two
@@ -169,32 +195,30 @@ installed; without it the clusters follow the dependencies alone)."
   (interactive)
   (let* ((deps (blueprint--graph-deps))
          (links '()))
+    ;; `blueprint--roam-available-p' loads org-roam when it is there.
     (when (blueprint--roam-available-p)
-      (require 'org-roam)
-      (condition-case nil
+      (condition-case err
           (let ((comps (blueprint--components)))
             (maphash (lambda (id dir)
-                       (let* ((file (expand-file-name "arc42.org" dir))
-                              (dests (mapcar #'car
-                                             (org-roam-db-query
-                                              [:select [dest] :from links
-                                               :where (= source $s1)]
-                                              file))))
-                         (dolist (dest dests)
+                       (let ((file (expand-file-name "arc42.org" dir)))
+                         (dolist (dest (blueprint--roam-linked-files file))
                            (let ((other (blueprint--component-of-file dest comps)))
                              (when (and other (not (string= other id)))
                                (push (cons id (list other)) links))))))
                      comps))
-        (error nil)))
+        (error (message "Blueprint roam: links not available (%s); clusters from the dependencies only"
+                        (error-message-string err)))))
     (let* ((merged (append deps links))
            (clusters (blueprint--dependency-clusters merged))
            (comps (blueprint--components)))
       (with-current-buffer (get-buffer-create "*Blueprint Clusters*")
-        (erase-buffer)
-        (insert (format "Cluster di dipendenze e link (%d componenti)\n\n"
-                        (hash-table-count comps)))
-        (dolist (c clusters)
-          (insert (format "- %s\n" (mapconcat #'identity c ", "))))
+        ;; The buffer is read-only from the previous run (special-mode).
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Cluster di dipendenze e link (%d componenti)\n\n"
+                          (hash-table-count comps)))
+          (dolist (c clusters)
+            (insert (format "- %s\n" (mapconcat #'identity c ", ")))))
         (goto-char (point-min))
         (special-mode)
         (pop-to-buffer (current-buffer)))

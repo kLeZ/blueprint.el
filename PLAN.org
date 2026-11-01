@@ -542,7 +542,7 @@ che vale la pena avere a colpo d'occhio quanto l'health score.
 Proposta minimale: per convenzione, se esistono =CRONOPROGRAMMA.org= e/o
 =TODO.org= nella root del progetto, =blueprint-dashboard-refresh= aggiunge
 alla header-line la prossima milestone aperta (prima riga con keyword
-TODO=/non completata sotto un heading o tabella riconosciuta come
+=TODO=/non completata sotto un heading o tabella riconosciuta come
 milestone) e il conteggio degli item =TODO= aperti nel progetto. Nessun
 nuovo formato da imporre: si riusa Org standard (keyword TODO/DONE,
 tabelle) già presente nei progetti pilota. Non implementato: da valutare

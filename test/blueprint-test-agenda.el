@@ -59,7 +59,37 @@ entry, with component, stable ID and origin link."
         (should (string-match-p "^\\*\\* TODO FIXME: beta — .*FIXME here" content))
         (should (string-match-p ":BLUEPRINT_MARKER: QUESTION" content))
         (should (string-match-p ":ID: [0-9a-f]\\{10\\}" content))
-        (should (string-match-p ":ORIGIN: .*arc42.org" content))))))
+        (should (string-match-p ":ORIGIN: .*arc42.org" content))
+        ;; The link resolves from the agenda file, which lives in the
+        ;; data directory, not at the project root.
+        (string-match ":ORIGIN: \\[\\[file:\\([^]]+\\)\\]" content)
+        (should (file-exists-p
+                 (expand-file-name (match-string 1 content)
+                                   (file-name-directory file))))))))
+
+(ert-deftest blueprint-test-agenda/ids-survive-moving-the-project ()
+  "The IDs hash the path relative to the root: the same project in
+another directory gets the same IDs, so its deadlines survive a move."
+  (let (ids)
+    (dotimes (_ 2)
+      (blueprint-test--with-project
+        (blueprint-test-agenda--write-project)
+        (push (mapcar (lambda (e) (plist-get e :id))
+                      (blueprint--agenda-entries))
+              ids)))
+    (should (car ids))
+    (should (equal (car ids) (cadr ids)))))
+
+(ert-deftest blueprint-test-agenda/org-agenda-files-as-file-untouched ()
+  "When `org-agenda-files' names a file (a string), the refresh does
+not mangle it into a list."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (require 'org-agenda)
+    (let ((org-agenda-files "~/.agenda_files")
+          (blueprint-agenda-add-to-org-agenda t))
+      (blueprint-agenda-refresh)
+      (should (equal org-agenda-files "~/.agenda_files")))))
 
 (ert-deftest blueprint-test-agenda/ids-are-stable-across-refreshes ()
   "The ID of an entry does not change when the file is regenerated."

@@ -146,5 +146,23 @@ Returns nothing; call inside `blueprint-test--with-project'."
                          (file-name-nondirectory
                           (directory-file-name (blueprint--root)))))))))
 
+(ert-deftest blueprint-test-ci/report-json-null-and-false ()
+  "Absent owner/tech are JSON null and a component outside master.org
+has \"included\": false: `json-serialize' would write nil as {}."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "alpha"
+     (blueprint-test-ci--full-arc42
+      "alpha" "Some real content so the empty-content check stays quiet."
+      ""))
+    (blueprint-test--write-file "master.org" "#+TITLE: M\n\nNothing included.\n")
+    (let* ((json (json-serialize (blueprint--ci-report-object)))
+           (data (json-parse-string json :null-object 'null
+                                    :false-object 'false))
+           (alpha (aref (gethash "components" data) 0)))
+      (should (eq (gethash "owner" alpha) 'null))
+      (should (eq (gethash "tech" alpha) 'null))
+      (should (eq (gethash "included" alpha) 'false)))))
+
 (provide 'blueprint-test-ci)
 ;;; blueprint-test-ci.el ends here

@@ -1024,7 +1024,6 @@ Returns the first matching path, or nil if not found."
       (insert-file-contents path)
       (buffer-string))))
 
-;;;###autoload
 (defconst blueprint--component-templates
   '("component.org" "arc42-enterprise.org")
   "Templates `blueprint-add-component' can build arc42.org from.
@@ -1032,6 +1031,7 @@ Returns the first matching path, or nil if not found."
 \"arc42-enterprise.org\" adds the enterprise sections (contesto
 enterprise, stakeholder, compliance) for engagement-grade components.")
 
+;;;###autoload
 (defun blueprint-add-component (name &optional template-name)
   "Add a new component NAME to the current Blueprint project.
 Creates the component directory under the data directory's

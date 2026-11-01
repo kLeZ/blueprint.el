@@ -95,24 +95,38 @@ A plist with:
            (plist-get summary :resolved))))
 
 ;;;###autoload
+(defun blueprint--diff-has-head-p ()
+  "Return non-nil when the git repository of `default-directory' has a
+commit (HEAD resolves)."
+  (eq 0 (ignore-errors
+          (call-process "git" nil nil nil
+                        "rev-parse" "--verify" "--quiet" "HEAD"))))
+
 (defun blueprint-component-diff (&optional component revision)
   "Show the git diff of COMPONENT's directory with a semantic summary.
-REVISION, when non-nil, diffs against it (`git diff REVISION -- dir');
-the default is the working tree.  The buffer holds the summary and the
-diff in `diff-mode'.  Signals `user-error' outside a git repository."
+REVISION, when non-nil and not empty, diffs against it (`git diff
+REVISION -- dir').  The default compares the working tree with the
+last commit (HEAD), staged changes included: a plain `git diff' would
+hide what is already in the index.  In a repository without commits it
+falls back to the working tree against the index.  The buffer holds
+the summary and the diff in `diff-mode'.  Signals `user-error' outside
+a git repository."
   (interactive
    (list (completing-read "Component: "
                           (hash-table-keys (blueprint--components)) nil t)
          (when current-prefix-arg
-           (read-string "Diff against (revision, empty = working tree): "))))
+           (read-string "Diff against (revision, empty = HEAD): "))))
   (let* ((comps (blueprint--components))
-         (dir (gethash component comps)))
+         (dir (gethash component comps))
+         (revision (and revision (not (string-empty-p revision)) revision)))
     (unless dir (user-error "Component %s not found" component))
     (let* ((root (blueprint--root))
            (default-directory root)
            (rel-dir (file-relative-name dir root))
+           (base (or revision
+                     (and (blueprint--diff-has-head-p) "HEAD")))
            (args (append '("diff" "--no-color" "--no-ext-diff")
-                         (when revision (list revision))
+                         (when base (list base))
                          (list "--" rel-dir)))
            (diff-text (with-temp-buffer
                         (let ((exit (condition-case err
