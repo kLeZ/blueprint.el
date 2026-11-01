@@ -74,6 +74,7 @@
 (require 'blueprint-runtime)
 (require 'blueprint-nfr)
 (require 'blueprint-delivery)
+(require 'blueprint-history)
 
 ;; Optional integrations (soft dependencies)
 (require 'blueprint-roam nil t)
@@ -109,6 +110,7 @@
     ("B" "dashboard" blueprint-dashboard)
     ("F" "focus mode" blueprint-focus)
     ("o" "out-of-scope view" blueprint-out-of-scope-view)
+    ("x" "metrics history" blueprint-metrics-history)
     ("." "daily workflow" blueprint-daily)]]
   [["Content"
     ("Q" "add question" blueprint-add-question)
@@ -177,6 +179,7 @@
     (define-key map (kbd "B") #'blueprint-dashboard)
     (define-key map (kbd "F") #'blueprint-focus)
     (define-key map (kbd "o") #'blueprint-out-of-scope-view)
+    (define-key map (kbd "x") #'blueprint-metrics-history)
     (define-key map (kbd ".") #'blueprint-daily)
     ;; Content
     (define-key map (kbd "Q") #'blueprint-add-question)

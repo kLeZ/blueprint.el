@@ -298,6 +298,14 @@ gets a page break between consecutive components (see
          blueprint-sync-infra-end-marker
          (blueprint--generate-includes-for "infrastructure.org" breaks)))
       (save-buffer))
+    ;; Metrics history: guarded and non-fatal, so a problem there never
+    ;; breaks the sync.
+    (when blueprint-history-on-sync
+      (require 'blueprint-history nil t)
+      (when (fboundp 'blueprint-history-record)
+        (condition-case err
+            (blueprint-history-record)
+          (error (message "Blueprint history: %s" (error-message-string err))))))
     (message "Master file synchronized")))
 
 (provide 'blueprint-sync)

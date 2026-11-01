@@ -263,6 +263,7 @@ logical groups:
 | *Dashboard*    | =B= | dashboard             |
 |                | =F= | focus mode            |
 |                | =o= | out-of-scope view     |
+|                | =x= | metrics history       |
 |                | =.= | daily workflow        |
 | *Content*      | =Q= | add question          |
 |                | =q= | list questions        |
