@@ -191,6 +191,12 @@ Il nome viene slugificato automaticamente (lowercase, trattini). Usare nomi
 che riflettano il linguaggio di dominio del cliente, non i nomi interni del codice
 (es. =fatturazione= anziche' =billing-service-v2=).
 
+Con un argomento prefisso (=C-u C-c b A=) il comando chiede anche il template
+arc42 da usare: =component.org= (standard) o =arc42-enterprise.org=, che
+aggiunge alle sezioni arc42 /Contesto enterprise/, /Stakeholder e punti di
+contatto/ e /Conformità e compliance/ per i componenti di rilievo degli
+engagement grandi. Senza prefisso il comportamento è quello standard.
+
 ** Dichiarare le dipendenze
 
 Aprire il file =arc42.org= del componente e compilare il keyword:
@@ -204,6 +210,13 @@ e per il rilevamento di dipendenze anomale (componenti isolati, cicli).
 
 Per i sistemi esterni al perimetro (black-box), documentarli nel diagramma C4
 con =System_Ext= invece di aggiungere un componente blueprint.
+
+Il ciclo di vita del componente è un asse separato dal perimetro:
+=#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (default =active=
+quando la keyword manca, quindi i componenti creati prima restano =active=).
+La dashboard lo mostra nella colonna =Life= e il lint avvisa quando un
+componente =active= dipende da uno =deprecated= o ha FIXME aperti
+(=blueprint-lint-lifecycle-checks=, default attivo: disattivabile).
 
 ** Rinominare un componente
 
@@ -220,7 +233,13 @@ degli altri componenti.
 M-x blueprint-delete-component  (oppure: C-c b X)
 #+end_src
 
-Sposta la directory in =.blueprint/_archive/= (non elimina definitivamente).
+Chiede conferma e cancella la directory del componente. Prima di
+confermare, rimuove da master.org le righe =#+INCLUDE= e le headline del
+componente dentro le sezioni sincronizzate (il prossimo =blueprint-sync=
+riporta la sezione al formato esatto), e chiede una conferma aggiuntiva
+quando altri componenti dichiarano ancora il nome in =#+BLUEPRINT_DEPENDS:=:
+quelle dipendenze restano in vita (giudizio umano) e il lint le segnala come
+pendenti finché non vengono rimosse a mano.
 
 ** Verificare lo stato del perimetro
 
@@ -557,8 +576,13 @@ Definition: Service Level Agreement - accordo contrattuale sui livelli di serviz
 Source: contratto-cliente-2024
 #+end_src
 
-Il termine viene inserito in =glossary.org= come heading di livello 1 con
-=:SOURCE:= nella drawer Properties.
+Il termine viene inserito in =glossary.org= come heading di livello 2 in
+fondo alla sezione scelta, nel formato del template stesso: riga
+=/Fonte: contratto-cliente-2024/= e definizione. La sezione si chiede
+(=Termini di dominio= di default, poi =Termini tecnici con uso specifico=
+e =Acronimi e abbreviazioni=). Le voci scritte dalle versioni vecchie
+(livello 1 con drawer =:PROPERTIES:= in coda al file) restano valide:
+=blueprint-glossary-lookup= le trova entrambe.
 
 ** Cercare un termine
 
@@ -921,6 +945,81 @@ Per ogni sezione approvata dal cliente, aggiornare la marcatura:
 
 La data di approvazione permette di tracciare la validita' nel tempo:
 se il sistema cambia dopo la data, la sezione torna =[DA VALIDARE]=.
+
+-----
+
+* Flusso 13 — Strumenti di progetto
+
+/Quando: gestione corrente del progetto — storico delle metriche, triage
+delle domande, cronologia, confronti fra versioni./
+
+** Metriche nel tempo
+
+Ogni =blueprint-sync= (=C-c b S=) registra una riga in
+=.blueprint/metrics-history.org= con score, punti di penalità, parole e
+conteggi dei marcatori del documento (=blueprint-history-on-sync=, default
+attivo: disattivabile). Una riga con gli stessi valori della precedente non
+viene aggiunta. Il file sta nella data directory e non è incluso in
+=master.org=: non entra in nessun conteggio.
+
+=M-x blueprint-metrics-history= (=C-c b x=) disegna l'andamento dello score
+in un SVG e lo mostra; senza registrazioni dice solo che non ce ne sono.
+
+** Milestone nella dashboard
+
+Se alla radice del progetto esiste =CRONOPROGRAMMA.org= o =TODO.org=
+(=blueprint-milestone-files=), la riga di stato della dashboard
+(=C-c b B=) aggiunge la prossima milestone aperta (primo heading con la
+keyword =TODO= in ordine di file, con la eventuale =:DEADLINE:= come data)
+e il numero di =TODO= aperti. Nessun formato nuovo: si riusano gli heading
+TODO/DONE di Org. Un file malformato non rompe la dashboard: il pannello
+degrada a nil.
+
+** Domande: tag, risposte e filtri
+
+=blueprint-add-question= (=C-c b Q=) chiede anche un tag opzionale, che
+finisce sulla riga come =[TAG: tag]=. Una domanda si chiude con
+=M-x blueprint-answer-question=: la riga diventa =- ANSWERED [data] testo
+[FONTE: fonte]= — smette di contare in health, dashboard e lint, ma resta
+nel file con la fonte della risposta, secondo la convenzione
+=[FONTE: X]= della metodologia. La lista domande (=C-c b q=) mostra Tag e
+State e filtra per tag (=t=) e per stato (=s=); le occorrenze aperte della
+lista coincidono con la colonna QUESTION della dashboard. Le righe scritte
+dalle versioni precedenti restano valide e aperte.
+
+** Triage in org-agenda
+
+=M-x blueprint-agenda= (=C-c b U=) rigenera =.blueprint/agenda.org= e apre
+l'agenda Org su quel file: ogni QUESTION e FIXME del documento diventa una
+voce TODO con link all'origine. Le scadenze (=DEADLINE=), le date
+(=SCHEDULED=) e lo stato (TODO/DONE) impostati a mano vengono preservati ai
+refresh successivi. Con =blueprint-agenda-add-to-org-agenda= il file entra
+anche in =org-agenda-files= dell'utente.
+
+** Cronologia del progetto
+
+=M-x blueprint-changelog-generate= (=C-c b J=) rigenera =CHANGELOG.org= dai
+messaggi dei commit git (più recenti prima, raggruppati per data; con =C-u=
+si può limitare a =SINCE..HEAD=) e dalle ADR con =:STATUS: accepted=. Il file
+è derivato: se esiste già, il comando chiede prima di sovrascrivere.
+
+** Confronto fra versioni di un componente
+
+=M-x blueprint-component-diff= mostra il =git diff= della directory del
+componente con in testa una sintesi semantica: file toccati, heading
+cambiati, marker aggiunti/rimossi, domande risolte. Con argomento prefisso
+si può confrontare contro una revisione (tag o commit). Nella lista
+componenti (=C-c b l=) il tasto =d= fa lo stesso per il componente al punto.
+Il comando è di sola lettura.
+
+** Anteprima del grafo
+
+=M-x blueprint-preview= apre il grafo delle dipendenze colorato per health
+in una finestra laterale e attiva =blueprint-preview-mode=: a ogni
+salvataggio di un file Org del progetto il grafo viene rigenerato (dopo
+=blueprint-preview-delay= secondi) e il buffer si aggiorna. Richiede
+Graphviz (=dot=); senza, lo dice una volta sola. La modalità è spenta di
+default e non apre finestre da sola.
 
 -----
 

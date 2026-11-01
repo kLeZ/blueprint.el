@@ -379,53 +379,159 @@ assenti.
 --------------
 
 * Fase 9 --- Nuove feature (idee)
-** 9.1 Changelog automatico
+** +9.1 Changelog automatico+ ✅
 Generare un file =CHANGELOG.org= a partire dai messaggi dei commit git e dagli
 ADR. Comando: =blueprint-changelog-generate=.
 
-** 9.2 Status tracking per componenti
+*Fatto (2026-11-01)*: nuovo =blueprint-changelog.el=. Il comando (tasto =J=,
+prefix =C-u= per il range =SINCE..HEAD=) rigenera integralmente
+=CHANGELOG.org=: cronologia dei commit (=%h|%ad|%s=, raggruppata per data,
+più recente prima) e sezione "Decisioni architetturali" con le ADR con
+=:STATUS: accepted= di =.blueprint/adr.org=. Il file è derivato: se esiste
+già, chiede conferma prima di sovrascrivere (le modifiche manuali andrebbero
+perse). Parsing e assemblaggio sono funzioni pure
+(=blueprint--changelog-parse-log=, =blueprint--changelog-assembly=, testate
+senza git); =git log= fallisce con =user-error= chiaro fuori da un
+repository. Test: =test/blueprint-test-changelog.el=, incluso un e2e con
+repository temporaneo reale.
+
+** +9.2 Status tracking per componenti+ ✅
 Aggiungere keyword =#+BLUEPRINT_STATUS: draft|active|deprecated|archived=
 interpretata dalla dashboard con icone colorate. Il linter potrebbe avvisare se
 un componente =active= ha FIXMEs o dipende da uno =deprecated=.
 
-** 9.3 Metriche trend nel tempo
+*Fatto (2026-11-01)*: *decisione dell'utente*: keyword separata
+=#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (default =active=
+quando assente o non riconosciuta), perché =#+BLUEPRINT_STATUS:= è già il
+perimetro (10.7) e i due assi non vanno mescolati. Dashboard: colonna =Life=
+dopo =Scope= (draft attenuato, deprecated rosso, archived giallo, via
+proprietà di testo). Lint: con =blueprint-lint-lifecycle-checks= (default
+t, *cambiamento di exit code accettato dall'utente*: un componente =active=
+con FIXME o che dipende da uno =deprecated= porta =blueprint-ci-lint= e
+=blueprint-ci-validate= da 0 a 1 sui progetti esistenti). Il template
+=component.org= dichiara la keyword per i componenti nuovi (i file esistenti
+restano tali). Test: =blueprint-test-lifecycle/*= in
+=test/blueprint-test-c4.el=, =blueprint-test-lint/lifecycle-*=,
+=blueprint-test-dashboard/entries-carry-lifecycle-column=.
+
+** +9.3 Metriche trend nel tempo+ ✅
 Registrare lo stato delle metriche (score, conteggi) in
 =.blueprint/metrics-history.org= ad ogni sync, in modo da mostrare un grafico
 dell'evoluzione del progetto.
 
-** 9.4 Esportazione JSON/YAML per CI
+*Fatto (2026-11-01)*: nuovo =blueprint-history.el=. =blueprint-sync= registra
+una riga nel file di storico (nella data directory, non incluso in
+master.org: nessun conteggio cambia) quando =blueprint-history-on-sync= è
+attivo (default t), saltando la riga se i valori non sono cambiati;
+=blueprint-history-record= è chiamata dentro =condition-case=, il sync non si
+rompe mai per lo storico. =blueprint-metrics-history= (tasto =x=) disegna lo
+score nel tempo in un SVG con namespace e sfondo bianco (pura
+=blueprint--history-chart-svg=), mostrato come =blueprint-health-svg=. Test:
+=test/blueprint-test-history.el=.
+
+** +9.4 Esportazione JSON/YAML per CI+ ✅
 Aggiungere =blueprint-ci-export-json= che produce un file
 =blueprint-report.json= con health score, componenti, dipendenze e warning ---
 utile per integrazione con tool di CI che non supportano Emacs.
 
-** 9.5 Template "enterprise" con multi-livello
+*Fatto (2026-11-01)*: in =blueprint-ci.el=, =blueprint-ci-export-json=
+(messaggio e exit 0/2 in batch) scrive =blueprint-report.json=
+(=blueprint-ci-report-file=). Il report è costruito da
+=blueprint--ci-report-object= come albero di hash table con chiavi stringa e
+vettori: =json-serialize= lo prende così com'è, mentre un alist con valori
+lista non è serializzabile senza ambiguità (=(a . ("x"))= si legge =("a" "x")=
+come lista piatta). Conteggi sul perimetro del documento, come la dashboard;
+chiavi dei marker derivate dalle regexp di =blueprint--health-weights=
+(=question=, =da-validare=, ...), così i nomi seguono i pesi. Test:
+=test/blueprint-test-ci.el=; smoke test in batch su progetto temporaneo.
+
+** +9.5 Template "enterprise" con multi-livello+ ✅
 Supporto per template =arc42-enterprise.org= con sezioni aggiuntive (enterprise
 context, stakeholder map, compliance) per engagement più grandi. L'assessment
 framework in =assessment-framework/= contiene già la base.
 
-** 9.6 Integrazione con org-agenda
+*Fatto (2026-11-01)*: nuovo =templates/arc42-enterprise.org= basato sul
+template =arc42.org= dello scaffolder: le sezioni arc42 standard (quelle che
+il lint si aspetta, quindi un componente enterprise è lintato come gli altri)
+più /Contesto enterprise/, /Stakeholder e punti di contatto/ e /Conformità e
+compliance/; stesse convenzioni (guida =:noexport:=, ancore, keyword
+Blueprint). =blueprint-add-component= accetta un argomento template:
+interattivamente con =C-u= chiede fra i template che si risolvono nei tre
+livelli; senza prefisso o argomento il comportamento è identico a prima.
+Test: =blueprint-test-add-component/enterprise-*= in
+=test/blueprint-test-core.el=.
+
+** +9.6 Integrazione con org-agenda+ ✅
 Convertire le QUESTION e FIXME aperte in task org-agenda con scadenza, in modo
 da poter fare triage dal buffer agenda standard di Emacs.
 
-** 9.7 Diff tra versioni di componente
+*Fatto (2026-11-01)*: nuovo =blueprint-agenda.el=. =blueprint-agenda-refresh=
+trasforma i marker di =blueprint-agenda-marker-types= (default QUESTION e
+FIXME) in voci TODO di =.blueprint/agenda.org=, con componente, link
+all'origine e ID stabile (hash di file+testo+occorrenza): DEADLINE,
+SCHEDULED e stato TODO/DONE impostati a mano sopravvivono al refresh.
+=blueprint-agenda= (tasto =U=) rigenera e apre =org-agenda-list= ristretta al
+file; =blueprint-agenda-add-to-org-agenda= (default nil) lo aggiunge anche a
+=org-agenda-files=. Le righe ANSWERED sono storia e non diventano voci. Il
+file vive nella data directory e non è incluso in master.org. Test:
+=test/blueprint-test-agenda.el=.
+
+** +9.7 Diff tra versioni di componente+ ✅
 Usare git per mostrare la diff delle modifiche ai file arc42.org con contesto
 semantico (quale heading è cambiato, quante domande sono state risolte).
 Comando: =blueprint-component-diff=.
 
-** 9.8 Ricerca semantica con org-roam-db
+*Fatto (2026-11-01)*: nuovo =blueprint-diff.el=, comando di sola lettura.
+Il buffer (=diff-mode=) apre con la sintesi semantica: file toccati, heading
+org cambiati con livello, delta dei marker (QUESTION/ANSWERED/TBD/FIXME
+aggiunti-rimossi) e domande risolte (righe ANSWERED aggiunte); sotto, la diff
+in formato unified. *Sempre* richiesta con =--no-ext-diff=: un =diff.external=
+nella gitconfig dell'utente (difftastic e simili) produrrebbe un formato che
+la sintesi non può leggere. Tasto =d= nella lista componenti
+(=blueprint-component-diff-at-point=; il binding vive in blueprint-diff,
+perché core non può richiederlo). Test: =test/blueprint-test-diff.el= con
+repository temporaneo reale.
+
+** +9.8 Ricerca semantica con org-roam-db+ ✅
 Se org-roam è disponibile, sfruttare il suo database SQLite per ricerche
 semantiche tra componenti (componenti simili, cluster di dipendenze, ecc.).
+
+*Fatto (2026-11-01)*: in =blueprint-roam.el=, =blueprint-roam-similar=
+ordina i componenti per similarità con uno dato: tag condivisi e link in
+uscita condivisi dal database pesano 2, token del titolo in comune 1
+(=blueprint--roam-similarity=); =blueprint-roam-clusters= mostra i cluster di
+componenti connessi da =#+BLUEPRINT_DEPENDS:= e link roam (senza org-roam,
+solo dipendenze). La logica pura è in =blueprint-graph.el=
+(=blueprint--dependency-clusters=: union-find che ignora le dipendenze
+sconnesse e ordina con un ordine totale, così il risultato non dipende
+dall'ordine di iterazione della hash). I comandi con database sono skip nei
+test quando org-roam non è installato (come in CI). Test:
+=test/blueprint-test-roam.el=.
 
 ** 9.9 Blueprint per monorepo
 Supporto per progetti con più sotto-sistemi: =.blueprint/systems/= con una
 directory per sistema, ciascuna con la propria struttura components/adr. Il
 dashboard mostrerebbe una vista aggregata multi-sistema.
 
-** 9.10 Live preview nella sidebar
+*Rinviata dall'utente (2026-11-01)*: resta idea aperta, da fare in una
+sessione dedicata — è la modifica più invasiva del lotto (tocca la
+risoluzione della root usata da tutti i moduli).
+
+** +9.10 Live preview nella sidebar+ ✅
 Minor mode che apre un buffer laterale con l'anteprima SVG del grafico delle
 dipendenze, aggiornata in tempo reale al salvataggio dei file.
 
-** 9.11 Milestone/cronoprogramma nella dashboard
+*Fatto (2026-11-01)*: nuovo =blueprint-preview.el=.
+=blueprint--dashboard-svg-generate= (refactor di =blueprint-dashboard-svg=,
+che per l'utente resta identico) genera l'SVG; =blueprint-preview-mode=
+(minor mode globale, spenta di default) rigenera a ogni salvataggio di un
+file Org del progetto con debounce di =blueprint-preview-delay= (1s) e
+aggiorna il buffer =*Blueprint Preview*= solo se esiste — mai pop di
+finestre da sola; =blueprint-preview= apre il preview in side window e
+abilita la modalità, con l'SVG via =create-image= tipo =svg= (librsvg). Senza
+dot: un solo messaggio per sessione. Test: =test/blueprint-test-preview.el=.
+
+** +9.11 Milestone/cronoprogramma nella dashboard+ ✅
 Trovato pilotando il pacchetto sul progetto pilota: la dashboard
 (=blueprint-dashboard.el=) ha solo metriche per componente (Questions/TBD/
 FIXME/Status); non esiste alcun concetto di scadenza o milestone a livello
@@ -436,13 +542,23 @@ che vale la pena avere a colpo d'occhio quanto l'health score.
 Proposta minimale: per convenzione, se esistono =CRONOPROGRAMMA.org= e/o
 =TODO.org= nella root del progetto, =blueprint-dashboard-refresh= aggiunge
 alla header-line la prossima milestone aperta (prima riga con keyword
-=TODO=/non completata sotto un heading o tabella riconosciuta come
+TODO=/non completata sotto un heading o tabella riconosciuta come
 milestone) e il conteggio degli item =TODO= aperti nel progetto. Nessun
 nuovo formato da imporre: si riusa Org standard (keyword TODO/DONE,
 tabelle) già presente nei progetti pilota. Non implementato: da valutare
 se vale la generalizzazione o resta specifico del progetto pilota.
 
-** 9.12 Evoluzione del meccanismo Open Questions (=blueprint-questions.el=)
+*Fatto (2026-11-01)*: =blueprint-milestone-files= (default
+=CRONOPROGRAMMA.org=, =TODO.org=): se uno esiste alla root, la summary
+line aggiunge "Milestone: <titolo> (<data>) | TODO aperti: N" — prossima
+milestone = primo heading TODO in ordine di file, con la =:DEADLINE:= come
+data; il conteggio somma gli heading TODO di tutti i file della lista.
+Lettura con org-element e difensiva: qualunque problema di parsing degrada
+a nil senza rompere la dashboard. Il formato a tabella del cronoprogramma
+non è gestito in questa passata. Test:
+=blueprint-test-dashboard/milestone-*=.
+
+** +9.12 Evoluzione del meccanismo Open Questions (=blueprint-questions.el=)+ ✅
 Trovato progettando una skill di tracking domande sul progetto
 pilota. =blueprint-add-question=/=blueprint-list-questions= gestiscono
 solo una lista piatta (=- QUESTION <testo>=) per componente: nessun
@@ -465,7 +581,18 @@ Proposta (non specificata in dettaglio, da validare se generalizzabile):
 - Valutare se ha senso un concetto di domanda "senza componente" (oggi
   =blueprint-add-question= richiede sempre un componente).
 
-** 9.13 =blueprint-delete-component= non ripulisce i riferimenti esterni
+*Fatto (2026-11-01)*: *decisione dell'utente*: metadati estesi
+retrocompatibili, le domande restano sempre di un componente. Formato:
+=- QUESTION testo [TAG: tag]= aperta; =- ANSWERED [YYYY-MM-DD] testo
+[TAG: tag] [FONTE: fonte]= chiusa — rispondere (nuovo
+=blueprint-answer-question=) riscrive il token, così la domanda esce da
+health, dashboard e lint ma la storia resta nel file; le righe vecchie
+restano valide e aperte. La lista mostra Tag e State e filtra per tag
+(=t=) e stato (=s=). Test: =blueprint-test-questions/answer-*=,
+=blueprint-test-questions/list-filters-*= e di compatibilità in
+=test/blueprint-test-content.el=.
+
+** +9.13 =blueprint-delete-component= non ripulisce i riferimenti esterni+ ✅
 Trovato rimodulando il perimetro del progetto pilota (un
 componente contrattuale è stato ridimensionato ad area
 funzionale di un altro componente e va rimosso come componente
@@ -487,6 +614,18 @@ dovrebbe, prima di cancellare la directory, cercare e rimuovere le righe
 le gestisce) e segnalare (non rimuovere automaticamente, serve giudizio
 umano) le occorrenze del nome componente in =BLUEPRINT_DEPENDS= altrove
 nel progetto.
+
+*Fatto (2026-11-01)*: =blueprint--master-remove-component=
+(=blueprint-sync.el=) rimuove, solo dentro le sezioni sync-marker, le
+righe =#+INCLUDE= del componente con l'headline generato e le righe di
+page-break che lo precedono; i marker di sync sono spostati in
+blueprint-core.el (stesso nome) perché la cancellazione parta da lì
+senza require circolare. Prima della cancellazione il comando chiede
+conferma aggiuntiva quando altri componenti dichiarano il nome in
+=BLUEPRINT_DEPENDS=: le dipendenze restano (giudizio umano) e il lint le
+segnala come pendenti. Test: =blueprint-test-delete-component/removes-synced-includes=,
+=.../page-break-removed-with-headline=, =.../dependents-confirmed-and-reported=,
+=.../legacy-master-without-headlines=.
 
 ** +9.14 Le sezioni sync-managed di =master.org= non separano i componenti con un titolo+ ✅
 Trovato rileggendo l'export finale del progetto pilota: le
@@ -798,9 +937,19 @@ Fatto così:
 Test: =test/blueprint-test-core.el= (include annidati risolti rispetto al file che include, file mancanti, cicli, include non esportati/commentati/in blocco/come blocco, parser del valore, fallback senza master, righe del documento, visita di una parte, cache =includes=), =test/blueprint-test-health.el= (solo il documento conta, somma delle righe uguale al documento, liste solo sul documento), =test/blueprint-test-delivery.el= (KB e =DOMANDE.org= esclusi, totale uguale alla colonna DA VAL; il test dei finding ora include i file in =master.org=), =test/blueprint-test-lint.el= (verifiche su file inclusi, file non inclusi ignorati, include mancante, codice d'uscita di =blueprint-ci-lint=), =test/blueprint-test-risks.el= (pattern nei documenti inclusi e non nelle guide =:noexport:=, documentazione immatura su più documenti, rischi delle parti), =test/blueprint-test-dashboard.el= (titoli visibili dopo refresh e focus, larghezze, righe delle parti, =NOT-INCLUDED=, ~RET~ su una parte, daily con le parti, grigio nel grafo), =test/blueprint-test-keys.el= (nuovo).
 
 Restano aperti:
-- =blueprint-list-questions= e la colonna QUESTION contano ancora in modo diverso (voci =- QUESTION= contro ogni =QUESTION= esportato), e la lista domande legge i tre documenti di ogni componente anche se non inclusi.
+- [RISOLTO 2026-11-01, vedi 9.12 e il residuo sotto] =blueprint-list-questions= e la colonna QUESTION contano ancora in modo diverso (voci =- QUESTION= contro ogni =QUESTION= esportato), e la lista domande legge i tre documenti di ogni componente anche se non inclusi.
 - Gli include parziali (=:lines=, =::ricerca=) contano per intero; un file incluso più volte conta una volta.
-- Le soglie dei colori restano una costante (50/80), non legata a =blueprint-delivery-score-threshold=.
+- [RISOLTO 2026-11-01] Le soglie dei colori restano una costante (50/80), non legata a =blueprint-delivery-score-threshold=.
+
+Aggiornamento 2026-11-01 sui due risolti: la lista domande conta ora
+esattamente le occorrenze QUESTION della dashboard (ogni marker nel
+testo esportato dei documenti inclusi, voci di elenco e prosa) e il suo
+perimetro è =blueprint--component-included-paths=, come l'health; il
+giallo/verde dei grafi scatta su =blueprint-delivery-score-threshold=
+(spostata in =blueprint-health.el=, stesso nome: i valori personalizzati
+salvati restano validi), il rosso resta a 50 come =blueprint-ci-validate=.
+Con le risposte (9.12) la lista mostra anche le ANSWERED, che non
+contano in nessun totale.
 
 ** 9.27 Didascalie numerate per capitolo nell'export ODT (FATTO)
 
@@ -843,7 +992,11 @@ larghezza piena con proporzioni corrette. Test in
 
 Resta aperto: i diagrammi molto larghi (C4 container, ER) a 17 cm hanno
 testo piccolo. Possibili strade, da decidere: pagine orizzontali per le
-figure larghe, o layout verticale nei sorgenti PlantUML.
+figure larghe, o layout verticale nei sorgenti PlantUML. *Chiuso lato
+documentazione (2026-11-01, vedi 9.16)*: la dimensione esplicita
+(=#+ATTR_ODT: :width=) è già rispettata dall'advice di questa voce ed è
+documentata in USAGE con le alternative (pagina orizzontale nel
+template aziendale, layout verticale nei sorgenti PlantUML).
 
 ** 9.23 Limiti della correzione delle didascalie (FATTO)
 
@@ -890,7 +1043,7 @@ blocco di esempio o di codice resta. Test ERT in
 lavoro dell'autore, non dovrebbero arrivare a un documento consegnato,
 e il lint li segnala già.
 
-** 9.16 Documentare le funzioni native di Org supportate da Blueprint (PROSSIMA)
+** +9.16 Documentare le funzioni native di Org supportate da Blueprint+ (FATTO 2026-11-01)
 Richiesta dal progetto pilota (2026-09-23), insieme alla
 migrazione delle fonti a note a piè di pagina native. Decisione
 dell'utente: per le esigenze di impaginazione e di apparato si
@@ -900,7 +1053,18 @@ però dichiarare ufficialmente cosa del "nativo" supporta e garantisce
 lungo tutta la sua catena (sync, =#+INCLUDE= con =:minlevel=, lint,
 health, export ODT/PDF/DOCX, controllo stili ODT).
 
-Da fare:
+*Fatto (2026-11-01)*: sezione "* Funzioni native di Org supportate" in
+USAGE.org (rimando dal README) con le quattro voci previste più la
+dimensione delle immagini (=#+ATTR_ODT: :width=, che chiude anche il
+residuo "diagrammi larghi" di 9.26 lato documentazione). Test di non
+regressione: =blueprint-test-export/footnotes-reach-content-xml=
+(export ODT reale con note in testo, in cella di tabella e in un file
+incluso: un =<text:note>= per ciascuna, numerazione continua 1-2-3
+attraverso gli include). Stili delle note: =Footnote= è già nel
+baseline =OrgOdtStyles.xml=, quindi =blueprint-check-odt-styles= lo
+segnala senza estendere =blueprint--odt-extra-required-styles=.
+
+Le voci previste (tutte implementate):
 
 - sezione in =USAGE.org= (e rimando dal README), "Funzioni native di
   Org supportate", con per ciascuna: sintassi, comportamento per
@@ -922,7 +1086,9 @@ Da fare:
   aziendale potrebbe non definire, così che =blueprint-check-odt-styles=
   li segnali;
 - valutare se =blueprint-lint= debba riconoscere le note come fonte di
-  un'affermazione (oggi non conta nulla del genere).
+  un'affermazione (oggi non conta nulla del genere). *Valutato
+  (2026-11-01), non implementato*: le note sono già testo esportato e
+  i marker della metodologia bastano a tracciare la fonte.
 
 --------------
 
@@ -1060,18 +1226,22 @@ instradare: andrebbe deciso se aggiungere un parametro "categoria" a
 possibilità di spostare a mano. Non implementato in questa sessione --- vedi
 Fase 10.8 sotto.
 
-** 10.8 Instradamento di =blueprint-glossary-add= nelle sezioni del template (PRIORITÀ BASSA)
+** +10.8 Instradamento di =blueprint-glossary-add= nelle sezioni del template+ ✅
 Stesso problema di formato che aveva =blueprint-reference-add= prima della
 10.6 (vedi nota sopra), non coperto da quella voce di piano perché limitata a
 =references.org=.
 
-- [ ] Decidere l'asse di classificazione (categoria esplicita vs. sempre
-  "Termini di dominio")
-- [ ] =blueprint-glossary-add= instrada come heading di livello 2 con riga
-  =/Fonte: .../= nella sezione corretta, non più livello 1 con drawer
-  =:PROPERTIES:= in coda al file
-- [ ] Aggiornare =blueprint-glossary-lookup= (cerca =^\* <term>=, da
-  adattare a =^\*\* <term>= una volta cambiato il livello dell'heading)
+*Fatto (2026-11-01)*: *decisione dell'utente*: la sezione si chiede
+(=completing-read= fra le sezioni reali di glossary.org, esclusa la guida
+=noexport:=, default la prima, "Termini di dominio"). =blueprint-glossary-add=
+inserisce un heading di livello 2 in fondo alla sezione scelta, nel formato
+del template stesso: riga =/Fonte: .../= più definizione, niente drawer
+=:PROPERTIES:= in coda al file. =blueprint-glossary-lookup= trova entrambi i
+formati (livello 2 nuovo e livello 1 legacy con drawer, che non mostra nel
+messaggio) e ignora gli esempi della guida =:noexport:=. Le voci legacy
+esistenti restano intatte, nessuna migrazione. Test:
+=blueprint-test-glossary/*= aggiornati e nuovi in
+=test/blueprint-test-content.el=.
 
 ** +10.7 Gestione perimetro (inclusi/esclusi) (PRIORITÀ BASSA)+ ✅
 Non esisteva un modo strutturato per marcare componenti come "fuori perimetro

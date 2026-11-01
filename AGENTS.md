@@ -26,6 +26,8 @@ emacs -Q --batch \
   -l blueprint-functional.el -l blueprint-runtime.el \
   -l blueprint-nfr.el -l blueprint-delivery.el -l blueprint-export.el \
   -l blueprint-dashboard.el -l blueprint-watch.el -l blueprint-capture.el \
+  -l blueprint-history.el -l blueprint-agenda.el -l blueprint-changelog.el \
+  -l blueprint-diff.el -l blueprint-preview.el \
   -l test/blueprint-test-helpers.el \
   -l test/blueprint-test-core.el -l test/blueprint-test-health.el \
   -l test/blueprint-test-lint.el -l test/blueprint-test-c4.el \
@@ -37,7 +39,10 @@ emacs -Q --batch \
   -l test/blueprint-test-dashboard.el -l test/blueprint-test-migrate.el \
   -l test/blueprint-test-watch.el -l test/blueprint-test-capture.el \
   -l test/blueprint-test-e2e.el -l test/blueprint-test-export.el \
-  -l test/blueprint-test-keys.el \
+  -l test/blueprint-test-keys.el -l test/blueprint-test-ci.el \
+  -l test/blueprint-test-history.el -l test/blueprint-test-agenda.el \
+  -l test/blueprint-test-changelog.el -l test/blueprint-test-diff.el \
+  -l test/blueprint-test-roam.el -l test/blueprint-test-preview.el \
   -f ert-run-tests-batch-and-exit
 
 # Single test by name pattern
@@ -178,14 +183,25 @@ no dedicated ERT suite and are not part of the test commands above:
 
 - `blueprint-daily.el` — one-key daily triage (dashboard -> focus -> component -> document)
 - `blueprint-search.el` — project-wide search via ripgrep, with a fallback
-- `blueprint-graph.el` — dependency graphs in PlantUML/Graphviz (dot)
 - `blueprint-wizard.el` — interactive onboarding/component-creation wizards
 - `blueprint-async.el` — background processing for long-running ops (export, tangle)
 
 Treat diffs touching these as untested until a suite is added.
 `blueprint-dashboard.el`, `blueprint-migrate.el`, `blueprint-watch.el`, and
 `blueprint-capture.el` (one regression test, not full coverage) are covered
-(see the Test structure table below). `blueprint-daily.el` and `blueprint-graph.el` have a few tests in `test/blueprint-test-dashboard.el` (daily candidates and document choice, graph node colors), loaded there through `require`; the rest of the two modules (file output, Graphviz/PlantUML rendering) is still untested.
+(see the Test structure table below). `blueprint-daily.el` has a few tests in
+`test/blueprint-test-dashboard.el` (daily candidates and document choice,
+loaded through `require`); `blueprint-graph.el` has node-color tests there and
+the pure cluster logic in `test/blueprint-test-roam.el` (the Graphviz/PlantUML
+file output is still untested). The modules added with the 2026-11 roadmap
+have their own suites: `blueprint-history.el`, `blueprint-agenda.el`,
+`blueprint-changelog.el` (git + ADRs), `blueprint-diff.el` (semantic component
+diff; always requests plain unified diffs with `--no-ext-diff`, because a
+`diff.external` in the user's git config would otherwise feed a format the
+summary cannot parse), `blueprint-preview.el` (live graph preview) and the
+JSON report in `blueprint-ci.el` (`blueprint-ci-export-json`, hash tables
+with string keys because an alist value that is a list is not serializable
+without ambiguity).
 
 ## Test structure
 
@@ -213,8 +229,15 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | `blueprint-test-watch.el`      | Minor mode hook install/remove, invalidazione cache |
 | `blueprint-test-capture.el`    | Target del template org-capture glossario (regression, non full coverage) |
 | `blueprint-test-e2e.el`        | Lifecycle completo di un progetto             |
-| `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless, check stili ODT, didascalie dei diagrammi |
+| `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless, check stili ODT, didascalie dei diagrammi, note a piè di pagina in ODT (9.16) |
 | `blueprint-test-keys.el`       | Transient e command map con gli stessi tasti, tasti e comandi citati in USAGE.org/README.org reali (richiede `blueprint.el`) |
+| `blueprint-test-ci.el`         | Report JSON per CI (`blueprint--ci-report-object`, scrittura del file) |
+| `blueprint-test-history.el`    | Registro metriche: record, deduplica, parsing righe, grafico SVG, integrazione col sync |
+| `blueprint-test-agenda.el`     | Agenda org: voci TODO dai marker, ID stabili, preservazione di DEADLINE/stato al refresh |
+| `blueprint-test-changelog.el`  | Changelog: parsing git log, sezione ADR accettate, assemblaggio, conferma su file esistente, repo temporaneo reale |
+| `blueprint-test-diff.el`       | Diff semantico del componente: sintesi pura, delta marker, e2e con repository git temporaneo |
+| `blueprint-test-roam.el`       | Logica pura roam (cluster, similarità); i comandi con database sono skip senza org-roam |
+| `blueprint-test-preview.el`    | Preview dal vivo: hook, debounce, aggiornamento buffer, warning unico senza Graphviz |
 
 ## Blueprint init: full project structure
 

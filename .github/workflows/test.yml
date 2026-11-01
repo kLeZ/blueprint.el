@@ -68,4 +68,11 @@ jobs:
             -l test/blueprint-test-e2e.el \
             -l test/blueprint-test-export.el \
             -l test/blueprint-test-keys.el \
+            -l test/blueprint-test-ci.el \
+            -l test/blueprint-test-history.el \
+            -l test/blueprint-test-agenda.el \
+            -l test/blueprint-test-changelog.el \
+            -l test/blueprint-test-diff.el \
+            -l test/blueprint-test-roam.el \
+            -l test/blueprint-test-preview.el \
             -f ert-run-tests-batch-and-exit

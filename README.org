@@ -552,7 +552,20 @@ emacs -Q --batch -l blueprint.el -f blueprint-ci-export
 # part of blueprint-ci-validate: only meaningful when master.org sets a
 # corporate #+ODT_STYLES_FILE:, and requires a real ODT export plus unzip
 emacs -Q --batch -l blueprint.el -f blueprint-ci-check-odt-styles
+
+# JSON report for pipelines that do not run Emacs (exit 0=pass, 2=error):
+# health, per-component markers/scores/scope, dependencies, lint warnings
+emacs -Q --batch -l blueprint.el -f blueprint-ci-export-json
 #+end_src
+
+*Upgrading an existing project* needs no migration: files stay valid as they
+are, new files (metrics history, agenda) are only written when the commands
+run, and templates apply only to new components. Two behavior changes are
+deliberate and documented: the linter now also checks =#+BLUEPRINT_LIFECYCLE:=
+(an =active= component with FIXMEs, or depending on a =deprecated= one, is a
+warning -- disable with =blueprint-lint-lifecycle-checks= = nil, keep in mind
+that CI exit codes can move from 0 to 1), and the question list counts exactly
+what the dashboard QUESTION column counts.
 
 ** AI-assisted snippets
 When Ollama is running locally, Blueprint can use it for:
@@ -670,8 +683,14 @@ blueprint.el/
 ├── blueprint-runtime.el     # Runtime flow documentation (UC + sequence diagrams)
 ├── blueprint-nfr.el         # NFR management (quality scenarios, constraints, risks)
 ├── blueprint-delivery.el    # Pre-delivery readiness check
+├── blueprint-history.el     # Metrics history (one row per sync) + SVG trend chart
+├── blueprint-agenda.el      # org-agenda triage of QUESTION/FIXME markers
+├── blueprint-changelog.el   # CHANGELOG.org from git log + accepted ADRs
+├── blueprint-diff.el        # Semantic component diff (git, with summary)
+├── blueprint-preview.el     # Live dependency-graph preview minor mode
 ├── templates/
 │   ├── component.org        # Arc42 component template
+│   ├── arc42-enterprise.org # Arc42 template + enterprise sections (stakeholders, compliance)
 │   ├── adr.org              # ADR template
 │   ├── master.org           # Six-part assessment master document
 │   ├── functional.org       # Functional specification template
