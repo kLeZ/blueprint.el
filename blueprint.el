@@ -75,6 +75,7 @@
 (require 'blueprint-nfr)
 (require 'blueprint-delivery)
 (require 'blueprint-history)
+(require 'blueprint-agenda)
 
 ;; Optional integrations (soft dependencies)
 (require 'blueprint-roam nil t)
@@ -105,7 +106,8 @@
     ("s" "suggest risks" blueprint-suggest-risks-all)
     ("d" "pre-delivery check" blueprint-pre-delivery-check)
     ("g" "list findings" blueprint-list-findings)
-    ("u" "list unvalidated" blueprint-list-unvalidated)]
+    ("u" "list unvalidated" blueprint-list-unvalidated)
+    ("U" "org-agenda questions" blueprint-agenda)]
    ["Dashboard"
     ("B" "dashboard" blueprint-dashboard)
     ("F" "focus mode" blueprint-focus)
@@ -175,6 +177,7 @@
     (define-key map (kbd "d") #'blueprint-pre-delivery-check)
     (define-key map (kbd "g") #'blueprint-list-findings)
     (define-key map (kbd "u") #'blueprint-list-unvalidated)
+    (define-key map (kbd "U") #'blueprint-agenda)
     ;; Dashboard
     (define-key map (kbd "B") #'blueprint-dashboard)
     (define-key map (kbd "F") #'blueprint-focus)

@@ -260,6 +260,7 @@ logical groups:
 |                | =d= | pre-delivery check    |
 |                | =g= | list findings         |
 |                | =u= | list unvalidated      |
+|                | =U= | org-agenda questions  |
 | *Dashboard*    | =B= | dashboard             |
 |                | =F= | focus mode            |
 |                | =o= | out-of-scope view     |
