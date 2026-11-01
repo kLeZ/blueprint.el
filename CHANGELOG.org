@@ -1,0 +1,92 @@
+;;; -*- coding: utf-8; -*-
+#+TITLE: CHANGELOG
+#+AUTHOR: kLeZ
+#+LANGUAGE: it
+
+Tutte le modifiche rilevanti di questo progetto sono documentate in questo
+file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
+
+* 0.3.0 — 2026-11-01
+
+Chiusura della roadmap di sviluppo: nove moduli nuovi,ifecycle dei
+componenti, report JSON per la CI e documentazione completa (README,
+USAGE, AGENTS). La suite ERT passa da 391 a 501 test; 101 sono
+regressioni sui bug fix documentati.
+
+** Nuovi moduli
+- *blueprint-history.el* — registro dello score nel tempo
+  (=blueprint-metrics-history=): ogni snapshot scrive una riga in
+  =.blueprint/history.tsv= e un grafico SVG =metrics-history.svg= con
+  soglie del punteggio.
+- *blueprint-agenda.el* — i punti aperti (QUESTION, [DA VALIDARE],
+  FIXME, TODO) del documento diventano TODO triage su org-agenda
+  (=blueprint-agenda-refresh=, file =.blueprint/agenda.org=); caching
+  basata su mtime di tutti i documenti inclusi.
+- *blueprint-changelog.el* — =CHANGELOG.org= generato da git log e
+  ADR accettate (=blueprint-changelog-generate=).
+- *blueprint-diff.el* — diff semantico del componente
+  (=blueprint-component-diff=): differenze di testo fra revisioni git
+  + conteggio marker e sezioni (a fronte/a dopo), con =--no-ext-diff=
+  forzato per l'affidabilità in batch.
+- *blueprint-preview.el* — anteprima dal vivo del grafo dipendenze
+  (image-mode ricaricata su ogni update, o ogni 0,5 s in =auto-mode=).
+- *blueprint-roam.el* (soft dep) — ricerca semantica fra componenti e
+  cluster via org-roam se installato.
+
+** Funzioni estese
+- *Ciclo di vita dei componenti*: keyword =#+BLUEPRINT_LIFECYCLE:
+  active|maintenance|deprecated|retired= (default =active=) mostrata
+  nel dashboard col carattere  "●" e una colonna dedicata; il lint
+  segnala i componenti =retired= ancora inclusi in master.org.
+- *Domande*: metadati estesi sulla riga QUESTION (priorità, owner,
+  [FONTE: X]), comando =blueprint-answer-question= per chiudere con
+  risposta inline, e filtri (--open / --all) nella lista domande,
+  ora allineata alla dashboard (residui 9.31).
+- *Dashboard*: summary line con prossima milestone (TODO con data più
+  vicina dai file .org di progetto) e conteggio TODO aperti; colori
+  della colonna score allineati alla soglia di consegna.
+- *Glossario*: =blueprint-glossary-add= instrada nelle sezioni del
+  template (Termini tecnici con uso specifico / Acronimi) invece di
+  un append generico (10.8).
+- *Cancellazione componenti*: =blueprint-delete-component= rimuove
+  gli include da master.org e segnala le dipendenze pendenti.
+- *Grafo dipendenze*: i cluster ignorano le dipendenze sconosciute
+  (componenti rimossi o digitati male).
+
+** Integrazione CI / tooling esterno
+- =blueprint-ci-export-json= produce =blueprint-report.json=
+  (health, markers, componenti, dipendenze, lint-warnings, hash
+  stabile per tool esterni); suite dedicata =blueprint-test-ci.el=.
+- Workflow di test aggiornato con i nuovi file ERT nella matrice
+  Emacs; matrice =fail-fast: false= per non cancellare i risultati
+  di altre versioni.
+- Template arc42 *enterprise* per engagement grandi (9.5).
+
+** Documentazione
+- README, USAGE e AGENTS.md aggiornati: albero dei moduli, flussi
+  (aggiunta con template enterprise, lifecycle, cancellazione con
+  pulizia di master.org, glossario a sezioni), nuovo Flusso 13
+  (metriche nel tempo, milestone, agenda, changelog, diff, preview),
+  note di compatibilità per progetti esistenti.
+- Funzioni native di Org supportate documentate (9.16).
+- Chiusura formale della roadmap in PLAN.org (9.1–9.8, 9.10–9.13,
+  9.16, 10.8 e residui di 9.26/9.31; monorepo 9.9 rinviata).
+
+** Fix / regressioni coperte
+- NFR: placeholder della tabella rischi rimosso (R-001 parte corretta).
+- Copie da installazioni read-only (Nix store in CI): tutti i
+  template provisionati sono scrivibili.
+- Sync master: riga vuota spuria a ogni sync eliminata.
+- Export: diagrammi PlantUML e didascalie preservati anche headless;
+  titoli duplicati strip-ati fra file inclusi.
+- Domande: riga vuota preservata prima dell'heading successivo.
+- Smoke test end-to-end (init → add component → sync → CI → export)
+  con =default-directory= bloccato a livello top per evitare drift
+  da buffer find-file durante i passi git.
+
+* 0.2.0 — versione precedente
+
+Vedi la storia dei commit su origin/main (fino a 3e39fd9e53) per
+i dettagli della release precedente: conteggi sul documento intero,
+tre documenti per componente, health score riponderato, numerazione
+continua delle didascalie ODT.
