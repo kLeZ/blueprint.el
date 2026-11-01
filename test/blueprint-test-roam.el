@@ -72,6 +72,7 @@ org-roam is missing, and lists every component."
     (blueprint-test--write-component
      "payments" (concat "#+TITLE: payments\n#+BLUEPRINT_DEPENDS: db\n\n"
                         "* Introduction\n"))
+    (blueprint-test--write-component "db" "#+TITLE: db\n")
     (blueprint-test--write-component "warehouse" "#+TITLE: warehouse\n")
     (if (blueprint--roam-available-p)
         (ert-skip "org-roam installed: dependencies-only path not exercised")

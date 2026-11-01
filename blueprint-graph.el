@@ -50,11 +50,11 @@ includes, with the weights of `blueprint-health-score'; see
 A list of lists of ids: two components belong to the same cluster when
 a chain of dependencies joins them, and a component with no
 dependencies is a cluster of its own.  Clusters are sorted largest
-first, each cluster's ids alphabetically.  Unknown dependencies are
-ignored: they dangle (the lint flags them) and do not join clusters."
+first, each cluster's ids alphabetically.  A dependency on an unknown
+component (not a key of DEPS-ALIST) is ignored: it dangles -- the lint
+flags it -- and joins nothing."
   (let ((parent (make-hash-table :test 'equal))
-        (ids (delete-dups (append (mapcar #'car deps-alist)
-                                  (apply #'append (mapcar #'cdr deps-alist))))))
+        (ids (delete-dups (mapcar #'car deps-alist))))
     (dolist (id ids) (puthash id id parent))
     (cl-labels ((find-root (x)
                   (while (not (equal (gethash x parent) x))
@@ -62,7 +62,7 @@ ignored: they dangle (the lint flags them) and do not join clusters."
                   x))
       (dolist (entry deps-alist)
         (dolist (dep (cdr entry))
-          (when (and (gethash dep parent) (gethash (car entry) parent))
+          (when (gethash dep parent)
             (let ((ra (find-root (car entry)))
                   (rb (find-root dep)))
               (unless (equal ra rb)
@@ -71,9 +71,15 @@ ignored: they dangle (the lint flags them) and do not join clusters."
         (dolist (id ids)
           (let ((root (find-root id)))
             (puthash root (cons id (gethash root groups)) groups)))
-        (mapcar (lambda (cluster) (sort cluster #'string<))
-                (sort (hash-table-values groups)
-                      (lambda (a b) (> (length a) (length b)))))))))
+        (let ((clusters (mapcar (lambda (cluster) (sort cluster #'string<))
+                                (hash-table-values groups))))
+          ;; Total order: largest first, then by the smallest id, so
+          ;; the result does not depend on the hash iteration order.
+          (sort clusters
+                (lambda (a b)
+                  (or (> (length a) (length b))
+                      (and (= (length a) (length b))
+                           (string< (car a) (car b)))))))))))
 
 (defun blueprint--graph-plantuml (deps root)
   "Generate a PlantUML dependency diagram from DEPS in ROOT."
