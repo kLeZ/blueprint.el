@@ -327,18 +327,15 @@ and the count of open TODO items."
   (blueprint-dashboard))
 
 ;;;###autoload
-(defun blueprint-dashboard-svg ()
-  "Generate an SVG overview of the project using Graphviz.
-Each component is a node colored by its health score over its
-documents in master.org (see `blueprint--component-health-color'):
-red below 50, yellow below 80, green otherwise, grey when master.org
-includes none of its documents.  Edges are the dependencies.  Writes
-dashboard.svg to the project root, shows it in the *Blueprint Graph*
-buffer and returns its path."
-  (interactive)
+(defun blueprint--dashboard-svg-generate (&optional root)
+  "Generate the health-colored dependency SVG of the project at ROOT.
+Writes dashboard.svg at the project root and returns its path.
+Signals `user-error' when Graphviz (dot) is missing.  The rendering
+is shared by `blueprint-dashboard-svg' and the live preview
+\(`blueprint-preview-mode')."
   (unless (executable-find "dot")
     (user-error "Graphviz (dot) not found; install it to generate SVG dashboards"))
-  (let* ((root (blueprint--root))
+  (let* ((root (or root (blueprint--root)))
          (dot-file (expand-file-name "dashboard.dot" root))
          (svg-file (expand-file-name "dashboard.svg" root))
          (comps (blueprint--components))
@@ -361,6 +358,18 @@ buffer and returns its path."
       (insert (mapconcat #'identity (nreverse lines) "\n")))
     (call-process "dot" nil nil nil "-Tsvg" "-o" svg-file dot-file)
     (delete-file dot-file)
+    svg-file))
+
+(defun blueprint-dashboard-svg ()
+  "Generate an SVG overview of the project using Graphviz.
+Each component is a node colored by its health score over its
+documents in master.org (see `blueprint--component-health-color'):
+red below 50, yellow below 80, green otherwise, grey when master.org
+includes none of its documents.  Edges are the dependencies.  Writes
+dashboard.svg to the project root, shows it in the *Blueprint Graph*
+buffer and returns its path."
+  (interactive)
+  (let ((svg-file (blueprint--dashboard-svg-generate)))
     (blueprint--show-svg-file svg-file "*Blueprint Graph*")
     svg-file))
 
