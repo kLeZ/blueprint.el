@@ -1,12 +1,14 @@
 #+TITLE: Session Context
-#+VERSION: 1.8
+#+VERSION: 1.9
 #+CREATED: 2026-09-26T13:30:00+02:00
-#+UPDATED: 2026-11-01T22:40:00+00:00
+#+UPDATED: 2026-11-01T22:45:00+00:00
 #+STATUS: paused
 
 * Current Task
 Review of the 0.3.0 push (3e39fd9..6453d92, 18 commits) and CI fix.
-Fixes committed on branch =ccr-76866253-yxr98p= (not on main, no PR).
+Fixes on branch =ccr-76866253-yxr98p=, PR #2 to main
+(https://github.com/kLeZ/blueprint.el/pull/2); waiting for CI (29.1, 29.4,
+snapshot) and review.
 
 * Completed
 - [X] CI red on 0.3.0: byte-compile (sync used =blueprint-history-on-sync=
@@ -36,6 +38,9 @@ Fixes committed on branch =ccr-76866253-yxr98p= (not on main, no PR).
   component; adr-list skips template example; enterprise template with full
   guide; JSON lifecycle; autoload cookies; AGENTS.md aligned to code
 - [X] Suite 522/522 (3 skips without dot), byte-compile, checkdoc, package-lint clean
+- [X] Third adversarial pass: preview render errors reported, agenda docstring,
+  PLAN 9.6; review converged (no further findings); suite 523/523
+- [X] PR #2 opened
 
 * Decisions Made
 | Decision | Rationale | ADR |
@@ -54,8 +59,9 @@ Fixes committed on branch =ccr-76866253-yxr98p= (not on main, no PR).
 | CHANGELOG.org, USAGE.org, PLAN.org, AGENTS.md | modified | docs |
 
 * Next Steps
-1. User: open a PR to main (CI runs only on main/PR) or merge the branch
-2. User: decide on a 0.3.1 bump (0.3.0 release already published)
+1. Watch PR #2 CI on 29.1/29.4/snapshot (not testable locally: Nix build denied)
+2. User: review and merge PR #2
+3. User: decide on a 0.3.1 bump (0.3.0 release already published)
 
 * Open Questions
 - 9.11 table-format milestones in CRONOPROGRAMMA.org: declared "not handled
