@@ -532,6 +532,30 @@ entry (see `blueprint--cached-metrics')."
   (when buffer-file-name
     (blueprint--invalidate-cache buffer-file-name)))
 
+;;; --- Master sync markers (shared with blueprint-sync) ---
+
+(defvar blueprint-sync-start-marker "# @@blueprint-sync-start@@"
+  "Marker that begins the auto-generated arc42 include section.")
+
+(defvar blueprint-sync-end-marker "# @@blueprint-sync-end@@"
+  "Marker that ends the auto-generated arc42 include section.")
+
+(defvar blueprint-sync-functional-start-marker
+  "# @@blueprint-sync-functional-start@@"
+  "Marker that begins the auto-generated functional spec include section.")
+
+(defvar blueprint-sync-functional-end-marker
+  "# @@blueprint-sync-functional-end@@"
+  "Marker that ends the auto-generated functional spec include section.")
+
+(defvar blueprint-sync-infra-start-marker
+  "# @@blueprint-sync-infra-start@@"
+  "Marker that begins the auto-generated infrastructure include section.")
+
+(defvar blueprint-sync-infra-end-marker
+  "# @@blueprint-sync-infra-end@@"
+  "Marker that ends the auto-generated infrastructure include section.")
+
 ;;; --- Document files (master.org and what it includes) ---
 
 (defun blueprint--master-file (&optional root)
@@ -917,22 +941,64 @@ Updates the directory name and BLUEPRINT_DEPENDS references in all components."
       (blueprint--invalidate-cache)
       (message "Renamed %s → %s" old-name new-name))))
 
+(defun blueprint--component-dependents (name &optional comps)
+  "Return the sorted ids of the components that depend on NAME.
+A component depends on NAME when its arc42.org declares NAME among the
+tokens of #+BLUEPRINT_DEPENDS: (read with `blueprint--org-keyword')."
+  (let ((comps (or comps (blueprint--components)))
+        (result '()))
+    (maphash
+     (lambda (id dir)
+       (unless (string= id name)
+         (let ((deps (blueprint--org-keyword
+                      (expand-file-name "arc42.org" dir)
+                      "BLUEPRINT_DEPENDS")))
+           (when (and deps (member name (split-string deps)))
+             (push id result)))))
+     comps)
+    (sort result #'string<)))
+
+(defun blueprint--remove-component-references (name)
+  "Remove from master.org the synced references to component NAME.
+Delegates to `blueprint--master-remove-component' (blueprint-sync),
+required on demand so that the cleanup also works when only
+blueprint-core is loaded.  Does nothing when blueprint-sync cannot be
+loaded."
+  (require 'blueprint-sync nil t)
+  (when (fboundp 'blueprint--master-remove-component)
+    (blueprint--master-remove-component name)))
+
 ;;;###autoload
 (defun blueprint-delete-component (name)
   "Delete component NAME from the current Blueprint project.
-Prompts for confirmation before deleting."
+Asks for confirmation, removes from master.org the synced #+INCLUDE:
+lines and component headlines that reference NAME (see
+`blueprint--master-remove-component') and reports the components that
+still declare NAME in #+BLUEPRINT_DEPENDS:.  Those dependency lines
+are left in place -- they need human judgement -- and the lint flags
+them as dangling dependencies until they are resolved by hand."
   (interactive
    (let* ((comps (blueprint--components))
           (names (hash-table-keys comps)))
      (list (completing-read "Delete component: " names nil t))))
   (let* ((comps (blueprint--components))
-         (dir (gethash name comps)))
+         (dir (gethash name comps))
+         (dependents (blueprint--component-dependents name comps)))
     (unless dir
       (user-error "Component %s not found" name))
-    (when (yes-or-no-p (format "Really delete component %s and all its files? " name))
+    (when (if dependents
+              (yes-or-no-p
+               (format "%s still depends on %s in #+BLUEPRINT_DEPENDS: (the dependency will dangle, the lint flags it).  Really delete %s and all its files? "
+                       (mapconcat #'identity dependents ", ") name name))
+            (yes-or-no-p
+             (format "Really delete component %s and all its files? " name)))
+      (blueprint--remove-component-references name)
       (delete-directory dir t)
       (blueprint--invalidate-cache)
-      (message "Deleted component %s" name))))
+      (if dependents
+          (message "Deleted component %s (dangling dependency in: %s)"
+                   name (mapconcat #'identity dependents ", "))
+        (message "Deleted component %s" name)))))
 
 (defun blueprint--project-template-dir ()
   "Return the path to the project-level templates directory."

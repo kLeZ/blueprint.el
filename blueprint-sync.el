@@ -43,27 +43,10 @@
 
 (require 'blueprint-core)
 
-(defvar blueprint-sync-start-marker "# @@blueprint-sync-start@@"
-  "Marker that begins the auto-generated arc42 include section.")
-
-(defvar blueprint-sync-end-marker "# @@blueprint-sync-end@@"
-  "Marker that ends the auto-generated arc42 include section.")
-
-(defvar blueprint-sync-functional-start-marker
-  "# @@blueprint-sync-functional-start@@"
-  "Marker that begins the auto-generated functional spec include section.")
-
-(defvar blueprint-sync-functional-end-marker
-  "# @@blueprint-sync-functional-end@@"
-  "Marker that ends the auto-generated functional spec include section.")
-
-(defvar blueprint-sync-infra-start-marker
-  "# @@blueprint-sync-infra-start@@"
-  "Marker that begins the auto-generated infrastructure include section.")
-
-(defvar blueprint-sync-infra-end-marker
-  "# @@blueprint-sync-infra-end@@"
-  "Marker that ends the auto-generated infrastructure include section.")
+;; The sync marker pairs (`blueprint-sync-start-marker' and friends)
+;; live in blueprint-core.el: `blueprint-delete-component' removes the
+;; synced references to a component from master.org, so both modules
+;; need them and blueprint-core must not require blueprint-sync.
 
 ;;; --- Page breaks ---
 
@@ -207,6 +190,87 @@ cannot interfere."
             ;; between the marker and the synced content on every sync).
             (unless (string= "" content)
               (insert content "\n"))))))))
+
+(defun blueprint--sync-marker-regions ()
+  "Return the (BEG . END) regions of the three sync-marker sections.
+BEG is just after the start marker, END is the beginning of the end
+marker line, so a region covers the synced content alone.  Sections
+whose markers are missing are left out.  The search for each end
+marker starts after its start marker, as `blueprint--sync-section'
+does, so a stray end marker earlier in the buffer cannot interfere."
+  (let ((regions '()))
+    (dolist (pair (list (cons blueprint-sync-start-marker
+                              blueprint-sync-end-marker)
+                        (cons blueprint-sync-functional-start-marker
+                              blueprint-sync-functional-end-marker)
+                        (cons blueprint-sync-infra-start-marker
+                              blueprint-sync-infra-end-marker)))
+      (save-excursion
+        (goto-char (point-min))
+        (let ((start (search-forward (car pair) nil t)))
+          (when start
+            (let ((end (search-forward (cdr pair) nil t)))
+              (when end
+                (push (cons (1+ start)
+                            (save-excursion (goto-char end)
+                                            (line-beginning-position)))
+                      regions)))))))
+    (nreverse regions)))
+
+(defun blueprint--master-remove-component (id)
+  "Remove from master.org the synced references to component ID.
+Inside each sync-marker section, deletes the #+INCLUDE: lines whose
+target lives in the directory of ID, the level-2 headline
+`blueprint--generate-includes-for' writes immediately before each of
+them, and the page-break lines that precede that headline.  Content
+outside the markers is never touched.  Does nothing when master.org
+does not exist or no marker pair is present.
+
+A page break left before the wrong component (because the first
+remaining one should not have one) is cosmetic: the next
+`blueprint-sync' regenerates the section exactly."
+  (let* ((root (blueprint--root))
+         (file (blueprint--master-file root))
+         (dir (gethash id (blueprint--components))))
+    (when (and dir (file-exists-p file))
+      (with-current-buffer (find-file-noselect file)
+        (let ((regions (blueprint--sync-marker-regions)))
+          (when regions
+            (let* ((mdir (file-name-directory file))
+                   (breaks (split-string blueprint--page-break-lines "\n"))
+                   (begins '()))
+              (org-element-map (org-element-parse-buffer 'element) 'keyword
+                (lambda (kw)
+                  (when (and (string= (org-element-property :key kw) "INCLUDE")
+                             (blueprint--in-regions-p
+                              (org-element-property :begin kw) regions))
+                    (let ((inc (blueprint--parse-include-value
+                                (org-element-property :value kw) mdir)))
+                      (when (and inc
+                                 (string-prefix-p (file-name-as-directory dir)
+                                                  (plist-get inc :path)))
+                        (push (org-element-property :begin kw) begins))))))
+              (dolist (beg (sort begins #'>))
+                (save-excursion
+                  (goto-char beg)
+                  (beginning-of-line)
+                  ;; The #+INCLUDE: line itself.
+                  (delete-region (point) (line-beginning-position 2))
+                  ;; The generated headline sits on the line right above
+                  ;; the include; the page-break lines, when enabled,
+                  ;; right above the headline.
+                  (forward-line -1)
+                  (when (looking-at "^\\*\\* ")
+                    (delete-region (point) (line-beginning-position 2))
+                    (forward-line -1)
+                    (while (and (not (bobp))
+                                (member (buffer-substring
+                                         (line-beginning-position)
+                                         (line-end-position))
+                                        breaks))
+                      (delete-region (point) (line-beginning-position 2))
+                      (forward-line -1))))))
+            (save-buffer)))))))
 
 ;;;###autoload
 (defun blueprint-sync ()

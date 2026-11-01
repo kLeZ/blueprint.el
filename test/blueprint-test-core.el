@@ -390,6 +390,122 @@ boundary and produced \"identity-db\", a component that does not exist."
                  (expand-file-name ".blueprint/components/todelete"
                                    default-directory)))))
 
+(defun blueprint-test--write-synced-master (&optional manual page-breaks)
+  "Write a master.org with the three sync-marker sections.
+MANUAL, when non-nil, is text written outside the markers (it must
+survive the sync).  PAGE-BREAKS non-nil adds the
+#+BLUEPRINT_PAGE_BREAK: keyword.  Written before `blueprint-sync' so
+the file is never changed on disk behind an open buffer."
+  (blueprint-test--write-file
+   "master.org"
+   (concat "#+TITLE: Doc\n\n* Parte 0\n\n"
+           (or manual "Introduzione del documento.")
+           "\n\n"
+           (when page-breaks "#+BLUEPRINT_PAGE_BREAK: components\n\n")
+           "# @@blueprint-sync-start@@\n"
+           "# @@blueprint-sync-end@@\n\n"
+           "# @@blueprint-sync-functional-start@@\n"
+           "# @@blueprint-sync-functional-end@@\n\n"
+           "# @@blueprint-sync-infra-start@@\n"
+           "# @@blueprint-sync-infra-end@@\n")))
+
+(ert-deftest blueprint-test-delete-component/removes-synced-includes ()
+  "Deleting a component removes its includes and headline from master.org.
+Content outside the sync markers is untouched."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-component "beta")
+    (require 'blueprint-sync)
+    (blueprint-test--write-synced-master "Testo manuale fuori dai marker.")
+    (blueprint-sync)
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+      (blueprint-delete-component "alpha"))
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name "master.org" default-directory))))
+      (should-not (string-match-p
+                   "#\\+INCLUDE: \".blueprint/components/alpha/arc42.org\"" content))
+      (should-not (string-match-p "^\\*\\* alpha$" content))
+      (should (string-match-p
+               "#\\+INCLUDE: \".blueprint/components/beta/arc42.org\"" content))
+      (should (string-match-p "^\\*\\* beta$" content))
+      (should (string-match-p
+               (regexp-quote "Testo manuale fuori dai marker.") content))
+      ;; The markers themselves survive.
+      (should (string-match-p (regexp-quote blueprint-sync-start-marker) content))
+      (should (string-match-p (regexp-quote blueprint-sync-end-marker) content)))))
+
+(ert-deftest blueprint-test-delete-component/page-break-removed-with-headline ()
+  "Deleting a component removes the page-break lines before its headline."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-component "beta")
+    (blueprint-test--write-component "charlie")
+    (require 'blueprint-sync)
+    (blueprint-test--write-synced-master nil t)
+    (blueprint-sync)
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+      (blueprint-delete-component "beta"))
+    (let ((master (expand-file-name "master.org" default-directory)))
+      (with-temp-buffer
+        (insert (blueprint-test--read-file master))
+        (goto-char (point-min))
+        ;; Only the break before charlie remains (beta had one, alpha none).
+        (should (= 1 (count-matches "PageBreak"))))
+      (should-not (string-match-p "^\\*\\* beta$"
+                                  (blueprint-test--read-file master))))))
+
+(ert-deftest blueprint-test-delete-component/dependents-confirmed-and-reported ()
+  "Deleting a component asked about dependents and leaves their DEPENDS alone."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-component
+     "beta"
+     (concat "#+TITLE: beta\n#+BLUEPRINT_DEPENDS: alpha\n\n"
+             "* Introduction\n\n* Open Questions\n"))
+    (require 'blueprint-sync)
+    (blueprint-sync)
+    (should (equal (blueprint--component-dependents "alpha") '("beta")))
+    (let ((asked '()))
+      (cl-letf (((symbol-function 'yes-or-no-p)
+                 (lambda (prompt) (push prompt asked) t)))
+        (blueprint-delete-component "alpha"))
+      (should (= 1 (length asked)))
+      (should (string-match-p "beta" (car asked)))
+      (should (string-match-p "dangle" (car asked))))
+    (should-not (file-directory-p
+                 (expand-file-name ".blueprint/components/alpha"
+                                   default-directory)))
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/components/beta/arc42.org"
+                                      default-directory))))
+      (should (string-match-p "#\\+BLUEPRINT_DEPENDS: alpha" content)))
+    (should-not (string-match-p
+                 "#\\+INCLUDE: \".blueprint/components/alpha/arc42.org\""
+                 (blueprint-test--read-file
+                  (expand-file-name "master.org" default-directory))))))
+
+(ert-deftest blueprint-test-delete-component/legacy-master-without-headlines ()
+  "A master.org in the pre-9.14 format (bare includes) is cleaned without errors."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-file
+     "master.org"
+     (concat "#+TITLE: Doc\n\n* Parte 0\n\nIntroduzione.\n\n"
+             "# @@blueprint-sync-start@@\n"
+             "#+INCLUDE: \".blueprint/components/alpha/arc42.org\" :minlevel 2\n"
+             "# @@blueprint-sync-end@@\n\n"
+             "# @@blueprint-sync-functional-start@@\n"
+             "# @@blueprint-sync-functional-end@@\n\n"
+             "# @@blueprint-sync-infra-start@@\n"
+             "# @@blueprint-sync-infra-end@@\n"))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+      (blueprint-delete-component "alpha"))
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name "master.org" default-directory))))
+      (should-not (string-match-p "#\\+INCLUDE:" content))
+      (should (string-match-p (regexp-quote blueprint-sync-start-marker) content))
+      (should (string-match-p "^\\* Parte 0$" content)))))
+
 ;;; --- blueprint--resolve-template ---
 
 (ert-deftest blueprint-test-resolve-template/system-fallback ()
