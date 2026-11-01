@@ -69,9 +69,9 @@ project is moved or cloned elsewhere."
   "Return the agenda entries of the document at ROOT.
 A list of plists (:type :component :text :file :line :id), one per
 occurrence of every `blueprint-agenda-marker-types' marker in
-exported text of the document files, in document order.  Only the
-open markers count: the weights leave [FINDING] out (weight 0) by
-construction."
+exported text of the document files: file by file in the order of
+`blueprint--document-files', within a file type by type in the order
+of `blueprint-agenda-marker-types', then by position."
   (let* ((root (or root (blueprint--root)))
          (comps (blueprint--components))
          (entries '())

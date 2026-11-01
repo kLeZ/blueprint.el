@@ -124,5 +124,19 @@ ever breaking the save."
         (blueprint-preview--update)
         (should (= 1 (length messages)))))))
 
+(ert-deftest blueprint-test-preview/render-failure-reported-not-raised ()
+  "A failure other than missing Graphviz (here a generator error) is
+reported as a message at every update and never escapes the timer."
+  (let ((messages '()))
+    (cl-letf (((symbol-function 'blueprint--dashboard-svg-generate)
+               (lambda (&optional _root) (error "Graphviz failed")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (push (apply #'format fmt args) messages))))
+      (should-not (blueprint-preview--update "/tmp/"))
+      (should-not (blueprint-preview--update "/tmp/"))
+      (should (= 2 (length messages)))
+      (should (string-match-p "Graphviz failed" (car messages))))))
+
 (provide 'blueprint-test-preview)
 ;;; blueprint-test-preview.el ends here

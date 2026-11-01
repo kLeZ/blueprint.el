@@ -470,8 +470,9 @@ trasforma i marker di =blueprint-agenda-marker-types= (default QUESTION e
 FIXME) in voci TODO di =.blueprint/agenda.org=, con componente, link
 all'origine e ID stabile (hash di file+testo+occorrenza): DEADLINE,
 SCHEDULED e stato TODO/DONE impostati a mano sopravvivono al refresh.
-=blueprint-agenda= (tasto =U=) rigenera e apre =org-agenda-list= ristretta al
-file; =blueprint-agenda-add-to-org-agenda= (default nil) lo aggiunge anche a
+=blueprint-agenda= (tasto =U=) rigenera e apre una vista agenda ristretta al
+file (scadenze, poi tutte le voci aperte: =org-agenda-list= da sola, come
+nella prima versione, non mostrava le voci senza data); =blueprint-agenda-add-to-org-agenda= (default nil) lo aggiunge anche a
 =org-agenda-files=. Le righe ANSWERED sono storia e non diventano voci. Il
 file vive nella data directory e non è incluso in master.org. Test:
 =test/blueprint-test-agenda.el=.

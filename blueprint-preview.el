@@ -46,7 +46,9 @@ file of a Blueprint project, nil otherwise."
 ROOT defaults to the project of the current buffer.  The debounced
 timer passes the root of the file that was saved: when the timer fires
 the current buffer can be anything (another project, *scratch*).
-Without Graphviz, warns once per session and stays silent afterwards."
+Without Graphviz, warns once per session and stays silent afterwards;
+any other failure is reported as a message at every update.  Returns
+the SVG path, or nil when nothing was rendered."
   (setq blueprint-preview--timer nil)
   (condition-case err
       (let ((svg-file (blueprint--dashboard-svg-generate root))
@@ -71,7 +73,14 @@ Without Graphviz, warns once per session and stays silent afterwards."
     (user-error
      (unless blueprint-preview--warned
        (setq blueprint-preview--warned t)
-       (message "Blueprint preview: %s" (error-message-string err))))))
+       (message "Blueprint preview: %s" (error-message-string err))))
+    ;; Any other failure (Graphviz rejecting the graph, a file that
+    ;; cannot be read) is reported at every update: it runs from a
+    ;; timer, where an uncaught error would only say "Error running
+    ;; timer".
+    (error
+     (message "Blueprint preview: %s" (error-message-string err))
+     nil)))
 
 (defun blueprint-preview--on-save ()
   "After-save hook of `blueprint-preview-mode': debounce the update."

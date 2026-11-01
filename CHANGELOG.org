@@ -33,7 +33,8 @@ file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
   calcolate anche quando =blueprint-graph= non è ancora caricato.
 - Preview: il timer usa la root del file salvato, non il buffer
   corrente al momento dello scatto; =blueprint--dashboard-svg-generate=
-  rispetta l'argomento =ROOT=.
+  rispetta l'argomento =ROOT=; un errore di rendering diventa un
+  messaggio invece di uscire dal timer.
 - Cluster roam: i link si leggono attraverso i nodi del file (in
   org-roam =links.source= è un ID di nodo) e le destinazioni =id:= si
   riportano al file del nodo; una seconda chiamata non fallisce più su
