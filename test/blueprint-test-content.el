@@ -308,7 +308,7 @@ and a tag."
 
 (ert-deftest blueprint-test-questions/list-reads-all-documents ()
   "Questions in functional.org and infrastructure.org are listed too.
-Column 1 keeps the question, column 2 names the document; RET opens
+Column 1 keeps the question, column 4 names the document; RET opens
 the document at the question's line."
   (blueprint-test--with-project
     (blueprint-test--write-component "svc" "#+TITLE: svc\n\n* Open Questions\n")
@@ -325,7 +325,7 @@ the document at the question's line."
             (with-current-buffer "*Blueprint Questions*"
               (should (eq major-mode 'blueprint-questions-mode))
               (should (equal (mapcar (lambda (e) (list (aref (cadr e) 1)
-                                                       (aref (cadr e) 2)))
+                                                       (aref (cadr e) 4)))
                                      tabulated-list-entries)
                              '(("funzionale" "functional.org")
                                ("infrastruttura" "infrastructure.org"))))
@@ -382,6 +382,127 @@ document are not listed."
   (blueprint-test--with-project
     (should-error (blueprint-add-question "ghost" "Does this exist?")
                   :type 'user-error)))
+
+;;; --- Extended question format (9.12): tag, state, fonte ---
+
+(ert-deftest blueprint-test-questions/add-with-tag-writes-metadata ()
+  "A tag lands on the row as [TAG: ...]; without a tag the row is
+exactly the one of older versions."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (blueprint-add-question "svc" "With tag" "integrazione")
+    (blueprint-add-question "svc" "Without tag")
+    (let ((content (blueprint-test--read-file
+                    (blueprint--component-file "svc"))))
+      (should (string-match-p "^- QUESTION With tag \\[TAG: integrazione\\]$" content))
+      (should (string-match-p "^- QUESTION Without tag$" content)))))
+
+(ert-deftest blueprint-test-questions/answer-rewrites-row-with-fonte ()
+  "Answering rewrites the row: ANSWERED token, date, kept tag, fonte."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (blueprint-add-question "svc" "Chi usa il servizio?" "integrazione")
+    (let* ((file (blueprint--component-file "svc"))
+           (line (with-temp-buffer
+                   (insert-file-contents file)
+                   (goto-char (point-min))
+                   (re-search-forward "^- QUESTION")
+                   (line-number-at-pos))))
+      (blueprint-answer-question (list "svc" file line) "referente BSP")
+      (let ((content (blueprint-test--read-file file)))
+        (should (string-match-p
+                 (concat "^- ANSWERED \\[" (format-time-string "%Y-%m-%d")
+                         "\\] Chi usa il servizio\\? \\[TAG: integrazione\\]"
+                         " \\[FONTE: referente BSP\\]$")
+                 content))))))
+
+(ert-deftest blueprint-test-questions/answer-stops-counting ()
+  "An answered question is not an open point anymore: health, dashboard
+and question list agree."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (blueprint-add-question "svc" "Domanda aperta")
+    (let* ((file (blueprint--component-file "svc"))
+           (line (with-temp-buffer
+                   (insert-file-contents file)
+                   (goto-char (point-min))
+                   (re-search-forward "^- QUESTION")
+                   (line-number-at-pos)))
+           (before (blueprint-health-score)))
+      (blueprint-answer-question (list "svc" file line) "fonte")
+      (should (> (blueprint-health-score) before))
+      ;; The list shows the row as answered.
+      (let ((entries (blueprint--question-entries)))
+        (should (= (length entries) 1))
+        (should (string= (aref (cadr (car entries)) 3) "answered")))
+      ;; The dashboard QUESTION column is back to zero.
+      (let* ((blueprint-dashboard-focus nil)
+             (fields (cadr (assoc "svc" (blueprint--dashboard-entries)))))
+        (should (equal (aref fields 5) "0"))))))
+
+(ert-deftest blueprint-test-questions/list-shows-tag-state-document ()
+  "The list carries Tag and State columns; legacy rows (no metadata)
+are open with an empty tag."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (blueprint-add-question "svc" "Con tag" "integrazione")
+    (blueprint-add-question "svc" "Senza tag")
+    (let ((buffers-before (buffer-list)))
+      (unwind-protect
+          (progn
+            (blueprint-list-questions)
+            (with-current-buffer "*Blueprint Questions*"
+              (should (equal (mapcar (lambda (e) (list (aref (cadr e) 1)
+                                                       (aref (cadr e) 2)
+                                                       (aref (cadr e) 3)))
+                                     tabulated-list-entries)
+                             '(("Con tag" "integrazione" "open")
+                               ("Senza tag" "" "open"))))))
+        (dolist (buf (buffer-list))
+          (unless (memq buf buffers-before)
+            (kill-buffer buf)))))))
+
+(ert-deftest blueprint-test-questions/list-filters-by-tag-and-state ()
+  "The tag filter (t) and the state filter (s) restrict the list."
+  (let ((blueprint-questions-filter-tag nil)
+        (blueprint-questions-filter-state nil))
+    (blueprint-test--with-project
+      (blueprint-test--write-component "svc")
+      (blueprint-add-question "svc" "Domanda integrazione" "integrazione")
+      (blueprint-add-question "svc" "Domanda glossario" "glossario")
+    (let ((buffers-before (buffer-list)))
+      (unwind-protect
+          (progn
+            ;; Tag filter via completing-read.
+            (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "glossario")))
+              (blueprint-questions-filter-tag "glossario"))
+            (with-current-buffer "*Blueprint Questions*"
+              (should (equal (mapcar (lambda (e) (aref (cadr e) 1))
+                                     tabulated-list-entries)
+                             '("Domanda glossario")))
+              (should (string-match-p "tag: glossario" (or mode-line-process ""))))
+            ;; State filter: open only (nothing answered here, list stays).
+            (blueprint-questions-filter-state)
+            (with-current-buffer "*Blueprint Questions*"
+              (should (= 1 (length tabulated-list-entries))))
+            ;; Clear the tag filter, answer one question, filter answered.
+            (cl-letf (((symbol-function 'completing-read) (lambda (&rest _) "all")))
+              (blueprint-questions-filter-tag "all"))
+            (let* ((file (blueprint--component-file "svc"))
+                   (line (with-temp-buffer
+                           (insert-file-contents file)
+                           (goto-char (point-min))
+                           (re-search-forward "^- QUESTION")
+                           (line-number-at-pos))))
+              (blueprint-answer-question (list "svc" file line) "fonte"))
+            (blueprint-questions-filter-state)
+            (with-current-buffer "*Blueprint Questions*"
+              (should (= 1 (length tabulated-list-entries)))
+              (should (equal (aref (cadr (car tabulated-list-entries)) 3)
+                             "answered"))))
+        (dolist (buf (buffer-list))
+          (unless (memq buf buffers-before)
+            (kill-buffer buf))))))))
 
 (provide 'blueprint-test-content)
 ;;; blueprint-test-content.el ends here
