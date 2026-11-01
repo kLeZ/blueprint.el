@@ -1,76 +1,61 @@
 #+TITLE: Session Context
-#+VERSION: 1.6
+#+VERSION: 1.7
 #+CREATED: 2026-09-26T13:30:00+02:00
-#+UPDATED: 2026-09-27T12:00:00+02:00
-#+STATUS: completed
+#+UPDATED: 2026-11-01T22:00:00+00:00
+#+STATUS: paused
 
 * Current Task
-None. 9.18-9.25 committed and pushed; CI green.
+Review of the 0.3.0 push (3e39fd9..6453d92, 18 commits) and CI fix.
+Fixes committed on branch =ccr-76866253-yxr98p= (not on main, no PR).
 
 * Completed
-- [X] 9.19: defcustom =blueprint-directory-name= (nested relative path allowed),
-  =blueprint--data-dir= / =blueprint--data-path=, legacy =.blueprint= fallback
-  (option A), =blueprint-migrate-directory= (=C-c b m=)
-- [X] Bug: Emacs lock files (=.#x.org=) crashed list-findings/list-unvalidated
-  (=blueprint--org-file-regexp=)
-- [X] Bug 9.21: DEPENDS read from the template's :noexport: example, so
-  =blueprint-ci-validate= failed on every new project; =blueprint--org-keyword=
-  moved to core, org-element based, cached per file (mtime+size)
-- [X] Bug 9.21: =blueprint-rename-component= rewrote =auth-db= to
-  =identity-db= when renaming =auth=
-- [X] 9.18: diagram captions lost in ODT export (advice on
-  =org-babel-exp-process-buffer=)
-- [X] USAGE.org: =blueprint-template-migrate= key was =T=, is =M=
-- [X] Docs: README, USAGE.org, CLAUDE.md, PLAN.org (9.18, 9.19, 9.20, 9.21, 9.22)
-- [X] 9.22: markers in non-exported text (noexport/COMMENT subtrees, blocks,
-  comments, verbatim/code) no longer counted; matching case-sensitive
-- [X] 9.23: captions/NAME applied after Babel (never-evaluated blocks too); verified ODT, LaTeX, PDF
-- [X] CI green again: writable copies from read-only (Nix) sources, fail-fast off
-- [X] CLAUDE.md renamed to AGENTS.md
-- [X] Lint "no content" check ignores non-exported subtrees
-- [X] PLAN.md and README.md converted to PLAN.org / README.org (pandoc, git mv);
-  release workflow copies README.org
-- [X] claude-mem CLAUDE.md files removed (5); CLAUDE.md is now =@AGENTS.md=
-- [X] 9.24: component/functional/infrastructure templates without skeleton
-  (only headings + anchors; descriptions and models in the :noexport: guide)
-- [X] 9.25: health gauge SVG shown via create-image svg (was image-mode -> ImageMagick, blocked by policy)
-- [X] Suite: 353 tests green, byte-compile clean with error-on-warn
+- [X] CI red on 0.3.0: byte-compile (sync used =blueprint-history-on-sync=
+  via soft require; roam called =blueprint--dependency-clusters= without
+  requiring blueprint-graph) and preview test needing Graphviz (CI installs
+  it, test has =skip-unless=; lint matrix =fail-fast: false=)
+- [X] Autoload cookie restored on =blueprint-add-component=
+- [X] Changelog skips :noexport:/COMMENT ADRs (template example ADR 0000)
+- [X] Agenda: =:ORIGIN:= link relative to agenda file; IDs from root-relative
+  path; string =org-agenda-files= left alone
+- [X] Diff: default against HEAD (staged changes), empty revision ignored
+- [X] JSON report: =:null= / =:false= instead of nil ({}); deps require graph first
+- [X] Preview: timer carries root; svg-generate binds default-directory to ROOT
+- [X] Roam clusters: links via nodes (links.source is a node id), id: dest
+  mapped to file; read-only buffer on second call
+- [X] Lint lifecycle FIXME count over included component documents
+- [X] Questions: state from the marker; answer only list rows; no empty FONTE
+- [X] Glossary add into empty section; history rows with non-numeric cells skipped
+- [X] CHANGELOG.org 0.3.0 notes rewritten from the code (were inaccurate),
+  "Non rilasciato" section; USAGE/PLAN/AGENTS fixes
+- [X] Suite 512/512 (1 skip without dot), byte-compile, checkdoc, package-lint clean
 
 * Decisions Made
 | Decision | Rationale | ADR |
 |----------+-----------+-----|
-| Global defcustom with legacy fallback (option A) | No project breaks, works in non-file buffers and CI | [[file:docs/adr/ADR-001-configurable-data-directory.org]] |
-| Caption fix as :before advice, not export hook | Only point after INCLUDE expansion and before Babel | PLAN.org 9.18 |
-| Copy CAPTION/ATTR_* only, not NAME/HEADER | NAME/HEADER drive Babel result lookup | PLAN.org 9.18 |
-| Non-exported text is not counted as markers | User decision 2026-09-26 | PLAN.org 9.22 |
-| File keywords (#+STATUS:) still counted | They mark the whole file as not validated | PLAN.org 9.22 |
-| 9.20 deferred, dir-locals unsupported, rename-component as is | User decisions 2026-09-26 | PLAN.org 9.19-9.21 |
-| Other templates and add-* commands keep their placeholders | User decision 2026-09-27 (section-level editing trade-off) | PLAN.org 9.24 |
-| CLAUDE.md contains only =@AGENTS.md= | User choice 2026-09-27 (overrides symlink) | |
-| New project files are Org; only AGENTS.md/CLAUDE.md are Markdown | User rule 2026-09-26 | AGENTS.md |
+| Hard require history in sync, graph in roam | No cycle; soft require left a free variable | |
+| Diff default HEAD, fallback index without commits | Staged changes were invisible | |
+| Agenda IDs root-relative (one-time ID change for 0.3.0 users) | Absolute paths broke preservation on move/clone | |
+| No version bump | Release is the user's call (bump on main triggers release) | |
 
 * Files Touched
 | File | Action | Notes |
 |------+--------+-------|
-| blueprint-core.el | modified | defcustom, resolver, root detection, org-keyword, rename-dependency, org-file-regexp |
-| blueprint-migrate.el | modified | blueprint-migrate-directory and helpers |
-| blueprint-export.el | modified | blueprint--move-result-captions |
-| blueprint-{adr,async,capture,roam,search,sync,watch,wizard}.el | modified | go through the resolver |
-| blueprint-{ci,dashboard,lint,risks,c4,health}.el | modified | org-keyword instead of regex; lock-file regexp |
-| blueprint.el | modified | menu/keymap =m= |
-| test/*.el | modified | new tests; helper uses blueprint-directory-name |
-| docs/adr/ADR-001-configurable-data-directory.org | created | |
-| README.org, USAGE.org, PLAN.org | modified | |
-| AGENTS.md | renamed from CLAUDE.md, modified | CLAUDE.md imports it |
-| templates/{component,functional,infrastructure}.org | modified | skeleton moved to guide |
-| blueprint-questions.el | modified | list-questions skips non-exported text |
+| .github/workflows/{test,lint}.yml | modified | Graphviz, fail-fast |
+| blueprint-{sync,roam,core,changelog,agenda,diff,ci,preview,dashboard,lint,questions,glossary,history}.el | modified | see Completed |
+| test/blueprint-test-{preview,changelog,agenda,diff,ci,roam,lint,content,history}.el | modified | regression tests |
+| CHANGELOG.org, USAGE.org, PLAN.org, AGENTS.md | modified | docs |
 
 * Next Steps
-1. 9.16 (document supported native Org features) or 9.13 (delete-component leftovers)
-
+1. User: open a PR to main (CI runs only on main/PR) or merge the branch
+2. User: decide on a 0.3.1 bump (0.3.0 release already published)
 
 * Open Questions
-- None
+- Glossary entries write /Fonte:/ before the definition; the template puts it after
+- org-capture glossary template still writes the legacy level-1 + drawer format
+- Agenda refresh drops CLOSED timestamps and notes under entries
+- Diff: untracked files not shown; "domande risolte" counts any added ANSWERED line
+- blueprint-adr-list shows the template example ADR 0000 (pre-existing)
+- arc42-enterprise.org guide lacks the diagram models of component.org
 
 * Blockers
 - None
