@@ -53,13 +53,95 @@ per-component and per-ADR data, not project-level deliverables."
       (should (string-match-p "Term-A" content))
       (should (string-match-p "Term-B" content)))))
 
-(ert-deftest blueprint-test-glossary/add-has-source-property ()
-  "Added term includes a :SOURCE: property."
+(ert-deftest blueprint-test-glossary/add-has-source-line ()
+  "Added term uses the template format: a /Fonte: .../ line, no drawer.
+The old :SOURCE: drawer format is still readable (see the lookup
+tests) but new entries follow the glossary template itself."
   (blueprint-test--with-project
     (blueprint-glossary-add "Widget" "A small component" "interview-2024")
     (let ((content (blueprint-test--read-file
                     (expand-file-name "glossary.org" default-directory))))
-      (should (string-match-p ":SOURCE: interview-2024" content)))))
+      (should (string-match-p "/Fonte: interview-2024/" content))
+      (should-not (string-match-p ":SOURCE:" content)))))
+
+(ert-deftest blueprint-test-glossary/add-routes-to-chosen-section ()
+  "An explicit section routes the level-2 entry under that heading."
+  (blueprint-test--with-project
+    (blueprint-glossary-add
+     "SAG" "Slowly Applicable Granularity" "team"
+     "Termini tecnici con uso specifico")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name "glossary.org" default-directory))))
+      ;; The entry sits after the "Termini tecnici" heading and before
+      ;; the "Acronimi" one.
+      (should (string-match-p
+               "^\\* Termini tecnici con uso specifico\n\\(?:.*\n\\)*\\*\\* SAG"
+               content))
+      (should (string-match-p
+               "^\\*\\* SAG\n/Fonte: team/\nSlowly Applicable Granularity"
+               content)))))
+
+(ert-deftest blueprint-test-glossary/add-defaults-to-first-section ()
+  "Without an explicit section the term goes into the first one."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Cache" "Temporary storage" "review")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name "glossary.org" default-directory))))
+      (should (string-match-p
+               "^\\* Termini di dominio\n\\(?:.*\n\\)*\\*\\* Cache" content)))))
+
+(ert-deftest blueprint-test-glossary/add-unknown-section-errors ()
+  "An unknown section is an error, not a silent append."
+  (blueprint-test--with-project
+    (should-error (blueprint-glossary-add
+                   "T" "D" "S" "Sezione inesistente")
+                  :type 'user-error)))
+
+(ert-deftest blueprint-test-glossary/lookup-finds-routed-term ()
+  "Lookup finds a level-2 entry added by blueprint-glossary-add and
+shows the definition with the Fonte line."
+  (blueprint-test--with-project
+    (blueprint-glossary-add "Microservice" "Small independent service" "docs")
+    (let ((msg ""))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq msg (apply #'format fmt args)))))
+        (blueprint-glossary-lookup "Microservice"))
+      (should (string-match-p "Small independent service" msg))
+      (should (string-match-p "/Fonte: docs/" msg)))))
+
+(ert-deftest blueprint-test-glossary/lookup-finds-legacy-entry ()
+  "Lookup still finds a legacy level-1 entry with a :PROPERTIES: drawer,
+and hides the drawer lines from the message."
+  (blueprint-test--with-project
+    (blueprint-test--write-file
+     "glossary.org"
+     (concat "* Termini di dominio\n\n"
+             "* LegacyTerm\n:PROPERTIES:\n:SOURCE: old-source\n:END:\n"
+             "Old definition\n"))
+    (let ((msg ""))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq msg (apply #'format fmt args)))))
+        (blueprint-glossary-lookup "LegacyTerm"))
+      (should (string-match-p "Old definition" msg))
+      (should-not (string-match-p ":PROPERTIES:" msg))
+      (should-not (string-match-p ":SOURCE:" msg)))))
+
+(ert-deftest blueprint-test-glossary/lookup-ignores-guide-examples ()
+  "Terms that exist only inside the :noexport: guide are not found."
+  (blueprint-test--with-project
+    (blueprint-test--write-file
+     "glossary.org"
+     (concat "* Guida alla compilazione :noexport:\n\n"
+             "** FalsoTermine\n\nDefinizione d'esempio.\n\n"
+             "* Termini di dominio\n\n** TermineReale\n\nDefinizione reale\n"))
+    (let ((msg ""))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq msg (apply #'format fmt args)))))
+        (blueprint-glossary-lookup "FalsoTermine")
+        (should (string-match-p "not found" msg))
+        (setq msg "")
+        (blueprint-glossary-lookup "TermineReale")
+        (should (string-match-p "Definizione reale" msg))))))
 
 (ert-deftest blueprint-test-glossary/lookup-found ()
   "A term that exists in the glossary is found by lookup."
