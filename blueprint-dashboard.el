@@ -326,7 +326,6 @@ and the count of open TODO items."
   (setq blueprint-dashboard-out-of-scope-only t)
   (blueprint-dashboard))
 
-;;;###autoload
 (defun blueprint--dashboard-svg-generate (&optional root)
   "Generate the health-colored dependency SVG of the project at ROOT.
 Writes dashboard.svg at the project root and returns its path.
@@ -351,23 +350,27 @@ is shared by `blueprint-dashboard-svg' and the live preview
        (let* ((file (blueprint--component-file id))
               (color (blueprint--component-health-color id))
               (deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
-         (push (format "  %s [label=\"%s\", fillcolor=\"%s\"];" id id color) lines)
+         (push (format "  %s [label=%s, fillcolor=\"%s\"];"
+                       (blueprint--dot-id id) (blueprint--dot-id id) color)
+               lines)
          (when deps-str
            (dolist (dep (split-string deps-str))
-             (push (format "  %s -> %s;" id dep) lines)))))
+             (push (format "  %s -> %s;"
+                           (blueprint--dot-id id) (blueprint--dot-id dep))
+                   lines)))))
      comps)
     (push "}" lines)
     (with-temp-file dot-file
       (insert (mapconcat #'identity (nreverse lines) "\n")))
-    (call-process "dot" nil nil nil "-Tsvg" "-o" svg-file dot-file)
-    (delete-file dot-file)
-    svg-file))
+    (blueprint--dot-render dot-file svg-file)))
 
+;;;###autoload
 (defun blueprint-dashboard-svg ()
   "Generate an SVG overview of the project using Graphviz.
 Each component is a node colored by its health score over its
 documents in master.org (see `blueprint--component-health-color'):
-red below 50, yellow below 80, green otherwise, grey when master.org
+red below 50, yellow below `blueprint-delivery-score-threshold' (80),
+green otherwise, grey when master.org
 includes none of its documents.  Edges are the dependencies.  Writes
 dashboard.svg to the project root, shows it in the *Blueprint Graph*
 buffer and returns its path."

@@ -1,7 +1,7 @@
 #+TITLE: Session Context
-#+VERSION: 1.7
+#+VERSION: 1.8
 #+CREATED: 2026-09-26T13:30:00+02:00
-#+UPDATED: 2026-11-01T22:00:00+00:00
+#+UPDATED: 2026-11-01T22:40:00+00:00
 #+STATUS: paused
 
 * Current Task
@@ -28,6 +28,14 @@ Fixes committed on branch =ccr-76866253-yxr98p= (not on main, no PR).
 - [X] CHANGELOG.org 0.3.0 notes rewritten from the code (were inaccurate),
   "Non rilasciato" section; USAGE/PLAN/AGENTS fixes
 - [X] Suite 512/512 (1 skip without dot), byte-compile, checkdoc, package-lint clean
+- [X] Second pass (declared but not working): DOT ids quoted (hyphenated ids
+  broke every SVG graph); agenda block view (agenda + alltodo) and single
+  planning line; roam schema (tags.node-id, level-0 file node, shared column);
+  diff hunk-aware parse, net resolved, untracked files; glossary format as
+  template + org-capture level-2; no stray page break after deleting the first
+  component; adr-list skips template example; enterprise template with full
+  guide; JSON lifecycle; autoload cookies; AGENTS.md aligned to code
+- [X] Suite 522/522 (3 skips without dot), byte-compile, checkdoc, package-lint clean
 
 * Decisions Made
 | Decision | Rationale | ADR |
@@ -50,12 +58,9 @@ Fixes committed on branch =ccr-76866253-yxr98p= (not on main, no PR).
 2. User: decide on a 0.3.1 bump (0.3.0 release already published)
 
 * Open Questions
-- Glossary entries write /Fonte:/ before the definition; the template puts it after
-- org-capture glossary template still writes the legacy level-1 + drawer format
-- Agenda refresh drops CLOSED timestamps and notes under entries
-- Diff: untracked files not shown; "domande risolte" counts any added ANSWERED line
-- blueprint-adr-list shows the template example ADR 0000 (pre-existing)
-- arc42-enterprise.org guide lacks the diagram models of component.org
+- 9.11 table-format milestones in CRONOPROGRAMMA.org: declared "not handled
+  in this pass" in PLAN.org, not implemented
+- 9.9 monorepo: deferred by the user
 
 * Blockers
 - None

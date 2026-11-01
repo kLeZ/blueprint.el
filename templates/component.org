@@ -27,12 +27,19 @@ monitoring → interviste → documentazione preesistente.
 #+BLUEPRINT_OWNER: team-payments
 #+BLUEPRINT_TECH: Java 17 / Spring Boot 3 / PostgreSQL 15
 #+BLUEPRINT_STATUS: in-scope
+#+BLUEPRINT_LIFECYCLE: active
 #+END_SRC
 
 =#+BLUEPRINT_STATUS:= vale =in-scope= (default), =out-of-scope= o =tbd=.
 Un componente =out-of-scope= va escluso dall'assessment ma resta tracciato
 (motivazione da documentare in Parte 0 del master); =blueprint-lint=
 segnala se un componente =in-scope= dipende da uno =out-of-scope=.
+
+=#+BLUEPRINT_LIFECYCLE:= è il ciclo di vita del componente, un asse
+diverso dal perimetro: =draft=, =active= (default), =deprecated= o
+=archived=. La dashboard lo mostra nella colonna =Life=; =blueprint-lint=
+segnala un componente =active= con FIXME aperti o che dipende da uno
+=deprecated=.
 
 ** Esempio: tabella utenti e ruoli
 

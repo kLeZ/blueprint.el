@@ -23,7 +23,11 @@ included in master.org."
            (bg (assoc "bg" templates))
            (target (nth 3 bg)))
       (should target)
-      (should (eq (car target) 'file))
+      (should (eq (car target) 'file+headline))
+      ;; A level-2 entry in the first section, as blueprint-glossary-add.
+      (should (equal (nth 2 target) "Termini di dominio"))
+      (should (string-match-p "/Fonte: %\\^{Source}/" (nth 4 bg)))
+      (should-not (string-match-p ":SOURCE:" (nth 4 bg)))
       (should (equal (cadr target)
                      (expand-file-name "glossary.org" default-directory)))
       (should-not (string-match-p "\\.blueprint" (cadr target))))))

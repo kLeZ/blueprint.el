@@ -136,7 +136,9 @@ modules; no logic lives there.
 | 2        | `~/.config/blueprint/templates/` | User defaults           |
 | 3        | `templates/` in package dir      | System fallback         |
 
-Template files: `component.org`, `adr.org`, `master.org`, `functional.org`,
+Template files: `component.org`, `arc42-enterprise.org` (component.org plus
+the enterprise sections, chosen with `C-u` on `blueprint-add-component`),
+`adr.org`, `master.org`, `functional.org`,
 `infrastructure.org`, `glossary.org`, `references.org`,
 `enterprise-context.org`, `enterprise-dependencies.org`, `nfr-quality.org`,
 `nfr-constraints.org`, `nfr-risks.org`.
@@ -246,20 +248,25 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 ```
 .blueprint/
 ├── components/
-├── adr/
-├── templates/             # copied from system if absent
-├── enterprise/
-│   ├── enterprise-context.org
-│   └── enterprise-dependencies.org
-├── nfr/
-│   ├── nfr-quality.org
-│   ├── nfr-constraints.org
-│   └── nfr-risks.org
-├── _archive/
-├── glossary.org
-└── references.org
+├── adr/                   # created empty; ADRs live in .blueprint/adr.org
+└── templates/             # project overrides, initially empty
+enterprise/
+├── context.org            # from enterprise-context.org
+└── dependencies.org       # from enterprise-dependencies.org
+nfr/
+├── quality-scenarios.org  # from nfr-quality.org
+├── constraints.org        # from nfr-constraints.org
+└── risks.org              # from nfr-risks.org
+_archive/
+glossary.org
+references.org
 master.org                 # six-part assessment deliverable
 ```
+
+Generated later, in the data directory and never included in master.org:
+`adr.org` (`blueprint-adr-new`), `metrics-history.org` (every
+`blueprint-sync`), `agenda.org` (`blueprint-agenda-refresh`), `notes.org`
+(org-capture).
 
 `blueprint-add-component` creates three files per component:
 
@@ -387,7 +394,9 @@ Templates follow the methodology from
   della riga 143.
 
 - **ADR — modello single-file**: gli ADR sono ora in un unico file
-  `.blueprint/adr/adr.org`. Ogni ADR è un heading di livello 1 con formato
+  `adr.org` nella data directory (`.blueprint/adr.org`, via
+  `blueprint--data-path`; la directory `adr/` creata da `blueprint-init`
+  resta vuota). Ogni ADR è un heading di livello 1 con formato
   `* ADR 0001: Titolo` e status nel `:PROPERTIES:` drawer
   (`:STATUS: proposed|accepted|deprecated|superseded`).
   `blueprint--adr-next-number` scansiona i heading in `adr.org` anziché contare
@@ -565,13 +574,42 @@ Templates follow the methodology from
   non dal marker; `blueprint-glossary-add` su sezione vuota faceva
   `goto-char nil`.
 
+- **Seconda passata sulla 0.3.0 (dichiarato ma non funzionante)**:
+  gli id dei componenti sono slug con trattini e un id DOT non quotato
+  ammette solo lettere, cifre e `_`: `dot` usciva con errore di sintassi e
+  dashboard SVG, preview e backend Graphviz non producevano nulla.
+  **Fix**: `blueprint--dot-id` (quota) e `blueprint--dot-render` (errore
+  se `dot` fallisce), in `blueprint-core.el`. `blueprint-agenda` usava
+  `org-agenda-list`, che mostra solo voci datate: ora è una vista a
+  blocchi agenda + `alltodo` con `org-agenda-files` nelle impostazioni del
+  comando (valgono anche per `g`). Org legge come planning solo la riga
+  subito dopo l'heading: DEADLINE/SCHEDULED/CLOSED vanno su una riga sola
+  (`blueprint--agenda-planning-line`). Schema org-roam: la tabella `tags`
+  ha `node-id`, non `node`; `links.source` è un ID di nodo; il nodo di
+  file ha `level` 0. Il parser del diff legge il contenuto solo dentro gli
+  hunk (`@@`). Test: `blueprint-test-graph/dot-ids-are-quoted`,
+  `blueprint-test-agenda/agenda-view-lists-undated-entries`,
+  `.../planning-line-survives-two-refreshes`,
+  `blueprint-test-roam/similar-uses-roam-schema`,
+  `blueprint-test-diff/summary-only-hunk-content`,
+  `.../untracked-files-shown`,
+  `blueprint-test-delete-component/first-component-no-stray-break`.
+
 ## Health scoring
 
-Score starts at 100, deducting per unresolved marker across all component files:
+The score covers the document only (`blueprint--document-files`: master.org
+and everything it includes). Markers add weighted penalty points P
+(`blueprint--health-weights`):
 
-- **Technical markers**: `QUESTION` = −3, `TBD` = −2, `FIXME` = −4
-- **Methodology markers**: `[DA VALIDARE]` = −1, `[FINDING]` = −2,
-  `[DA REVISIONARE]` = −1
+- **Technical markers**: `QUESTION` = 3, `TBD` = 2, `FIXME` = 4
+- **Methodology markers**: `[DA VALIDARE]` = 1, `[DA REVISIONARE]` = 1,
+  `[FINDING]` = 0 (a result the assessment delivers, still counted by the
+  metrics and the lists)
+
+P is set against the W words of exported text of the same files:
+`score = round(100 * W / (W + N * P))` with N =
+`blueprint-health-words-per-point` (default 100), 100 when P is 0
+(`blueprint--health-score-from`).
 
 Only markers in exported text count: `blueprint--uncounted-regions`
 (`blueprint-core.el`) excludes export-excluded subtrees (`:noexport:`,
@@ -584,13 +622,13 @@ ignores lines in non-exported subtrees (`blueprint--non-exported-subtrees`)
 but, unlike marker counting, still treats src blocks and verbatim as
 content.
 
-Clamped to 0 minimum. Technical marker results cached by MD5 via
-`blueprint--cached-metrics`. Methodology markers counted separately via
-`blueprint--methodology-metrics` (not cached — avoids cache key collision with
-the existing cache keyed by file path).
+Per-file counts and words are cached via `blueprint--cached-metrics` under
+the kind `document-stats` (keys are `(FILE . KIND)`, so they never collide
+with the technical counts cached for arc42.org).
 
-`blueprint-list-findings` and `blueprint-list-unvalidated` scan all `.org` files
-in the project and display results in a read-only buffer.
+`blueprint-list-findings` and `blueprint-list-unvalidated` scan the document
+files (master.org and its includes) and display results in a read-only
+buffer.
 `blueprint--display-marker-list` captures `(blueprint--root)` **before**
 `(with-current-buffer ...)` to avoid stale `default-directory` from pre-existing
 result buffers (isolation-critical for tests).

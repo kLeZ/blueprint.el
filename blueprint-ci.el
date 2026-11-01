@@ -178,8 +178,8 @@ The counts follow the same principles as the dashboard: only the
 document (master.org and what it includes) and only exported text.
 Top-level keys: generated-at, project, health, document-files,
 components, dependencies, lint-warnings; component keys: id, scope,
-owner, tech, depends, included, documents, score, penalty, words,
-markers."
+lifecycle, owner, tech, depends, included, documents, score, penalty,
+words, markers."
   (let* ((root (or root (blueprint--root)))
          (summary (blueprint--document-health-summary))
          (comps (blueprint--components))
@@ -192,6 +192,7 @@ markers."
                (blueprint--ci-report--table
                 `(id . ,id)
                 `(scope . ,(blueprint--component-scope-status id))
+                `(lifecycle . ,(blueprint--component-lifecycle-status id))
                 ;; `json-serialize' writes nil as {}: absent keywords
                 ;; are JSON null and booleans JSON false explicitly.
                 `(owner . ,(or (blueprint--org-keyword file "BLUEPRINT_OWNER")
@@ -242,7 +243,7 @@ markers."
   "Write a JSON report about the project and return the file path.
 The report goes to `blueprint-ci-report-file' at the project root and
 holds the health score of the document, per-component marker counts,
-scores and scope, the dependency list and the lint warnings: what a
+scores, scope and life cycle, the dependency list and the lint warnings: what a
 CI pipeline that does not run Emacs needs.  In batch mode exits with
 0 on success and 2 on error."
   (interactive)

@@ -111,7 +111,7 @@
     ("d" "pre-delivery check" blueprint-pre-delivery-check)
     ("g" "list findings" blueprint-list-findings)
     ("u" "list unvalidated" blueprint-list-unvalidated)
-    ("U" "org-agenda questions" blueprint-agenda)]
+    ("U" "org-agenda triage" blueprint-agenda)]
    ["Dashboard"
     ("B" "dashboard" blueprint-dashboard)
     ("F" "focus mode" blueprint-focus)

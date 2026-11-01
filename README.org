@@ -261,7 +261,7 @@ logical groups:
 |                | =d= | pre-delivery check    |
 |                | =g= | list findings         |
 |                | =u= | list unvalidated      |
-|                | =U= | org-agenda questions  |
+|                | =U= | org-agenda triage     |
 | *Dashboard*    | =B= | dashboard             |
 |                | =F= | focus mode            |
 |                | =o= | out-of-scope view     |

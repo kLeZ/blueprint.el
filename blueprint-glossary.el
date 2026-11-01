@@ -12,8 +12,8 @@
 ;; A term is added as a level-2 heading at the end of one of the
 ;; sections the template defines ("Termini di dominio", "Termini
 ;; tecnici con uso specifico", "Acronimi e abbreviazioni"), in the
-;; format of the template itself: a /Fonte: .../ line followed by the
-;; definition.  Entries written by older Blueprint versions (level-1
+;; format of the template itself: the definition followed by a
+;; /Fonte: .../ line.  Entries written by older Blueprint versions (level-1
 ;; headings with a :PROPERTIES: drawer appended at the end of the
 ;; file) keep working: `blueprint-glossary-lookup' finds both formats.
 
@@ -69,7 +69,7 @@ its own level-1 section, exactly as it did before."
 The entry is inserted as a level-2 heading at the end of SECTION, a
 level-1 heading of glossary.org that defaults to the first one (by
 convention \"Termini di dominio\"), in the format of the glossary
-template: a /Fonte: .../ line followed by the definition.  Entries
+template: the definition followed by a /Fonte: .../ line.  Entries
 written by older versions (level-1 headings with a :PROPERTIES:
 drawer at the end of the file) are left untouched and remain
 readable by `blueprint-glossary-lookup'."
@@ -119,7 +119,7 @@ readable by `blueprint-glossary-lookup'."
           ;; Exactly one blank line before the new entry.
           (unless (save-excursion (forward-line -1) (looking-at "^\\s-*$"))
             (insert "\n"))
-          (insert (format "** %s\n/Fonte: %s/\n%s\n" term source definition))
+          (insert (format "** %s\n%s\n/Fonte: %s/\n" term definition source))
           ;; And one before the heading that follows, if any.
           (when (and next-heading (eq (char-after) ?*))
             (insert "\n"))))

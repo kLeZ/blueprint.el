@@ -84,6 +84,7 @@ Without Graphviz, warns once per session and stays silent afterwards."
             (run-with-timer blueprint-preview-delay nil
                             #'blueprint-preview--update root)))))
 
+;;;###autoload
 (define-minor-mode blueprint-preview-mode
   "Toggle the live preview of the dependency graph.
 When enabled, saving any Org file of the project regenerates the

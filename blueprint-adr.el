@@ -106,15 +106,21 @@ RET on an entry opens adr.org and jumps to the corresponding heading."
          (entries '()))
     (when (file-exists-p file)
       (with-temp-buffer
-        (insert-file-contents file)
-        (org-element-map (org-element-parse-buffer 'headline) 'headline
-          (lambda (hl)
-            (when (and (= (org-element-property :level hl) 1)
-                       (string-match-p "^ADR [0-9]\\{4\\}:"
-                                       (or (org-element-property :raw-value hl) "")))
-              (let* ((raw (org-element-property :raw-value hl))
-                     (status (or (org-element-property :STATUS hl) "unknown")))
-                (push (list (cons file raw) (vector raw status)) entries)))))))
+        (blueprint--insert-org-file file)
+        ;; Headings the export leaves out (the template's :noexport:
+        ;; example "ADR 0000", COMMENTed drafts) are not decisions of
+        ;; the project.
+        (let* ((tree (org-element-parse-buffer 'headline))
+               (exclude (blueprint--export-exclude-tags tree)))
+          (org-element-map tree 'headline
+            (lambda (hl)
+              (when (and (= (org-element-property :level hl) 1)
+                         (not (blueprint--excluded-headline-p hl exclude))
+                         (string-match-p "^ADR [0-9]\\{4\\}:"
+                                         (or (org-element-property :raw-value hl) "")))
+                (let* ((raw (org-element-property :raw-value hl))
+                       (status (or (org-element-property :STATUS hl) "unknown")))
+                  (push (list (cons file raw) (vector raw status)) entries))))))))
     (if (null entries)
         (message "No ADRs found.")
       (with-current-buffer (get-buffer-create "*Blueprint ADRs*")

@@ -578,8 +578,8 @@ Source: contratto-cliente-2024
 #+end_src
 
 Il termine viene inserito in =glossary.org= come heading di livello 2 in
-fondo alla sezione scelta, nel formato del template stesso: riga
-=/Fonte: contratto-cliente-2024/= e definizione. La sezione si chiede
+fondo alla sezione scelta, nel formato del template stesso: definizione e
+riga =/Fonte: contratto-cliente-2024/=. La sezione si chiede
 (=Termini di dominio= di default, poi =Termini tecnici con uso specifico=
 e =Acronimi e abbreviazioni=). Le voci scritte dalle versioni vecchie
 (livello 1 con drawer =:PROPERTIES:= in coda al file) restano valide:
@@ -973,8 +973,8 @@ Se alla radice del progetto esiste =CRONOPROGRAMMA.org= o =TODO.org=
 (=C-c b B=) aggiunge la prossima milestone aperta (primo heading con la
 keyword =TODO= in ordine di file, con la eventuale =:DEADLINE:= come data)
 e il numero di =TODO= aperti. Nessun formato nuovo: si riusano gli heading
-TODO/DONE di Org. Un file malformato non rompe la dashboard: il pannello
-degrada a nil.
+TODO/DONE di Org. Un file malformato non rompe la dashboard: la riga di
+stato resta senza milestone.
 
 ** Domande: tag, risposte e filtri
 
@@ -1196,12 +1196,5 @@ associato e' un gap attuale dello strumento (vedi Appendice C).
 I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
 Richiedono gestione manuale fino all'implementazione.
 
-** Instradamento del glossario nelle sezioni del template
-=blueprint-glossary-add= inserisce ogni termine come heading di livello 1
-con drawer =:PROPERTIES:= in coda al file, non come heading di livello 2
-con riga =/Fonte: .../= nella sezione "Termini di dominio" o "Termini
-tecnici con uso specifico" del template (a differenza di
-=blueprint-reference-add=, che dalla fase 10.6 instrada correttamente nelle
-sezioni di =references.org=). Aggiungere il termine a mano nella sezione
-corretta, o lasciarlo in coda al file e riorganizzare in seguito. Vedi
-PLAN.org, Fase 10.8.
+Nessuno al momento. L'ultimo, l'instradamento di =blueprint-glossary-add=
+nelle sezioni del template, è chiuso dalla 0.3.0 (PLAN.org, Fase 10.8).

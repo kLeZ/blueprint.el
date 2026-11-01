@@ -117,5 +117,55 @@ stubbed, so the test runs without org-roam."
                                        (member 'source (append (car q) nil))))
                                 queries)))))))
 
+(defun blueprint-test-roam--query-symbols (query)
+  "Return the symbols of the emacsql QUERY vector, flattened."
+  (flatten-tree (mapcar (lambda (x) (if (vectorp x) (append x nil) x))
+                        (append query nil))))
+
+(ert-deftest blueprint-test-roam/similar-uses-roam-schema ()
+  "Similarity reads the org-roam schema as it is: the file node is the
+level-0 node, tags are keyed by node-id, links by source node.  The
+\"In comune\" column lists only what the two components share.  The
+database is stubbed, so the test runs without org-roam."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "orders" "#+TITLE: orders\n")
+    (blueprint-test--write-component "order-history" "#+TITLE: order-history\n")
+    (blueprint-test--write-component "warehouse" "#+TITLE: warehouse\n")
+    (let* ((comps (blueprint--components))
+           (file-of (lambda (id) (expand-file-name "arc42.org" (gethash id comps))))
+           (node-of (lambda (f) (seq-find (lambda (c) (equal (funcall file-of c) f))
+                                          '("orders" "order-history" "warehouse"))))
+           (data '(("orders" ("payments" "core") ("db-node") "Order Service")
+                   ("order-history" ("payments" "archive") ("db-node") "Order History")
+                   ("warehouse" ("logistics") nil "Warehouse"))))
+      (cl-letf (((symbol-function 'blueprint--roam-available-p) (lambda () t))
+                ((symbol-function 'org-roam-db-query)
+                 (lambda (query &rest args)
+                   (let ((syms (blueprint-test-roam--query-symbols query))
+                         (arg (car args)))
+                     (cond
+                      ((memq 'node-id syms)
+                       (mapcar #'list (nth 1 (assoc arg data))))
+                      ((memq 'tags syms) (error "no such column: node"))
+                      ((memq 'links:dest syms)
+                       (mapcar #'list (nth 2 (assoc (funcall node-of arg) data))))
+                      ((and (memq 'level syms) (memq 'id syms))
+                       (list (list (funcall node-of arg))))
+                      ((memq 'title syms)
+                       (if (equal arg "db-node")
+                           '(("Database"))
+                         (list (list (nth 3 (assoc arg data))))))
+                      (t nil))))))
+        (let ((scores (blueprint-roam-similar "orders")))
+          ;; tag payments (2) + link db-node (2) + token "order" (1)
+          (should (equal (mapcar (lambda (s) (list (car s) (cadr s))) scores)
+                         '(("order-history" 5))))
+          (with-current-buffer "*Blueprint Similar*"
+            (let ((text (buffer-string)))
+              (should (string-match-p "tag: payments |" text))
+              (should (string-match-p "link: Database" text))
+              (should (string-match-p "titolo: order" text))
+              (should-not (string-match-p "archive" text)))))))))
+
 (provide 'blueprint-test-roam)
 ;;; blueprint-test-roam.el ends here

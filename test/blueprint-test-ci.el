@@ -96,6 +96,7 @@ Returns nothing; call inside `blueprint-test--with-project'."
                            components)))
       (should (= (length components) 2))
       (should (string= (gethash "scope" alpha) "in-scope"))
+      (should (string= (gethash "lifecycle" alpha) "active"))
       (should (string= (gethash "owner" alpha) "Marco"))
       (should (string= (gethash "tech" alpha) "Java"))
       (should (equal (gethash "depends" alpha) ["beta"]))

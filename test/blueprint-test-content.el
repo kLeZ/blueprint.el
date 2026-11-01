@@ -54,7 +54,8 @@ per-component and per-ADR data, not project-level deliverables."
       (should (string-match-p "Term-B" content)))))
 
 (ert-deftest blueprint-test-glossary/add-has-source-line ()
-  "Added term uses the template format: a /Fonte: .../ line, no drawer.
+  "Added term uses the template format: definition, then a /Fonte: .../
+line, no drawer.
 The old :SOURCE: drawer format is still readable (see the lookup
 tests) but new entries follow the glossary template itself."
   (blueprint-test--with-project
@@ -78,7 +79,7 @@ tests) but new entries follow the glossary template itself."
                "^\\* Termini tecnici con uso specifico\n\\(?:.*\n\\)*\\*\\* SAG"
                content))
       (should (string-match-p
-               "^\\*\\* SAG\n/Fonte: team/\nSlowly Applicable Granularity"
+               "^\\*\\* SAG\nSlowly Applicable Granularity\n/Fonte: team/\n"
                content)))))
 
 (ert-deftest blueprint-test-glossary/add-defaults-to-first-section ()
@@ -427,7 +428,7 @@ term, inserted right under it and before the next section."
     (let ((content (blueprint-test--read-file
                     (expand-file-name "glossary.org" default-directory))))
       (should (string-match-p
-               "^\\* Vuota\n\n\\*\\* Zeta\n/Fonte: doc/\nUltima\\.\n\n\\* Termini di dominio"
+               "^\\* Vuota\n\n\\*\\* Zeta\nUltima\\.\n/Fonte: doc/\n\n\\* Termini di dominio"
                content)))))
 
 (ert-deftest blueprint-test-questions/answered-in-prose-is-not-open ()

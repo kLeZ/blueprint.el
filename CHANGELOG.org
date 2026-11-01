@@ -43,7 +43,39 @@ file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 - Domande: lo stato di una voce è il marker trovato (un ANSWERED in
   prosa non è più "open"); =blueprint-answer-question= propone solo le
   righe di elenco, anche rientrate, e non scrive =[FONTE: ]= vuoto.
-- Glossario: aggiunta in una sezione vuota senza errore.
+- Glossario: aggiunta in una sezione vuota senza errore; le voci
+  seguono il formato del template (definizione, poi =/Fonte: .../=),
+  anche quelle catturate con org-capture (=bg=), che ora finiscono come
+  heading di livello 2 nella prima sezione invece che in coda al file.
+- Grafo SVG (dashboard, preview, backend Graphviz di
+  =blueprint-dependency-graph=): gli id con trattino (=order-service=)
+  erano un errore di sintassi DOT e il grafo non veniva generato; ora
+  sono quotati e un errore di =dot= viene segnalato.
+- Agenda: =blueprint-agenda= apre una vista con le scadenze e tutte le
+  voci aperte (con =org-agenda-list= le voci senza data non
+  comparivano); DEADLINE, SCHEDULED e CLOSED su un'unica riga di
+  planning (la seconda riga non era planning e la data si perdeva al
+  refresh successivo).
+- Roam: similarità con lo schema reale di org-roam (tag per
+  =node-id=, nodo di file di livello 0); la colonna "In comune" mostra
+  solo ciò che è condiviso.
+- Diff: solo le righe dentro gli hunk sono contenuto; "domande
+  risolte" è il netto delle righe ANSWERED; i file non ancora aggiunti
+  a git compaiono come file nuovi.
+- Cancellazione del primo componente di una sezione: nessuna
+  interruzione di pagina residua in testa alla sezione.
+- =blueprint-adr-list= non elenca l'ADR d'esempio del template.
+- Template =arc42-enterprise.org= con la guida completa di
+  =component.org= (esempi, cosa scrivere, modelli di diagramma) più le
+  parti enterprise; la guida di entrambi spiega
+  =#+BLUEPRINT_LIFECYCLE:=.
+- Report JSON: chiave =lifecycle= per componente.
+- Autoload su =blueprint-dashboard-svg=, =blueprint-component-diff=,
+  =blueprint-preview-mode=, =blueprint-roam-similar= e
+  =blueprint-roam-clusters=.
+- Documentazione: AGENTS.md allineato al codice (struttura di
+  =blueprint-init=, percorso degli ADR, template, calcolo dello score);
+  USAGE senza il gap del glossario già chiuso.
 
 * 0.3.0 — 2026-11-01
 

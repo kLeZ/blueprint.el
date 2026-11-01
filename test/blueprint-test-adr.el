@@ -178,6 +178,15 @@
             (should (string-match-p "Adopt Microservices" content))
             (should (string-match-p "proposed" content))))))))
 
+(ert-deftest blueprint-test-adr-list/template-example-not-listed ()
+  "The example ADR 0000 of the template (:noexport:) is not listed."
+  (blueprint-test--with-project
+    (blueprint-adr-new "Use PostgreSQL")
+    (blueprint-adr-list)
+    (with-current-buffer "*Blueprint ADRs*"
+      (should (string-match-p "Use PostgreSQL" (buffer-string)))
+      (should-not (string-match-p "ADR 0000" (buffer-string))))))
+
 (ert-deftest blueprint-test-adr-list/ret-does-not-leak ()
   "RET of the ADR list is bound in its own keymap.
 `local-set-key' alone bound it in the shared `tabulated-list-mode-map'."

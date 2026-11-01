@@ -14,8 +14,9 @@
 ;; `blueprint-agenda-refresh' regenerates the file; entries are keyed
 ;; by a stable ID (a hash of origin file, text and occurrence), so a
 ;; refresh preserves what the user added by hand: DEADLINE,
-;; SCHEDULED and the TODO/DONE state.  `blueprint-agenda' refreshes
-;; and opens `org-agenda-list' restricted to that file.  The agenda
+;; SCHEDULED, CLOSED and the TODO/DONE state.  `blueprint-agenda'
+;; refreshes and opens a block agenda (dated entries, then every open
+;; TODO) restricted to that file.  The agenda
 ;; file lives in the data directory and is not included in master.org,
 ;; so it never enters the counts of the document.
 
@@ -24,6 +25,11 @@
 (require 'blueprint-core)
 (require 'cl-lib)
 (require 'org-element)
+
+;; org-agenda is loaded on demand by the commands below; its variables
+;; are let-bound there and must be special when this file is compiled.
+(defvar org-agenda-custom-commands)
+(defvar org-agenda-files)
 
 (defcustom blueprint-agenda-marker-types '("QUESTION" "FIXME")
   "Marker types turned into agenda entries by `blueprint-agenda-refresh'.
@@ -100,9 +106,10 @@ construction."
 
 (defun blueprint--agenda-read-existing (file)
   "Read the user-preserved data of the existing agenda FILE.
-A hash: ID → (STATE DEADLINE SCHEDULED), with STATE the TODO keyword
-of the entry (\"TODO\" when new) and DEADLINE/SCHEDULED the planning
-lines verbatim (nil when absent).  nil when FILE does not exist."
+A hash: ID -> (STATE PLANNING), with STATE the TODO keyword of the
+entry (\"TODO\" when new) and PLANNING the planning line rebuilt from
+its CLOSED, DEADLINE and SCHEDULED timestamps (nil when it has none).
+nil when FILE does not exist."
   (when (file-exists-p file)
     (let ((table (make-hash-table :test 'equal)))
       (with-temp-buffer
@@ -116,18 +123,28 @@ lines verbatim (nil when absent).  nil when FILE does not exist."
                 (puthash id
                          (list (or (org-element-property :todo-keyword hl)
                                    "TODO")
-                               (let ((d (org-element-property :deadline hl)))
-                                 (and d
-                                      (concat "DEADLINE: "
-                                              (org-element-timestamp-interpreter
-                                               d nil))))
-                               (let ((s (org-element-property :scheduled hl)))
-                                 (and s
-                                      (concat "SCHEDULED: "
-                                              (org-element-timestamp-interpreter
-                                               s nil)))))
+                               (blueprint--agenda-planning-line hl))
                          table))))))
       table)))
+
+(defun blueprint--agenda-planning-line (headline)
+  "Return the planning line of HEADLINE, or nil when it has none.
+CLOSED (written by Org when an entry is marked DONE), DEADLINE and
+SCHEDULED go on one line: Org reads as planning only the line right
+after the heading, so a second planning line would be plain text and
+its date lost at the next refresh."
+  (let ((parts
+         (delq nil
+               (mapcar (lambda (kv)
+                         (let ((ts (org-element-property (car kv) headline)))
+                           (and ts
+                                (concat (cdr kv) " "
+                                        (org-element-timestamp-interpreter
+                                         ts nil)))))
+                       '((:closed . "CLOSED:")
+                         (:deadline . "DEADLINE:")
+                         (:scheduled . "SCHEDULED:"))))))
+    (and parts (mapconcat #'identity parts " "))))
 
 (defun blueprint--agenda-write (entries)
   "Write the agenda file from ENTRIES, preserving user data.
@@ -143,8 +160,9 @@ Returns the file path."
       (insert "#+TITLE: Blueprint — punti aperti del documento\n\n"
               "File generato da `blueprint-agenda-refresh': le righe del\n"
               "documento (QUESTION, FIXME...) come TODO per org-agenda.\n"
-              "DEADLINE, SCHEDULED e stato vengono preservati al refresh\n"
-              "(gli ID sono stabili).  Non e' incluso in master.org.\n\n")
+              "DEADLINE, SCHEDULED, CLOSED e stato vengono preservati al\n"
+              "refresh (gli ID sono stabili); il resto della voce viene\n"
+              "rigenerato.  Non e' incluso in master.org.\n\n")
       (dolist (type blueprint-agenda-marker-types)
         (let ((of-type (cl-remove-if-not
                         (lambda (e) (string= (plist-get e :type) type))
@@ -159,7 +177,6 @@ Returns the file path."
                                 (plist-get e :component)
                                 (plist-get e :text)))
                 (when (cadr preserved) (insert (cadr preserved) "\n"))
-                (when (caddr preserved) (insert (caddr preserved) "\n"))
                 (insert ":PROPERTIES:\n"
                         (format ":ID: %s\n" (plist-get e :id))
                         (format ":ORIGIN: [[file:%s][%s:%d]]\n"
@@ -175,8 +192,9 @@ Returns the file path."
 (defun blueprint-agenda-refresh ()
   "Regenerate the agenda file from the open markers of the document.
 Each marker of `blueprint-agenda-marker-types' becomes a TODO entry
-of .blueprint/agenda.org; DEADLINE, SCHEDULED and TODO/DONE state of
-the previous entries are preserved across refreshes (stable IDs).
+of .blueprint/agenda.org; DEADLINE, SCHEDULED, CLOSED and TODO/DONE
+state of the previous entries are preserved across refreshes (stable
+IDs), the rest of each entry is regenerated.
 With `blueprint-agenda-add-to-org-agenda' non-nil, the file is also
 added to `org-agenda-files'.  Returns the file path."
   (interactive)
@@ -199,15 +217,22 @@ added to `org-agenda-files'.  Returns the file path."
 
 ;;;###autoload
 (defun blueprint-agenda ()
-  "Refresh the Blueprint agenda and open it in `org-agenda-list'.
-The agenda shows the TODO entries of .blueprint/agenda.org (see
-`blueprint-agenda-refresh'); deadlines and scheduled dates set there
-work as in any Org agenda."
+  "Refresh the Blueprint agenda and open it in `org-agenda'.
+A block agenda restricted to .blueprint/agenda.org (see
+`blueprint-agenda-refresh'): the week with the entries that have a
+DEADLINE or SCHEDULED date, then every open TODO entry, dated or not.
+`org-agenda-list' alone would show only the dated entries, and a fresh
+refresh has none.  Deadlines and scheduled dates set in the file work
+as in any Org agenda; `g' in the agenda buffer keeps the restriction."
   (interactive)
-  (let ((file (blueprint-agenda-refresh)))
+  (let ((file (expand-file-name (blueprint-agenda-refresh))))
     (require 'org-agenda)
-    (let ((org-agenda-files (list (expand-file-name file))))
-      (org-agenda-list))))
+    (let ((org-agenda-custom-commands
+           `(("B" "Blueprint: scadenze e punti aperti"
+              ((agenda "")
+               (alltodo ""))
+              ((org-agenda-files '(,file)))))))
+      (org-agenda nil "B"))))
 
 (provide 'blueprint-agenda)
 ;;; blueprint-agenda.el ends here

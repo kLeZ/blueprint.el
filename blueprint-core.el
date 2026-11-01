@@ -532,6 +532,27 @@ entry (see `blueprint--cached-metrics')."
   (when buffer-file-name
     (blueprint--invalidate-cache buffer-file-name)))
 
+;;; --- Graphviz ---
+
+(defun blueprint--dot-id (id)
+  "Return ID as a quoted Graphviz identifier.
+An unquoted DOT identifier allows only letters, digits and
+underscores, while component ids are slugs with hyphens
+\(\"order-service\"): unquoted, `dot' stops with a syntax error."
+  (concat "\"" (replace-regexp-in-string "[\"\\]" "\\\\\\&" id) "\""))
+
+(defun blueprint--dot-render (dot-file svg-file)
+  "Render DOT-FILE to SVG-FILE with Graphviz and delete DOT-FILE.
+Signals an error with the output of `dot' when it fails, instead of
+returning the path of an SVG that was not written (or is stale)."
+  (with-temp-buffer
+    (let ((exit (call-process "dot" nil t nil "-Tsvg" "-o" svg-file dot-file)))
+      (unless (eq exit 0)
+        (error "Graphviz failed on %s (exit %s): %s"
+               dot-file exit (string-trim (buffer-string))))))
+  (delete-file dot-file)
+  svg-file)
+
 ;;; --- Master sync markers (shared with blueprint-sync) ---
 
 (defvar blueprint-sync-start-marker "# @@blueprint-sync-start@@"

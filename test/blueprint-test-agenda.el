@@ -123,6 +123,47 @@ not mangle it into a list."
         ;; The entry itself is still there.
         (should (string-match-p "QUESTION: alpha" content))))))
 
+(ert-deftest blueprint-test-agenda/planning-line-survives-two-refreshes ()
+  "CLOSED, DEADLINE and SCHEDULED together survive repeated refreshes:
+they are written back on the single planning line Org reads (a second
+planning line would be plain text and lost at the next refresh)."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (blueprint-agenda-refresh)
+    (let* ((agenda (blueprint--agenda-file))
+           (content (blueprint-test--read-file agenda)))
+      (with-temp-file agenda
+        (insert (replace-regexp-in-string
+                 "\\(^\\*\\* \\)TODO \\(QUESTION: alpha[^\n]*\n\\)"
+                 (concat "\\1DONE \\2CLOSED: [2026-11-02 lun 10:00] "
+                         "DEADLINE: <2026-12-24 gio> SCHEDULED: <2026-12-01 mar>\n")
+                 content)))
+      (blueprint-agenda-refresh)
+      (blueprint-agenda-refresh)
+      (let ((content (blueprint-test-agenda--content)))
+        (should (string-match-p
+                 (concat "^\\*\\* DONE QUESTION: alpha[^\n]*\n"
+                         "CLOSED: \\[2026-11-02 [^]]*\\] "
+                         "DEADLINE: <2026-12-24[^>]*> "
+                         "SCHEDULED: <2026-12-01[^>]*>\n:PROPERTIES:")
+                 content))))))
+
+(ert-deftest blueprint-test-agenda/agenda-view-lists-undated-entries ()
+  "`blueprint-agenda' shows the open entries even without a date:
+right after a refresh none has one, and a date-only agenda would be
+empty."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (require 'org-agenda)
+    (unwind-protect
+        (progn
+          (blueprint-agenda)
+          (with-current-buffer org-agenda-buffer-name
+            (should (string-match-p "QUESTION: alpha" (buffer-string)))
+            (should (string-match-p "FIXME: beta" (buffer-string)))))
+      (when (get-buffer org-agenda-buffer-name)
+        (kill-buffer org-agenda-buffer-name)))))
+
 (ert-deftest blueprint-test-agenda/done-state-preserved-across-refresh ()
   "An entry marked DONE by hand stays DONE after the refresh."
   (blueprint-test--with-project

@@ -87,7 +87,7 @@ summary and the diff body."
             (should (string-match-p "QUESTION: \\+0/-1" text))
             (should (string-match-p "ANSWERED: \\+1/-0" text))
             (should (string-match-p "FIXME: \\+1/-0" text))
-            (should (string-match-p "Domande risolte (righe ANSWERED aggiunte): 1" text))
+            (should (string-match-p "Domande risolte (righe ANSWERED nette aggiunte): 1" text))
             (should (string-match-p "^diff --git a/" text))))))))
 
 (ert-deftest blueprint-test-diff/staged-changes-and-empty-revision ()
@@ -110,6 +110,41 @@ blank) means the default, not an argument for git."
       (dolist (revision '(nil ""))
         (with-current-buffer (blueprint-component-diff "svc" revision)
           (should (string-match-p "FIXME: \\+1/-0" (buffer-string))))))))
+
+(ert-deftest blueprint-test-diff/summary-only-hunk-content ()
+  "Inside a hunk an added line starting with \"++\" or a removed one
+starting with \"--\" is content; outside hunks nothing is.  An
+ANSWERED row merely edited closes no question."
+  (let ((s (blueprint--diff-summary
+            (concat "diff --git a/f.org b/f.org\n"
+                    "--- a/f.org\n"
+                    "+++ b/f.org\n"
+                    "@@ -1,3 +1,3 @@\n"
+                    "+++ FIXME in a line that starts with two pluses\n"
+                    "--- TBD in a line that starts with two dashes\n"
+                    "-- ANSWERED [2026-10-01] vecchia [FONTE: x]\n"
+                    "+- ANSWERED [2026-10-01] vecchia, riformulata [FONTE: x]\n"))))
+    (should (equal (assoc "FIXME" (plist-get s :deltas)) '("FIXME" 1 0)))
+    (should (equal (assoc "TBD" (plist-get s :deltas)) '("TBD" 0 1)))
+    (should (= (plist-get s :resolved) 0))))
+
+(ert-deftest blueprint-test-diff/untracked-files-shown ()
+  "A component document never added to git shows up as a new file."
+  (blueprint-test--with-project
+    (let ((git (lambda (&rest args)
+                 (apply #'call-process "git" nil nil nil args))))
+      (blueprint-test--write-component "svc" "#+TITLE: svc\n\n* Introduction\n")
+      (funcall git "init" "-q")
+      (funcall git "config" "user.email" "test@example.com")
+      (funcall git "config" "user.name" "Test")
+      (funcall git "add" ".")
+      (funcall git "commit" "-q" "-m" "Componente iniziale")
+      (blueprint-test--write-file ".blueprint/components/svc/functional.org"
+                                  "#+TITLE: f\n\n* Area\n\n- QUESTION nuova\n")
+      (with-current-buffer (blueprint-component-diff "svc")
+        (let ((text (buffer-string)))
+          (should (string-match-p "functional.org" text))
+          (should (string-match-p "QUESTION: \\+1/-0" text)))))))
 
 (provide 'blueprint-test-diff)
 ;;; blueprint-test-diff.el ends here

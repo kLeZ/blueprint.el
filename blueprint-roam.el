@@ -80,39 +80,69 @@ links weigh 2 each, shared title tokens 1."
                               :test #'equal))))
 
 (defun blueprint--roam-node-features (file)
-  "Return (TAGS LINKS TITLE) of the org-roam node for FILE.
-TAGS and LINKS come from the org-roam database; every query failure
-degrades to an empty feature and a message, so a stale database never
-breaks the listing."
+  "Return (TAGS LINKS TITLE) of the org-roam file node of FILE.
+The file node is the level-0 node of FILE (a heading with an ID is a
+node of its own, and may come first).  TAGS are the tags of that node
+\(the tags table keys them by `node-id'), LINKS the destinations of
+the links of every node of FILE, TITLE the title of the file node.
+Every query failure degrades to empty features and a message, so a
+stale database never breaks the listing."
   (let ((tags '()) (links '()) (title ""))
     (condition-case err
         (let ((node (caar (org-roam-db-query
-                           [:select [id] :from nodes :where (= file $s1)]
+                           [:select [id] :from nodes
+                            :where (and (= file $s1) (= level 0))]
                            file))))
           (when node
             (setq tags (mapcar #'car
                                (org-roam-db-query
-                                [:select [tag] :from tags :where (= node $s1)]
+                                [:select [tag] :from tags
+                                 :where (= node-id $s1)]
                                 node))
-                  links (mapcar #'car
-                                (org-roam-db-query
-                                 [:select [dest] :from links
-                                  :where (= source $s1)]
-                                 node))
+                  links (delete-dups
+                         (mapcar #'car
+                                 (org-roam-db-query
+                                  [:select [links:dest] :from links
+                                   :inner-join nodes
+                                   :on (= links:source nodes:id)
+                                   :where (= nodes:file $s1)]
+                                  file)))
                   title (or (caar (org-roam-db-query
                                    [:select [title] :from nodes
-                                    :where (= file $s1)]
-                                   file))
+                                    :where (= id $s1)]
+                                   node))
                             ""))))
       (error (message "Blueprint roam: database not available (%s); run org-roam-db-sync"
                       (error-message-string err))))
     (list tags links title)))
 
+(defun blueprint--roam-shared (me other)
+  "Return what features ME and OTHER have in common, for display.
+Both are (TAGS LINKS TITLE) lists of `blueprint--roam-node-features'.
+Returns (TAGS LINKS TOKENS): the shared tags, the shared link
+destinations and the shared title tokens."
+  (list (cl-intersection (nth 0 me) (nth 0 other) :test #'equal)
+        (cl-intersection (nth 1 me) (nth 1 other) :test #'equal)
+        (cl-intersection (blueprint--roam-tokens (nth 2 me))
+                         (blueprint--roam-tokens (nth 2 other))
+                         :test #'equal)))
+
+(defun blueprint--roam-dest-label (dest)
+  "Return a readable label for the link destination DEST.
+An id: destination is a node ID: its node title is shown when the
+database knows it, the destination itself otherwise."
+  (or (ignore-errors
+        (caar (org-roam-db-query
+               [:select [title] :from nodes :where (= id $s1)] dest)))
+      dest))
+
+;;;###autoload
 (defun blueprint-roam-similar (&optional component)
   "Rank the components most similar to COMPONENT via org-roam.
 Similarity counts shared tags, shared outgoing links and shared title
 tokens (see `blueprint--roam-similarity').  The result opens in a
-buffer sorted by score, best first."
+buffer sorted by score, best first; the last column lists what the
+two components have in common."
   (interactive
    (list (when current-prefix-arg
            (completing-read "Component: "
@@ -120,7 +150,6 @@ buffer sorted by score, best first."
                             nil t))))
   (unless (blueprint--roam-available-p)
     (user-error "Package org-roam is not installed"))
-  (require 'org-roam)
   (let* ((comps (blueprint--components))
          (id (or component
                  (completing-read "Component: "
@@ -138,9 +167,13 @@ buffer sorted by score, best first."
                                   (nth 0 me) (nth 1 me) (nth 2 me)
                                   (nth 0 feats) (nth 1 feats) (nth 2 feats))))
                      (when (> score 0)
-                       (push (list other score feats) scores)))))
+                       (push (list other score (blueprint--roam-shared me feats))
+                             scores)))))
                comps)
-      (setq scores (sort scores (lambda (a b) (> (cadr a) (cadr b)))))
+      (setq scores (sort scores (lambda (a b)
+                                  (or (> (cadr a) (cadr b))
+                                      (and (= (cadr a) (cadr b))
+                                           (string< (car a) (car b)))))))
       (if (null scores)
           (message "No similar component found (all scores are 0)")
         (with-current-buffer (get-buffer-create "*Blueprint Similar*")
@@ -148,18 +181,21 @@ buffer sorted by score, best first."
                 [("Component" 30 t) ("Score" 8 t) ("In comune" 50)])
           (setq tabulated-list-entries
                 (mapcar (lambda (s)
-                          (list (car s)
-                                (vector (car s)
-                                        (number-to-string (cadr s))
-                                        (format "tag: %s | link: %s | %s"
-                                                (nth 0 (caddr s))
-                                                (nth 1 (caddr s))
-                                                (nth 2 (caddr s))))))
+                          (let ((shared (nth 2 s)))
+                            (list (car s)
+                                  (vector (car s)
+                                          (number-to-string (cadr s))
+                                          (format "tag: %s | link: %s | titolo: %s"
+                                                  (string-join (nth 0 shared) ", ")
+                                                  (mapconcat #'blueprint--roam-dest-label
+                                                             (nth 1 shared) ", ")
+                                                  (string-join (nth 2 shared) ", "))))))
                         scores))
           (tabulated-list-mode)
           (tabulated-list-init-header)
           (tabulated-list-print)
-          (switch-to-buffer (current-buffer)))))))
+          (switch-to-buffer (current-buffer)))
+        scores))))
 
 (defun blueprint--roam-linked-files (file)
   "Return the files the org-roam nodes of FILE link to.
@@ -186,6 +222,7 @@ files and are left out."
           (push (expand-file-name dest (file-name-directory file)) files)))))
     (delete-dups (nreverse files))))
 
+;;;###autoload
 (defun blueprint-roam-clusters ()
   "Show the clusters of components joined by dependencies or links.
 The clusters are the connected components of the graph that joins two
