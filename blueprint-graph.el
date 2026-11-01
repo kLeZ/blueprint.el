@@ -45,6 +45,36 @@ includes, with the weights of `blueprint-health-score'; see
 `blueprint--component-health-color'."
   (blueprint--component-health-color id))
 
+(defun blueprint--dependency-clusters (deps-alist)
+  "Return the connected clusters of DEPS-ALIST, an alist (ID . DEPS).
+A list of lists of ids: two components belong to the same cluster when
+a chain of dependencies joins them, and a component with no
+dependencies is a cluster of its own.  Clusters are sorted largest
+first, each cluster's ids alphabetically.  Unknown dependencies are
+ignored: they dangle (the lint flags them) and do not join clusters."
+  (let ((parent (make-hash-table :test 'equal))
+        (ids (delete-dups (append (mapcar #'car deps-alist)
+                                  (apply #'append (mapcar #'cdr deps-alist))))))
+    (dolist (id ids) (puthash id id parent))
+    (cl-labels ((find-root (x)
+                  (while (not (equal (gethash x parent) x))
+                    (setq x (gethash x parent)))
+                  x))
+      (dolist (entry deps-alist)
+        (dolist (dep (cdr entry))
+          (when (and (gethash dep parent) (gethash (car entry) parent))
+            (let ((ra (find-root (car entry)))
+                  (rb (find-root dep)))
+              (unless (equal ra rb)
+                (puthash ra rb parent))))))
+      (let ((groups (make-hash-table :test 'equal)))
+        (dolist (id ids)
+          (let ((root (find-root id)))
+            (puthash root (cons id (gethash root groups)) groups)))
+        (mapcar (lambda (cluster) (sort cluster #'string<))
+                (sort (hash-table-values groups)
+                      (lambda (a b) (> (length a) (length b)))))))))
+
 (defun blueprint--graph-plantuml (deps root)
   "Generate a PlantUML dependency diagram from DEPS in ROOT."
   (let ((outfile (expand-file-name "component-deps.puml" root)))

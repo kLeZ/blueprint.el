@@ -14,6 +14,11 @@
 
 (require 'blueprint-core)
 
+;; org-roam is a soft dependency: loaded with `require ... nil t' in
+;; the commands below.  Its database functions are declared here so the
+;; byte compiler does not warn about them.
+(declare-function org-roam-db-query "ext:org-roam-db" (query &rest args))
+
 (defun blueprint--roam-available-p ()
   "Return non-nil if org-roam is available."
   (require 'org-roam nil t))
@@ -54,6 +59,146 @@ Adds the data directory's components/ directory to `org-roam-directory' search."
          (name (completing-read "Blueprint component: " names nil t))
          (file (blueprint--read-component-document name)))
     (when file (find-file file))))
+
+;;; --- Semantic search on the org-roam database (9.8) ---
+
+(defun blueprint--roam-tokens (title)
+  "Split TITLE into lowercase tokens for the similarity score."
+  (split-string (downcase (or title "")) "[^[:alnum:]]+" t))
+
+(defun blueprint--roam-similarity (a-tags a-links a-title
+                                       b-tags b-links b-title)
+  "Return a similarity score between two components' features.
+A-TAGS/A-LINKS/A-TITLE are the tags, outgoing links and title of the
+first component, B-* of the second.  Shared tags and shared outgoing
+links weigh 2 each, shared title tokens 1."
+  (+ (* 2 (length (cl-intersection a-tags b-tags :test #'equal)))
+     (* 2 (length (cl-intersection a-links b-links :test #'equal)))
+     (length (cl-intersection (blueprint--roam-tokens a-title)
+                              (blueprint--roam-tokens b-title)
+                              :test #'equal))))
+
+(defun blueprint--roam-node-features (file)
+  "Return (TAGS LINKS TITLE) of the org-roam node for FILE.
+TAGS and LINKS come from the org-roam database; every query failure
+degrades to an empty feature and a message, so a stale database never
+breaks the listing."
+  (let ((tags '()) (links '()) (title ""))
+    (condition-case err
+        (let ((node (caar (org-roam-db-query
+                           [:select [id] :from nodes :where (= file $s1)]
+                           file))))
+          (when node
+            (setq tags (mapcar #'car
+                               (org-roam-db-query
+                                [:select [tag] :from tags :where (= node $s1)]
+                                node))
+                  links (mapcar #'car
+                                (org-roam-db-query
+                                 [:select [dest] :from links
+                                  :where (= source $s1)]
+                                 node))
+                  title (or (caar (org-roam-db-query
+                                   [:select [title] :from nodes
+                                    :where (= file $s1)]
+                                   file))
+                            ""))))
+      (error (message "Blueprint roam: database not available (%s); run org-roam-db-sync"
+                      (error-message-string err))))
+    (list tags links title)))
+
+(defun blueprint-roam-similar (&optional component)
+  "Rank the components most similar to COMPONENT via org-roam.
+Similarity counts shared tags, shared outgoing links and shared title
+tokens (see `blueprint--roam-similarity').  The result opens in a
+buffer sorted by score, best first."
+  (interactive
+   (list (when current-prefix-arg
+           (completing-read "Component: "
+                            (hash-table-keys (blueprint--components))
+                            nil t))))
+  (unless (blueprint--roam-available-p)
+    (user-error "Package org-roam is not installed"))
+  (require 'org-roam)
+  (let* ((comps (blueprint--components))
+         (id (or component
+                 (completing-read "Component: "
+                                  (hash-table-keys comps) nil t)))
+         (dir (gethash id comps))
+         (arc (and dir (expand-file-name "arc42.org" dir))))
+    (unless arc (user-error "Component %s not found" id))
+    (let* ((me (blueprint--roam-node-features arc))
+           (scores '()))
+      (maphash (lambda (other other-dir)
+                 (unless (string= other id)
+                   (let* ((other-arc (expand-file-name "arc42.org" other-dir))
+                          (feats (blueprint--roam-node-features other-arc))
+                          (score (blueprint--roam-similarity
+                                  (nth 0 me) (nth 1 me) (nth 2 me)
+                                  (nth 0 feats) (nth 1 feats) (nth 2 feats))))
+                     (when (> score 0)
+                       (push (list other score feats) scores)))))
+               comps)
+      (setq scores (sort scores (lambda (a b) (> (cadr a) (cadr b)))))
+      (if (null scores)
+          (message "No similar component found (all scores are 0)")
+        (with-current-buffer (get-buffer-create "*Blueprint Similar*")
+          (setq tabulated-list-format
+                [("Component" 30 t) ("Score" 8 t) ("In comune" 50)])
+          (setq tabulated-list-entries
+                (mapcar (lambda (s)
+                          (list (car s)
+                                (vector (car s)
+                                        (number-to-string (cadr s))
+                                        (format "tag: %s | link: %s | %s"
+                                                (nth 0 (caddr s))
+                                                (nth 1 (caddr s))
+                                                (nth 2 (caddr s))))))
+                        scores))
+          (tabulated-list-mode)
+          (tabulated-list-init-header)
+          (tabulated-list-print)
+          (switch-to-buffer (current-buffer)))))))
+
+(defun blueprint-roam-clusters ()
+  "Show the clusters of components joined by dependencies or links.
+The clusters are the connected components of the graph that joins two
+components when one depends on the other (#+BLUEPRINT_DEPENDS:) or
+org-roam knows a link between them (the latter only with org-roam
+installed; without it the clusters follow the dependencies alone)."
+  (interactive)
+  (let* ((deps (blueprint--graph-deps))
+         (links '()))
+    (when (blueprint--roam-available-p)
+      (require 'org-roam)
+      (condition-case nil
+          (let ((comps (blueprint--components)))
+            (maphash (lambda (id dir)
+                       (let* ((file (expand-file-name "arc42.org" dir))
+                              (dests (mapcar #'car
+                                             (org-roam-db-query
+                                              [:select [dest] :from links
+                                               :where (= source $s1)]
+                                              file))))
+                         (dolist (dest dests)
+                           (let ((other (blueprint--component-of-file dest comps)))
+                             (when (and other (not (string= other id)))
+                               (push (cons id (list other)) links))))))
+                     comps))
+        (error nil)))
+    (let* ((merged (append deps links))
+           (clusters (blueprint--dependency-clusters merged))
+           (comps (blueprint--components)))
+      (with-current-buffer (get-buffer-create "*Blueprint Clusters*")
+        (erase-buffer)
+        (insert (format "Cluster di dipendenze e link (%d componenti)\n\n"
+                        (hash-table-count comps)))
+        (dolist (c clusters)
+          (insert (format "- %s\n" (mapconcat #'identity c ", "))))
+        (goto-char (point-min))
+        (special-mode)
+        (pop-to-buffer (current-buffer)))
+      clusters)))
 
 (provide 'blueprint-roam)
 ;;; blueprint-roam.el ends here
