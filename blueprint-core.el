@@ -1025,21 +1025,44 @@ Returns the first matching path, or nil if not found."
       (buffer-string))))
 
 ;;;###autoload
-(defun blueprint-add-component (name)
+(defconst blueprint--component-templates
+  '("component.org" "arc42-enterprise.org")
+  "Templates `blueprint-add-component' can build arc42.org from.
+\"component.org\" is the standard arc42 structure;
+\"arc42-enterprise.org\" adds the enterprise sections (contesto
+enterprise, stakeholder, compliance) for engagement-grade components.")
+
+(defun blueprint-add-component (name &optional template-name)
   "Add a new component NAME to the current Blueprint project.
 Creates the component directory under the data directory's
 components/ (see `blueprint-directory-name') and
 populates it from templates:
-  - arc42.org         from component.org template
+  - arc42.org         from TEMPLATE-NAME (default \"component.org\";
+                      \"arc42-enterprise.org\" adds the enterprise
+                      sections for engagement-grade components)
   - functional.org    from functional.org template (if available)
   - infrastructure.org from infrastructure.org template (if available)
 
-Template placeholders replaced:
+Interactively, with \\[universal-argument] the arc42 template is
+asked for among the templates of
+`blueprint--component-templates' that resolve in the three-tier
+lookup.  Template placeholders replaced:
   {{NAME}} -- component display name as entered
   {{ID}}   -- slugified name (lowercase, hyphens) for diagram IDs
   {{DATE}} -- current date (YYYY-MM-DD)"
-  (interactive "sComponent name: ")
-  (let* ((id (replace-regexp-in-string "[^a-zA-Z0-9-]" "-" (downcase name)))
+  (interactive
+   (list (read-string "Component name: ")
+         (when current-prefix-arg
+           (let ((candidates
+                  (delq nil (mapcar (lambda (tmpl)
+                                      (when (blueprint--resolve-template tmpl)
+                                        tmpl))
+                                    blueprint--component-templates))))
+             (completing-read "arc42 template: "
+                              (or candidates '("component.org"))
+                              nil t nil nil (car candidates))))))
+  (let* ((template-name (or template-name "component.org"))
+         (id (replace-regexp-in-string "[^a-zA-Z0-9-]" "-" (downcase name)))
          (dir (expand-file-name id
                                 (blueprint--data-path "components")))
          (date (format-time-string "%Y-%m-%d"))
@@ -1056,8 +1079,8 @@ Template placeholders replaced:
     (when (gethash id (blueprint--components))
       (user-error "Component \"%s\" already exists" id))
     (make-directory dir t)
-    ;; arc42.org -- always created
-    (let ((content (blueprint--template "component.org")))
+    ;; arc42.org -- always created, from the chosen template
+    (let ((content (blueprint--template template-name)))
       (dolist (pair replacements)
         (setq content (replace-regexp-in-string
                        (regexp-quote (car pair)) (cdr pair) content t t)))

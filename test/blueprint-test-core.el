@@ -527,6 +527,54 @@ Content outside the sync markers is untouched."
         (should (string= "PROJECT-LOCAL-TEMPLATE"
                          (blueprint-test--read-file resolved)))))))
 
+;;; --- Component templates (standard vs enterprise, 9.5) ---
+
+(ert-deftest blueprint-test-add-component/default-template-unchanged ()
+  "Without a template argument the arc42.org comes from component.org,
+as every pre-9.5 call and script expects."
+  (blueprint-test--with-project
+    (cl-letf (((symbol-function 'find-file) #'ignore))
+      (blueprint-add-component "standard"))
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/components/standard/arc42.org"
+                                      default-directory))))
+      (should (string-match-p "^\\* Introduction$" content))
+      (should-not (string-match-p "Contesto enterprise" content)))))
+
+(ert-deftest blueprint-test-add-component/enterprise-template ()
+  "With the enterprise template the arc42.org carries the three extra
+sections (contesto enterprise, stakeholder, compliance) on top of the
+standard arc42 ones the lint expects."
+  (blueprint-test--with-project
+    (cl-letf (((symbol-function 'find-file) #'ignore))
+      (blueprint-add-component "servizio-critico" "arc42-enterprise.org"))
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name ".blueprint/components/servizio-critico/arc42.org"
+                                      default-directory))))
+      (should (string-match-p "^\\* Contesto enterprise$" content))
+      (should (string-match-p "^\\* Stakeholder e punti di contatto$" content))
+      (should (string-match-p "^\\* Conformità e compliance$" content))
+      ;; The standard arc42 headings are still there, so the lint sees
+      ;; an enterprise component like any other.
+      (should (string-match-p "^\\* Introduction$" content))
+      (should (string-match-p "^\\* Building Blocks$" content))
+      (should (string-match-p "<<servizio-critico-stakeholders>>" content))
+      (should-not (string-match-p "{{" content)))))
+
+(ert-deftest blueprint-test-add-component/enterprise-template-listed ()
+  "`arc42-enterprise.org' is among the candidates
+`blueprint-add-component' can resolve, and the three-tier lookup
+applies: a project override wins over the system template."
+  (blueprint-test--with-project
+    (should (member "arc42-enterprise.org" blueprint--component-templates))
+    (should (blueprint--resolve-template "arc42-enterprise.org"))
+    (let ((proj-tmpl-dir (expand-file-name ".blueprint/templates" default-directory)))
+      (make-directory proj-tmpl-dir t)
+      (with-temp-file (expand-file-name "arc42-enterprise.org" proj-tmpl-dir)
+        (insert "PROJECT-LOCAL-ENTERPRISE"))
+      (should (string= "PROJECT-LOCAL-ENTERPRISE"
+                       (blueprint--template "arc42-enterprise.org"))))))
+
 ;;; --- Configurable data directory (`blueprint-directory-name') ---
 
 (ert-deftest blueprint-test-data-dir/name-validation ()

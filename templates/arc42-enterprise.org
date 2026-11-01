@@ -1,0 +1,93 @@
+#+TITLE: {{NAME}} — Architettura enterprise (arc42)
+#+BLUEPRINT_DEPENDS:
+#+BLUEPRINT_OWNER:
+#+BLUEPRINT_TECH:
+#+BLUEPRINT_STATUS: in-scope
+#+BLUEPRINT_LIFECYCLE: active
+#+CREATED: {{DATE}}
+#+STATUS: [DA VALIDARE]
+
+* Guida alla compilazione — arc42 enterprise                        :noexport:
+
+Questo template e' la struttura arc42 standard di =component.org= con
+tre sezioni aggiuntive per i componenti di rilievo in engagement
+grandi: /Contesto enterprise/, /Stakeholder e punti di contatto/ e
+/Conformità e compliance/.  Le convenzioni sono quelle di tutti i
+template: le sezioni nascono vuote e il lint segnala il file come
+privo di contenuto finché non si scrive; quando si scrive una sezione,
+marcarla =[DA VALIDARE]= finché non confermata da una fonte attendibile
+(codice, log, intervista o documento), poi sostituire il marker con
+=[APPROVATO YYYY-MM-DD]= o =[FINDING]= secondo l'esito della verifica.
+
+Gerarchia delle fonti (dalla più affidabile): codice → test → log →
+monitoring → interviste → documentazione preesistente.
+
+** Sezioni aggiuntive rispetto al template standard
+
+- /Contesto enterprise/: il perimetro del componente a livello
+  enterprise, con rimando alla Parte I del master
+  (=enterprise/context.org=, generata da =blueprint-generate-enterprise-c4=).
+- /Stakeholder e punti di contatto/: chi decide, chi usa, chi opera e
+  chi verifica: la mappa dei referenti con il loro ruolo nel confronto.
+- /Conformità e compliance/: gli obblighi normativi e di policy che
+  riguardano questo componente, con fonte, verifica ed esito.
+
+** Esempio: tabella stakeholder
+
+| Stakeholder     | Ruolo nel confronto  | Interesse | Canale              |
+|-----------------+----------------------+-----------+---------------------|
+| Direzione IT    | Approva il perimetro | Strategico| Comitato architettura |
+| Team pagamenti  | Usa l'API            | Operativo | Documento condiviso |
+| Garante privacy | Verifica il dato     | Normativo | Audit               |
+
+** Esempio: tabella compliance
+
+| Obbligo           | Fonte       | Verifica                      | Esito               |
+|-------------------+-------------+-------------------------------+---------------------|
+| PCI-DSS v4.0      | audit 2023  | Nessun dato carta in chiaro   | [APPROVATO 2024-02] |
+| GDPR — retention  | DPO         | Policy di cancellazione dati  | [DA VALIDARE]       |
+
+* Introduction
+<<{{ID}}-intro>>
+
+* Contesto enterprise
+<<{{ID}}-enterprise-context>>
+
+* Stakeholder e punti di contatto
+<<{{ID}}-stakeholders>>
+
+* Context and Scope
+<<{{ID}}-context>>
+
+* Constraints
+<<{{ID}}-constraints>>
+
+* Solution Strategy
+<<{{ID}}-strategy>>
+
+* Building Blocks
+<<{{ID}}-static>>
+
+* Runtime Behavior
+<<{{ID}}-runtime>>
+
+* Processi di business
+<<{{ID}}-business-processes>>
+
+* Deployment
+<<{{ID}}-deployment>>
+
+* Responsibility
+<<{{ID}}-responsibility>>
+
+* Conformità e compliance
+<<{{ID}}-compliance>>
+
+* Risks
+<<{{ID}}-risks>>
+
+* Open Questions
+<<{{ID}}-questions>>
+
+* Diagrams
+<<{{ID}}-diagrams>>
