@@ -415,5 +415,48 @@ with nothing in master.org is NOT-INCLUDED."
     (should (equal (blueprint--graph-health-color "svc") "#6bcb77"))
     (should (equal (blueprint--graph-health-color "off") blueprint--not-included-color))))
 
+;;; --- Milestones (9.11) ---
+
+(ert-deftest blueprint-test-dashboard/milestone-summary-from-todo-file ()
+  "Next milestone = first TODO heading in file order; the open count
+is the number of TODO headings across all the milestone files; a
+:DEADLINE: on the next milestone becomes its date."
+  (blueprint-test--with-project
+    (blueprint-test--write-file
+     "TODO.org"
+     (concat "* TODO Consegna parziale\nDEADLINE: <2026-12-01 lun>\n\n"
+             "* DONE Fatto\n\n* TODO Rilascio finale\n"))
+    (let ((m (blueprint--milestone-summary)))
+      (should (string= (plist-get m :title) "Consegna parziale"))
+      (should (string= (plist-get m :date) "2026-12-01"))
+      (should (= (plist-get m :open) 2))
+      (should (string= (plist-get m :file) "TODO.org")))))
+
+(ert-deftest blueprint-test-dashboard/milestone-summary-no-files ()
+  "No milestone file at the root: no summary."
+  (blueprint-test--with-project
+    (should (null (blueprint--milestone-summary)))))
+
+(ert-deftest blueprint-test-dashboard/milestone-in-summary-line ()
+  "The dashboard summary line carries the milestone when a file exists,
+and says nothing when there is none."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (should-not (string-match-p "Milestone:"
+                                (blueprint--dashboard-summary-line)))
+    (blueprint-test--write-file "CRONOPROGRAMMA.org" "* TODO Consegna draft\n")
+    (let ((line (blueprint--dashboard-summary-line)))
+      (should (string-match-p "Milestone: Consegna draft" line))
+      (should (string-match-p "TODO aperti: 1" line)))))
+
+(ert-deftest blueprint-test-dashboard/milestone-malformed-file-does-not-break ()
+  "Whatever happens while parsing the milestone files, the summary
+degrades to nil instead of breaking the dashboard."
+  (blueprint-test--with-project
+    (blueprint-test--write-file "TODO.org" "* TODO Qualcosa\n")
+    (cl-letf (((symbol-function 'org-element-parse-buffer)
+               (lambda (&rest _) (error "boom"))))
+      (should (null (blueprint--milestone-summary))))))
+
 (provide 'blueprint-test-dashboard)
 ;;; blueprint-test-dashboard.el ends here

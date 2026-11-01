@@ -205,17 +205,76 @@ visit it."
     (when id
       (blueprint-visit-component id))))
 
+(defcustom blueprint-milestone-files '("CRONOPROGRAMMA.org" "TODO.org")
+  "Org files at the project root that hold the project's milestones.
+When one of them exists, the dashboard summary shows the next open
+milestone and the number of open TODO items (see
+`blueprint--milestone-summary').  Milestones are headings with the
+TODO keyword; the next one is the first in file order.  Set to nil to
+disable the whole feature."
+  :type '(repeat string)
+  :group 'blueprint)
+
+(defun blueprint--milestone-summary (&optional root)
+  "Return the milestone summary of the project at ROOT, or nil.
+Scans `blueprint-milestone-files' at the project root with
+org-element: the next milestone is the first heading with the TODO
+keyword in file order (a :DEADLINE: on it is reported as its date)
+and the open count is the number of TODO headings across all the
+files.  Returns nil when none of the files exists, none has a TODO
+heading, or the feature is disabled.  Every parsing problem is
+swallowed: a malformed milestone file must never break the dashboard."
+  (when blueprint-milestone-files
+    (condition-case nil
+        (let* ((root (or root (blueprint--root)))
+               (files (cl-remove-if-not
+                       (lambda (f)
+                         (file-exists-p (expand-file-name f root)))
+                       blueprint-milestone-files))
+               (todos '()))
+          (dolist (f files)
+            (with-temp-buffer
+              (blueprint--insert-org-file (expand-file-name f root))
+              (org-element-map (org-element-parse-buffer 'headline)
+                  'headline
+                (lambda (hl)
+                  (when (equal (org-element-property :todo-keyword hl) "TODO")
+                    (let ((d (org-element-property :deadline hl)))
+                      (push (list :title
+                                  (or (org-element-property :raw-value hl) "")
+                                  :date (and d (format "%04d-%02d-%02d"
+                                                       (org-element-property :year-start d)
+                                                       (org-element-property :month-start d)
+                                                       (org-element-property :day-start d)))
+                                  :file f)
+                            todos)))))))
+          (when todos
+            (let ((todos (nreverse todos)))
+              (append (car todos) (list :open (length todos))))))
+      (error nil))))
+
 (defun blueprint--dashboard-summary-line ()
   "Return the summary shown in the dashboard mode line.
 Health of the whole document, number of components and of other
-document files, active filters."
-  (let ((units (blueprint--document-units)))
-    (format " Health: %d | Components: %d | Other files: %d%s%s"
-            (blueprint-health-score)
-            (cl-count 'component units :key (lambda (u) (plist-get u :kind)))
-            (cl-count 'part units :key (lambda (u) (plist-get u :kind)))
-            (if blueprint-dashboard-focus " [FOCUS]" "")
-            (if blueprint-dashboard-out-of-scope-only " [OUT-OF-SCOPE]" ""))))
+document files, active filters, and -- when a milestone file exists
+at the root (`blueprint-milestone-files') -- the next open milestone
+and the count of open TODO items."
+  (let* ((units (blueprint--document-units))
+         (milestone (blueprint--milestone-summary)))
+    (concat
+     (format " Health: %d | Components: %d | Other files: %d%s%s"
+             (blueprint-health-score)
+             (cl-count 'component units :key (lambda (u) (plist-get u :kind)))
+             (cl-count 'part units :key (lambda (u) (plist-get u :kind)))
+             (if blueprint-dashboard-focus " [FOCUS]" "")
+             (if blueprint-dashboard-out-of-scope-only " [OUT-OF-SCOPE]" ""))
+     (when milestone
+       (format " | Milestone: %s%s | TODO aperti: %d"
+               (plist-get milestone :title)
+               (if (plist-get milestone :date)
+                   (format " (%s)" (plist-get milestone :date))
+                 "")
+               (plist-get milestone :open))))))
 
 (defun blueprint-dashboard-refresh ()
   "Refresh the dashboard buffer."
