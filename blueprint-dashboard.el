@@ -55,6 +55,16 @@ marker is never \"OK\"."
   "Status of a component none of whose documents is in master.org.
 Its counts are zero because nothing of it reaches the document.")
 
+(defun blueprint--dashboard-lifecycle-label (lifecycle)
+  "Return the display label of the LIFECYCLE status, with its face.
+\"active\" is plain; \"draft\" is dimmed, \"deprecated\" red and
+\"archived\" yellow, so the life cycle is legible at a glance."
+  (pcase lifecycle
+    ("draft" (propertize "draft" 'face 'shadow))
+    ("deprecated" (propertize "deprecated" 'face 'error))
+    ("archived" (propertize "archived" 'face 'warning))
+    (_ "active")))
+
 (defun blueprint--dashboard-row (unit)
   "Return the (ID VECTOR) dashboard entry of UNIT, or nil if filtered out.
 UNIT is a row of `blueprint--document-units'.  Focus mode keeps rows
@@ -75,6 +85,9 @@ out-of-scope filter keeps out-of-scope/tbd components only."
          (penalty (plist-get summary :penalty))
          (included (plist-get unit :included))
          (scope (if component (blueprint--component-scope-status id) ""))
+         (lifecycle (if component
+                        (blueprint--component-lifecycle-status id)
+                      ""))
          (status (if included
                      (blueprint--component-status
                       questions tbds fixmes (+ da-validare da-revisionare))
@@ -88,6 +101,7 @@ out-of-scope filter keeps out-of-scope/tbd components only."
                        (or (and file (blueprint--org-keyword file "BLUEPRINT_OWNER")) "")
                        (or (and file (blueprint--org-keyword file "BLUEPRINT_TECH")) "")
                        scope
+                       (blueprint--dashboard-lifecycle-label lifecycle)
                        (number-to-string questions)
                        (number-to-string tbds)
                        (number-to-string fixmes)
@@ -131,7 +145,7 @@ master.org shows the status `blueprint--dashboard-not-included'."
   "Keymap for `blueprint-dashboard-mode'.")
 
 (defconst blueprint--dashboard-columns
-  '(("Name" 27) ("Owner" 8) ("Tech" 10) ("Scope" 12)
+  '(("Name" 27) ("Owner" 8) ("Tech" 10) ("Scope" 12) ("Life" 11)
     ("QUESTION" 8) ("TBD" 4) ("FIXME" 5) ("DA VAL" 6) ("DA REV" 6)
     ("FINDING" 7) ("Penalty" 7) ("Health" 6) ("Status" 12))
   "Titles and widths of the dashboard columns, in order.
@@ -143,9 +157,9 @@ One row per component, then one per other file of the document
 \(master.org, glossary, Parte I and V files, references).  Columns:
 
   Name      component id, or path of the file relative to the root
-  Owner, Tech, Scope
+  Owner, Tech, Scope, Life
             #+BLUEPRINT_OWNER, #+BLUEPRINT_TECH, #+BLUEPRINT_STATUS
-            of a component's arc42.org
+            and #+BLUEPRINT_LIFECYCLE of a component's arc42.org
   QUESTION, TBD, FIXME
             technical markers
   DA VAL    [DA VALIDARE] markers

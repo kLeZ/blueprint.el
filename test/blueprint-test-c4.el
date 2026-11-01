@@ -267,5 +267,40 @@ to in-scope."
      "#+TITLE: typo\n#+BLUEPRINT_STATUS: outof-scope\n\n* Introduction\n\n")
     (should (equal "in-scope" (blueprint--component-scope-status "typo")))))
 
+;;; --- blueprint--component-lifecycle-status ---
+
+(ert-deftest blueprint-test-lifecycle/reads-explicit-value ()
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "old"
+     "#+TITLE: old\n#+BLUEPRINT_LIFECYCLE: deprecated\n\n* Introduction\n\n")
+    (should (equal "deprecated" (blueprint--component-lifecycle-status "old")))))
+
+(ert-deftest blueprint-test-lifecycle/defaults-active-when-absent ()
+  "A component predating this feature (no #+BLUEPRINT_LIFECYCLE:)
+defaults to active, so existing projects keep working."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (should (equal "active" (blueprint--component-lifecycle-status "svc")))))
+
+(ert-deftest blueprint-test-lifecycle/defaults-active-when-unrecognized ()
+  "An unrecognized #+BLUEPRINT_LIFECYCLE: value falls back to active."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "typo"
+     "#+TITLE: typo\n#+BLUEPRINT_LIFECYCLE: running\n\n* Introduction\n\n")
+    (should (equal "active" (blueprint--component-lifecycle-status "typo")))))
+
+(ert-deftest blueprint-test-lifecycle/independent-from-scope-status ()
+  "The two keyword axes do not interfere: a deprecated component can be
+in-scope, and changing one does not touch the other."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy"
+     (concat "#+TITLE: legacy\n#+BLUEPRINT_STATUS: in-scope\n"
+             "#+BLUEPRINT_LIFECYCLE: deprecated\n\n* Introduction\n\n"))
+    (should (equal "deprecated" (blueprint--component-lifecycle-status "legacy")))
+    (should (equal "in-scope" (blueprint--component-scope-status "legacy")))))
+
 (provide 'blueprint-test-c4)
 ;;; blueprint-test-c4.el ends here

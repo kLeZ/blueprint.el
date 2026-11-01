@@ -306,5 +306,70 @@ Arc42 headings are checked on arc42.org only, not on the other files."
           (blueprint-ci-lint)))
       (should (equal code 1)))))
 
+;;; --- Life-cycle checks (#+BLUEPRINT_LIFECYCLE:) ---
+
+(ert-deftest blueprint-test-lint/active-depending-on-deprecated-warns ()
+  "An active component depending on a deprecated one is flagged."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy-billing"
+     (concat "#+TITLE: legacy-billing\n#+BLUEPRINT_LIFECYCLE: deprecated\n\n"
+             "* Introduction\n\nText.\n"))
+    (let ((file (blueprint-test--write-component
+                 "order-service"
+                 (concat "#+TITLE: order-service\n"
+                         "#+BLUEPRINT_DEPENDS: legacy-billing\n\n"
+                         "* Introduction\n\nText.\n"))))
+      (let ((warnings (blueprint--lint-component "order-service" file)))
+        (should (cl-some (lambda (w) (string-match-p
+                                      "active component depends on deprecated" w))
+                         warnings))))))
+
+(ert-deftest blueprint-test-lint/draft-depending-on-deprecated-no-warning ()
+  "A draft component may depend on a deprecated one: only \"active\"
+components are checked for the deprecated dependency."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "legacy-billing"
+     (concat "#+TITLE: legacy-billing\n#+BLUEPRINT_LIFECYCLE: deprecated\n\n"
+             "* Introduction\n\nText.\n"))
+    (let ((file (blueprint-test--write-component
+                 "order-service"
+                 (concat "#+TITLE: order-service\n"
+                         "#+BLUEPRINT_DEPENDS: legacy-billing\n"
+                         "#+BLUEPRINT_LIFECYCLE: draft\n\n"
+                         "* Introduction\n\nText.\n"))))
+      (should-not (cl-some (lambda (w) (string-match-p "deprecated" w))
+                           (blueprint--lint-component "order-service" file))))))
+
+(ert-deftest blueprint-test-lint/active-with-fixme-warns ()
+  "An active component with open FIXMEs is flagged."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "svc"
+                 (concat "#+TITLE: svc\n#+BLUEPRINT_LIFECYCLE: active\n\n"
+                         "* Introduction\n\nFIXME: the fallback path is broken.\n"))))
+      (let ((warnings (blueprint--lint-component "svc" file)))
+        (should (cl-some (lambda (w) (string-match-p "active component has 1 FIXME" w))
+                         warnings))))))
+
+(ert-deftest blueprint-test-lint/lifecycle-checks-can-be-disabled ()
+  "With `blueprint-lint-lifecycle-checks' nil there are no life-cycle
+warnings, for pipelines that want the pre-9.2 lint only."
+  (let ((blueprint-lint-lifecycle-checks nil))
+    (blueprint-test--with-project
+      (blueprint-test--write-component
+       "legacy-billing"
+       (concat "#+TITLE: legacy-billing\n#+BLUEPRINT_LIFECYCLE: deprecated\n\n"
+               "* Introduction\n\nText.\n"))
+      (let ((file (blueprint-test--write-component
+                   "order-service"
+                   (concat "#+TITLE: order-service\n"
+                           "#+BLUEPRINT_DEPENDS: legacy-billing\n\n"
+                           "* Introduction\n\nFIXME broken.\n"))))
+        (should-not (cl-some (lambda (w)
+                               (string-match-p "FIXME(s)\\|deprecated" w))
+                             (blueprint--lint-component "order-service" file)))))))
+
 (provide 'blueprint-test-lint)
 ;;; blueprint-test-lint.el ends here

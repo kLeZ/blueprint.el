@@ -36,6 +36,25 @@ every component were in scope."
         status
       "in-scope")))
 
+(defconst blueprint--component-lifecycle-values
+  '("draft" "active" "deprecated" "archived")
+  "Valid values for the #+BLUEPRINT_LIFECYCLE: keyword.
+The life cycle of a component is a different axis from its perimeter
+status (#+BLUEPRINT_STATUS:, `blueprint--component-scope-status').")
+
+(defun blueprint--component-lifecycle-status (id)
+  "Return the life-cycle status of component ID.
+Reads #+BLUEPRINT_LIFECYCLE: from ID's arc42.org, one of
+`blueprint--component-lifecycle-values'.  Defaults to \"active\" when
+the keyword is absent (components created before this feature existed)
+or holds an unrecognized value, so existing projects keep behaving as
+if every component were active."
+  (let* ((file (blueprint--component-file id))
+         (lifecycle (blueprint--org-keyword file "BLUEPRINT_LIFECYCLE")))
+    (if (member lifecycle blueprint--component-lifecycle-values)
+        lifecycle
+      "active")))
+
 ;;;###autoload
 (defun blueprint-generate-c4 ()
   "Generate a PlantUML C4 container diagram from project dependencies.

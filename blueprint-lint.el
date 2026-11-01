@@ -69,12 +69,25 @@ TBD, FIXME, exported text only, as in the health score) than
                 warnings))))
     (nreverse warnings)))
 
+(defcustom blueprint-lint-lifecycle-checks t
+  "When non-nil, the lint also checks the components' life cycle.
+Two warnings: an \"active\" component that depends on a \"deprecated\"
+one, and an \"active\" component with open FIXMEs.  The checks are
+about #+BLUEPRINT_LIFECYCLE:, a different axis from the perimeter
+status #+BLUEPRINT_STATUS: (whose in-scope/out-of-scope leak warning
+is not affected by this defcustom)."
+  :type 'boolean
+  :group 'blueprint)
+
 (defun blueprint--lint-component (id file &optional skip-content)
   "Lint component ID at FILE (its arc42.org).  Return a list of warnings.
 Checks the expected arc42 headings, the dependencies declared with
 #+BLUEPRINT_DEPENDS: and, unless SKIP-CONTENT is non-nil, the content
 of FILE (see `blueprint--lint-content').  `blueprint--lint-project'
-passes SKIP-CONTENT when arc42.org is not part of the document."
+passes SKIP-CONTENT when arc42.org is not part of the document.  With
+`blueprint-lint-lifecycle-checks', also warns for an \"active\"
+component with FIXMEs and for an \"active\" component that depends on
+a \"deprecated\" one (#+BLUEPRINT_LIFECYCLE:)."
   (if (not (and file (file-exists-p file)))
       (list (format "%s: arc42.org not found" id))
     (let ((warnings '()))
@@ -89,10 +102,20 @@ passes SKIP-CONTENT when arc42.org is not part of the document."
       (unless skip-content
         (setq warnings (append (reverse (blueprint--lint-content id file))
                                warnings)))
-      ;; Check dangling dependencies, and in-scope -> out-of-scope leaks
+      ;; Life cycle of the component itself (#+BLUEPRINT_LIFECYCLE:).
+      (when blueprint-lint-lifecycle-checks
+        (let ((fixmes (nth 2 (blueprint--component-metrics file))))
+          (when (and (string= (blueprint--component-lifecycle-status id)
+                              "active")
+                     (> fixmes 0))
+            (push (format "%s: active component has %d FIXME(s)" id fixmes)
+                  warnings))))
+      ;; Check dangling dependencies, in-scope -> out-of-scope leaks and
+      ;; active -> deprecated leaks
       (let* ((deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS"))
              (all-comps (blueprint--components))
-             (own-status (blueprint--component-scope-status id)))
+             (own-status (blueprint--component-scope-status id))
+             (own-lifecycle (blueprint--component-lifecycle-status id)))
         (when deps-str
           (dolist (dep (split-string deps-str))
             (if (not (gethash dep all-comps))
@@ -104,8 +127,16 @@ passes SKIP-CONTENT when arc42.org is not part of the document."
                 (push (format
                        "%s: in-scope component depends on out-of-scope component \"%s\""
                        id dep)
-                      warnings))))))
-      (nreverse warnings))))
+                      warnings))
+              (when (and blueprint-lint-lifecycle-checks
+                         (string= own-lifecycle "active")
+                         (string= (blueprint--component-lifecycle-status dep)
+                                  "deprecated"))
+                (push (format
+                       "%s: active component depends on deprecated component \"%s\""
+                       id dep)
+                      warnings)))))
+        (nreverse warnings)))))
 
 (defun blueprint--lint-file-label (file comps root)
   "Return the label of FILE in lint warnings.

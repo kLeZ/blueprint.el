@@ -88,6 +88,25 @@
            (fields (cadr entry)))
       (should (equal (aref fields 3) "out-of-scope")))))
 
+(ert-deftest blueprint-test-dashboard/entries-carry-lifecycle-column ()
+  "The Life column reflects #+BLUEPRINT_LIFECYCLE: (default active),
+with a face on the non-active values, and no column was displaced."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "old" "#+TITLE: old\n#+BLUEPRINT_LIFECYCLE: deprecated\n\n* Introduction\n\n")
+    (blueprint-test--write-component "new")
+    (let* ((blueprint-dashboard-focus nil)
+           (old (cadr (assoc "old" (blueprint--dashboard-entries))))
+           (new (cadr (assoc "new" (blueprint--dashboard-entries)))))
+      (should (= (length blueprint--dashboard-columns) 14))
+      (should (equal (substring-no-properties (aref old 4)) "deprecated"))
+      (should (equal (get-text-property 0 'face (aref old 4)) 'error))
+      (should (equal (aref new 4) "active"))
+      ;; The numeric columns keep their indices.
+      (should (equal (aref old 5) "0"))  ; QUESTION
+      (should (equal (aref old 10) "0")) ; Penalty
+      (should (equal (substring-no-properties (aref old 13)) "OK")))))
+
 (ert-deftest blueprint-test-dashboard/out-of-scope-filter-hides-in-scope ()
   "With the out-of-scope filter on, in-scope components are hidden."
   (blueprint-test--with-project
@@ -145,24 +164,24 @@ Penalty and Health follow `blueprint--health-weights' ([FINDING] 0)."
      "#+TITLE: i\n\n* Servers\n\nFIXME host. [DA REVISIONARE] [FINDING]\n")
     (let ((fields (blueprint-test--dashboard-fields "svc"))
           (summary (blueprint--component-health-summary "svc")))
-      (should (equal (aref fields 4) "1"))  ; QUESTION (arc42)
-      (should (equal (aref fields 5) "1"))  ; TBD (functional)
-      (should (equal (aref fields 6) "1"))  ; FIXME (infrastructure)
-      (should (equal (aref fields 7) "1"))  ; [DA VALIDARE]
-      (should (equal (aref fields 8) "1"))  ; [DA REVISIONARE]
-      (should (equal (aref fields 9) "2"))  ; [FINDING], both files
+      (should (equal (aref fields 5) "1"))  ; QUESTION (arc42)
+      (should (equal (aref fields 6) "1"))  ; TBD (functional)
+      (should (equal (aref fields 7) "1"))  ; FIXME (infrastructure)
+      (should (equal (aref fields 8) "1"))  ; [DA VALIDARE]
+      (should (equal (aref fields 9) "1"))  ; [DA REVISIONARE]
+      (should (equal (aref fields 10) "2")) ; [FINDING], both files
       ;; 3 + 2 + 4 + 1 + 1, findings weigh 0.
-      (should (equal (aref fields 10) "11"))
+      (should (equal (aref fields 11) "11"))
       (should (= 11 (plist-get summary :penalty)))
       (should (= 5 (plist-get summary :open)))
-      (should (equal (aref fields 11)
+      (should (equal (aref fields 12)
                      (number-to-string
                       (blueprint--health-score-from
                        11 (plist-get summary :words)))))
-      (should (equal (aref fields 12) "FIXME"))
+      (should (equal (aref fields 13) "FIXME"))
       ;; The project score is the same computation over all components.
       (should (= (blueprint-health-score)
-                 (string-to-number (aref fields 11)))))))
+                 (string-to-number (aref fields 12)))))))
 
 (ert-deftest blueprint-test-dashboard/focus-sees-functional-markers ()
   "Focus mode lists a component whose only open marker is in functional.org."
@@ -186,7 +205,7 @@ Penalty and Health follow `blueprint--health-weights' ([FINDING] 0)."
     (let* ((blueprint-dashboard-focus t)
            (blueprint-dashboard-out-of-scope-only nil))
       (should-not (assoc "svc" (blueprint--dashboard-entries))))
-    (should (equal (aref (blueprint-test--dashboard-fields "svc") 12) "OK"))
+    (should (equal (aref (blueprint-test--dashboard-fields "svc") 13) "OK"))
     (should (null (blueprint--daily-candidates)))))
 
 (ert-deftest blueprint-test-dashboard/visit-asks-document ()
@@ -215,7 +234,7 @@ arc42.org; a different shape under the same key would break it."
                       file #'blueprint--component-metrics)
                      '(1 0 0)))
       (blueprint--dashboard-entries)
-      (should (equal (aref (blueprint-test--dashboard-fields "svc") 4) "1")))))
+      (should (equal (aref (blueprint-test--dashboard-fields "svc") 5) "1")))))
 
 (ert-deftest blueprint-test-graph/color-uses-all-documents ()
   "The graph color follows the score over all documents of a component."
@@ -357,12 +376,12 @@ with nothing in master.org is NOT-INCLUDED."
       (let ((g (cadr (assoc "glossary.org" entries)))
             (r (cadr (assoc "nfr/risks.org" entries)))
             (off (cadr (assoc "off" entries))))
-        (should (equal (aref g 7) "1"))
-        (should (equal (aref g 10) "1"))
-        (should (equal (aref r 4) "1"))
-        (should (equal (aref r 12) "IN-PROGRESS"))
-        (should (equal (aref off 12) "NOT-INCLUDED"))
-        (should (equal (aref off 11) "-")))
+        (should (equal (aref g 8) "1"))
+        (should (equal (aref g 11) "1"))
+        (should (equal (aref r 5) "1"))
+        (should (equal (aref r 13) "IN-PROGRESS"))
+        (should (equal (aref off 13) "NOT-INCLUDED"))
+        (should (equal (aref off 12) "-")))
       ;; Focus: rows with penalty points, and the component left out.
       (let ((blueprint-dashboard-focus t))
         (should (equal (mapcar #'car (blueprint--dashboard-entries))

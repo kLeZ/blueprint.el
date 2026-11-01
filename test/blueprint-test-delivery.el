@@ -136,7 +136,7 @@ file under the root, knowledge base and interview notes included."
     (should (= 2 (blueprint--delivery-count-marker "[DA VALIDARE]")))
     (should (= 1 (blueprint--delivery-count-marker "[DA REVISIONARE]")))
     ;; Same numbers as the DA VAL column of the dashboard rows.
-    (should (= 2 (apply #'+ (mapcar (lambda (e) (string-to-number (aref (cadr e) 7)))
+    (should (= 2 (apply #'+ (mapcar (lambda (e) (string-to-number (aref (cadr e) 8)))
                                     (let ((blueprint-dashboard-focus nil)
                                           (blueprint-dashboard-out-of-scope-only nil))
                                       (blueprint--dashboard-entries))))))
