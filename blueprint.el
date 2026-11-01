@@ -77,6 +77,7 @@
 (require 'blueprint-history)
 (require 'blueprint-agenda)
 (require 'blueprint-changelog)
+(require 'blueprint-diff)
 
 ;; Optional integrations (soft dependencies)
 (require 'blueprint-roam nil t)

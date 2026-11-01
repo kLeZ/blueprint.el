@@ -1,0 +1,160 @@
+;;; blueprint-diff.el --- Semantic component diff for Blueprint  -*- lexical-binding:t; -*-
+;; SPDX-License-Identifier: MIT
+
+;; Author: kLeZ
+;; URL: https://github.com/kLeZ/blueprint.el
+
+;;; Commentary:
+
+;; Shows the git diff of a component's directory with a semantic
+;; summary on top: which org headings changed, how the markers moved
+;; (QUESTION, ANSWERED, TBD, FIXME added/removed), how many open
+;; questions were closed.  The diff itself stays in `diff-mode'.
+;; The diff is always requested in plain unified format
+;; (--no-ext-diff): a `diff.external' tool in the user's git config
+;; (difftastic and friends) would otherwise replace it with a format
+;; the summary cannot parse.  Purely read-only: nothing is written to
+;; the project.
+
+;;; Code:
+
+(require 'blueprint-core)
+(require 'diff-mode)
+
+(defconst blueprint--diff-marker-names '("QUESTION" "ANSWERED" "TBD" "FIXME")
+  "Markers counted by `blueprint--diff-summary'.")
+
+(defun blueprint--diff-summary (diff-text)
+  "Return the semantic summary of a unified DIFF-TEXT.
+A plist with:
+  :files     the files touched, as in the diff headers
+  :headings  the org headings touched, as (LEVEL TITLE) lists
+  :deltas    an alist (MARKER ADDED REMOVED), one per
+             `blueprint--diff-marker-names'
+  :resolved  the ANSWERED lines added, i.e. the questions the change
+             closed (a QUESTION rewritten as ANSWERED shows up as one
+             removed and one added line of the two markers)"
+  (let ((files '())
+        (headings '())
+        (deltas (mapcar (lambda (m) (list m 0 0))
+                        blueprint--diff-marker-names))
+        (resolved 0))
+    (dolist (line (split-string diff-text "\n" t))
+      (let ((sign nil)
+            (body nil))
+        (cond
+         ((string-match "\\`diff --git a/\\(.*\\) b/\\(.*\\)\\'" line)
+          (push (match-string 1 line) files))
+         ;; Added/removed lines: an org list line starts with "-" or
+         ;; "+", so a removed list line begins with "--" — only the
+         ;; three-dash file headers ("--- a/...") are not content.
+         ((and (string-match-p "\\`\\+" line)
+               (not (string-match-p "\\`\\+\\+\\+" line)))
+          (setq sign 'add body (substring line 1)))
+         ((and (string-match-p "\\`-" line)
+               (not (string-match-p "\\`---" line)))
+          (setq sign 'remove body (substring line 1))))
+        (when sign
+          (when (string-match "\\`\\(\\*+\\)[ \t]+\\(.*\\)\\'" body)
+            (push (list (length (match-string 1 body))
+                        (match-string 2 body))
+                  headings))
+          (dolist (d deltas)
+            (when (string-match-p (concat "\\<" (car d) "\\>") body)
+              (if (eq sign 'add)
+                  (cl-incf (nth 1 d))
+                (cl-incf (nth 2 d)))))
+          (when (and (eq sign 'add) (string-match-p "\\<ANSWERED\\>" body))
+            (cl-incf resolved)))))
+    (list :files (nreverse files)
+          :headings (nreverse headings)
+          :deltas deltas
+          :resolved resolved)))
+
+(defun blueprint--diff-summary-text (summary)
+  "Return the header lines describing SUMMARY."
+  (concat
+   (format "File toccati: %s\n"
+           (if (plist-get summary :files)
+               (mapconcat #'identity (plist-get summary :files) ", ")
+             "nessuno"))
+   (format "Heading toccati: %s\n"
+           (if (plist-get summary :headings)
+               (mapconcat (lambda (h)
+                            (format "%s %s"
+                                    (make-string (car h) ?*) (cadr h)))
+                          (plist-get summary :headings)
+                          "; ")
+             "nessuno"))
+   "Marker nel diff:\n"
+   (mapconcat (lambda (d)
+                (format "  %s: +%d/-%d\n" (car d) (nth 1 d) (nth 2 d)))
+              (plist-get summary :deltas)
+              "")
+   (format "Domande risolte (righe ANSWERED aggiunte): %d\n"
+           (plist-get summary :resolved))))
+
+;;;###autoload
+(defun blueprint-component-diff (&optional component revision)
+  "Show the git diff of COMPONENT's directory with a semantic summary.
+REVISION, when non-nil, diffs against it (`git diff REVISION -- dir');
+the default is the working tree.  The buffer holds the summary and the
+diff in `diff-mode'.  Signals `user-error' outside a git repository."
+  (interactive
+   (list (completing-read "Component: "
+                          (hash-table-keys (blueprint--components)) nil t)
+         (when current-prefix-arg
+           (read-string "Diff against (revision, empty = working tree): "))))
+  (let* ((comps (blueprint--components))
+         (dir (gethash component comps)))
+    (unless dir (user-error "Component %s not found" component))
+    (let* ((root (blueprint--root))
+           (default-directory root)
+           (rel-dir (file-relative-name dir root))
+           (args (append '("diff" "--no-color" "--no-ext-diff")
+                         (when revision (list revision))
+                         (list "--" rel-dir)))
+           (diff-text (with-temp-buffer
+                        (let ((exit (condition-case err
+                                        (apply #'call-process
+                                               "git" nil t nil args)
+                                      (file-missing
+                                       (user-error "git not found: %s"
+                                                   (error-message-string err))))))
+                          (unless (zerop exit)
+                            (user-error
+                             "git diff failed (exit %d): is the project a git repository?"
+                             exit))
+                          (buffer-string))))
+           (summary (blueprint--diff-summary diff-text))
+           (buf (get-buffer-create (format "*Blueprint Diff: %s*" component))))
+      (with-current-buffer buf
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Diff di %s%s\n\n" component
+                          (if revision (format " (vs %s)" revision) "")))
+          (insert (blueprint--diff-summary-text summary))
+          (insert "\n" diff-text))
+        (diff-mode)
+        (goto-char (point-min)))
+      (pop-to-buffer buf)
+      buf)))
+
+(defun blueprint-component-diff-at-point ()
+  "Diff the component at point in the components list."
+  (interactive)
+  (let ((id (tabulated-list-get-id)))
+    (if id
+        (blueprint-component-diff id)
+      (user-error "No component at point"))))
+
+;; The `d' key of `blueprint-components-mode-map' (blueprint-core.el,
+;; which this module requires) diffs the component at point.  Core
+;; cannot require this module (the dependency goes the other way), so
+;; the binding is installed here, at load time.
+(with-eval-after-load 'blueprint-core
+  (define-key blueprint-components-mode-map "d"
+              #'blueprint-component-diff-at-point))
+
+(provide 'blueprint-diff)
+;;; blueprint-diff.el ends here

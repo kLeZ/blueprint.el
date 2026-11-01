@@ -836,6 +836,8 @@ offered."
     (define-key map (kbd "a") #'blueprint-components-visit-arc42)
     (define-key map (kbd "f") #'blueprint-components-visit-functional)
     (define-key map (kbd "i") #'blueprint-components-visit-infrastructure)
+    ;; `d' diff: defined in blueprint-diff.el, which requires this one;
+    ;; the binding is installed by `blueprint-diff' at load time.
     map)
   "Keymap for `blueprint-components-mode'.")
 
