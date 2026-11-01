@@ -76,6 +76,7 @@
 (require 'blueprint-delivery)
 (require 'blueprint-history)
 (require 'blueprint-agenda)
+(require 'blueprint-changelog)
 
 ;; Optional integrations (soft dependencies)
 (require 'blueprint-roam nil t)
@@ -93,7 +94,8 @@
     ("R" "rename component" blueprint-rename-component)
     ("X" "delete component" blueprint-delete-component)
     ("l" "list components" blueprint-list-components)
-    ("j" "visit document" blueprint-visit-component)]
+    ("j" "visit document" blueprint-visit-component)
+    ("J" "generate changelog" blueprint-changelog-generate)]
    ["Architecture"
     ("C" "generate C4" blueprint-generate-c4)
     ("V" "enterprise C4" blueprint-generate-enterprise-c4)
@@ -164,6 +166,7 @@
     (define-key map (kbd "X") #'blueprint-delete-component)
     (define-key map (kbd "l") #'blueprint-list-components)
     (define-key map (kbd "j") #'blueprint-visit-component)
+    (define-key map (kbd "J") #'blueprint-changelog-generate)
     ;; Architecture
     (define-key map (kbd "C") #'blueprint-generate-c4)
     (define-key map (kbd "V") #'blueprint-generate-enterprise-c4)

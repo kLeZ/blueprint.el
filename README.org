@@ -249,6 +249,7 @@ logical groups:
 |                | =X= | delete component      |
 |                | =l= | list components       |
 |                | =j= | visit document        |
+|                | =J= | generate changelog    |
 | *Architecture* | =C= | generate C4           |
 |                | =V= | enterprise C4         |
 |                | =G= | dependency graph      |
