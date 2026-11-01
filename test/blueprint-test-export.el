@@ -469,6 +469,59 @@ content.xml although every image was there."
               (unless (memq buf buffers-before)
                 (kill-buffer buf)))))))))
 
+;;; --- Footnotes reach the ODT export (PLAN 9.16) ---
+
+(ert-deftest blueprint-test-export/footnotes-reach-content-xml ()
+  "Footnotes in the master text, in a table cell and in an included
+file all reach content.xml, one text:note each, numbered continuously
+across the includes: Org handles footnotes of the whole expanded
+document, Blueprint only has to not get in the way."
+  (skip-unless (executable-find "unzip"))
+  (blueprint-test--with-project
+    (let* ((proj default-directory)
+           (arc42 (blueprint-test--write-component
+                   "svc"
+                   (concat "#+TITLE: svc\n\n* Introduction\n\n"
+                           "Nota nel file incluso[fn:: Seconda nota.]\n")))
+           (master (expand-file-name "master.org" proj))
+           (odt (expand-file-name "master.odt" proj)))
+      (with-temp-file master
+        (insert "#+TITLE: Assessment Master\n\n"
+                "Nota nel testo del master[fn:: Prima nota.]\n\n"
+                "| Colonna   |\n|-----------|\n"
+                "| Nota in tabella[fn:: Terza nota.] |\n\n"
+                (format "#+INCLUDE: %S :minlevel 2\n" arc42)))
+      (let ((buffers-before (buffer-list)))
+        (unwind-protect
+            (progn
+              (blueprint-export-odt)
+              (should (file-exists-p odt))
+              (with-temp-buffer
+                (call-process "unzip" nil t nil "-p" odt "content.xml")
+                (let* ((xml (buffer-string))
+                       ;; Counting on the string: "text:note " with a
+                       ;; trailing space skips text:note-citation/body.
+                       (notes (length (split-string xml "<text:note " t))))
+                  ;; One text:note element per footnote, wherever it was.
+                  (should (= (1- notes) 3))
+                  ;; Continuous numbering across the include: citation
+                  ;; 1 = master text, 2 = table cell, 3 = included
+                  ;; file (the numbering did not restart at the
+                  ;; include; the citation precedes the note body).
+                  (should (string-match-p
+                           "text:note-citation>1</text:note-citation><text:note-body>\n<text:p text:style-name=\"Footnote\">Prima nota\\."
+                           xml))
+                  (should (string-match-p
+                           "text:note-citation>2</text:note-citation><text:note-body>\n<text:p text:style-name=\"Footnote\">Terza nota\\."
+                           xml))
+                  (should (string-match-p
+                           "text:note-citation>3</text:note-citation><text:note-body>\n<text:p text:style-name=\"Footnote\">Seconda nota\\."
+                           xml)))))
+          (let ((kill-buffer-query-functions nil))
+            (dolist (buf (buffer-list))
+              (unless (memq buf buffers-before)
+                (kill-buffer buf)))))))))
+
 ;;; --- SVG size for the ODT exporter ---
 
 (defun blueprint-test--write-svg (header)

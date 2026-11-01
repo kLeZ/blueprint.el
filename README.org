@@ -567,6 +567,18 @@ All prompts include guardrails: context clamping to =blueprint-ai-max-context=
 characters, and sanitization of emails, IP addresses, and password-like
 patterns.
 
+** Native Org features
+For the final document's typesetting apparatus Blueprint deliberately prefers
+Org's built-in tools over new constructs: footnotes (=[fn:: ...]=, also in
+table cells and in files pulled in with =#+INCLUDE=, numbered continuously
+across the assembled document), =oc= citations, page breaks
+(=#+BLUEPRINT_PAGE_BREAK:=), per-backend export keywords (=#+ODT:=,
+=#+LATEX:=, ...) and image sizing (=#+ATTR_ODT: :width=). What Blueprint
+supports and guarantees end-to-end --- syntax, per-backend behavior, the
+checks it runs (=blueprint-check-odt-styles= knows the =Footnote= and
+=PageBreak= styles) and the known limits --- is documented in USAGE.org
+under "* Funzioni native di Org supportate".
+
 * Customization
 All customization options are in the =blueprint= customize group
 (=M-x customize-group RET blueprint=):

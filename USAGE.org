@@ -924,6 +924,99 @@ se il sistema cambia dopo la data, la sezione torna =[DA VALIDARE]=.
 
 -----
 
+* Funzioni native di Org supportate
+
+Per impaginazione e apparato del documento finale si preferiscono gli
+strumenti built-in di Org (=ox=, =ox-odt=, =ox-latex=, =oc=) a
+costrutti nuovi dentro Blueprint. Questa sezione dichiara cosa del
+"nativo" Blueprint supporta e garantisce lungo tutta la sua catena
+(sync, =#+INCLUDE= con =:minlevel=, lint, health, export ODT/PDF/DOCX,
+controllo stili ODT): per ciascuna funzione, la sintassi, il
+comportamento per backend, le verifiche che Blueprint fa e i limiti
+noti.
+
+** Note a piè di pagina
+
+- *Sintassi*: =[fn:: testo della nota]= inline, oppure
+  =[fn:nome]= nel testo con la definizione =[fn:nome]= (o un paragrafo
+  che inizia per =[fn:nome]=) piu' avanti nel file.
+- *Comportamento per backend*: in ODT ogni nota diventa un
+  =<text:note>= con citazione e corpo (stile =Footnote=); in
+  PDF/LaTeX =\footnote=; in DOCX via pandoc. La numerazione e' unica
+  per tutto il documento assemblato: le note dentro un file incluso
+  con =#+INCLUDE= continuano la numerazione del master, non ripartono
+  (verificato dal test =blueprint-test-export/footnotes-reach-content-xml=).
+  Funzionano anche dentro le celle di tabella.
+- *Verifiche di Blueprint*: le note sono testo esportato, quindi
+  entrano in ogni conteggio (health score, marker, lint, liste) come
+  qualunque paragrafo; =blueprint-check-odt-styles= segnala lo stile
+  =Footnote= se un template =#+ODT_STYLES_FILE:= aziendale non lo
+  definisce (e' tra gli stili del baseline =OrgOdtStyles.xml= di Org).
+- *Limiti*: la definizione di una nota nominata deve stare nello
+  stesso file del riferimento (org risolve le note a livello di
+  buffer, non attraverso gli =#+INCLUDE=).
+
+** Citazioni bibliografiche (oc)
+
+- *Sintassi*: =[cite:@chiave]= con =#+bibliography: file.bib= e
+  =#+print_bibliography:=, con il processore =basic= di default
+  (nessun pacchetto esterno richiesto).
+- *Comportamento per backend*: ODT/PDF/HTML con il processore =basic=
+  producono l'apparato essenziale (autore-anno o numerico senza
+  CSL). Blueprint non tocca nulla: le citazioni sono testo esportato
+  e seguono il percorso standard di org.
+- *Verifiche di Blueprint*: nessuna specifica; il conteggio le tratta
+  come testo.
+- *Limiti*: stili CSL avanzati richiedono =citeproc-el= (fuori dal
+  perimetro di Blueprint).
+
+** Interruzioni di pagina
+
+- *Sintassi*: keyword Blueprint =#+BLUEPRINT_PAGE_BREAK: components=
+  in master.org (interruzione automatica fra i componenti sincronizzati,
+  vedi Flusso 10) oppure =M-x blueprint-insert-page-break= per una
+  interruzione manuale.
+- *Comportamento per backend*: due righe di keyword native, =#+ODT:=
+  (paragrafo con stile =PageBreak=) e =#+LATEX: \clearpage=; ogni
+  backend usa la sua e ignora l'altra.
+- *Verifiche di Blueprint*: lo stile =PageBreak= e' nella lista degli
+  stili extra di =blueprint-check-odt-styles=, segnalato se un
+  template aziendale non lo definisce.
+- *Limiti*: una macro Org non e' usable qui (si espanderebbe dentro un
+  paragrafo, producendo un =<text:p>= annidato in ODT).
+
+** Keyword di export per backend
+
+- *Sintassi*: =#+ODT:=, =#+LATEX:=, =#+HTML:= — una riga per backend,
+  presa in carico solo dall'esportatore corrispondente.
+- *Comportamento per backend*: queste keyword sono il meccanismo con
+  cui Blueprint stesso scrive le interruzioni di pagina (sopra) e
+  quello con cui si possono aggiungere importazioni raw (es.
+  =#+LATEX: \newpage=). I blocchi =#+begin_export odt= / =latex= /
+  =html= sono il corrispondente a blocco.
+- *Verifiche di Blueprint*: nessuna specifica: il contenuto delle
+  keyword conta come testo esportato per i conteggi.
+- *Limiti*: nessuno oltre quelli di org.
+
+** Dimensione di immagini e diagrammi larghi
+
+- *Sintassi*: =#+ATTR_ODT: :width 25cm= (o =:height=) sopra il
+  paragrafo o il blocco che genera l'immagine; anche
+  =#+ATTR_LATEX:= / =#+ATTR_HTML:= per gli altri backend.
+- *Comportamento per backend*: ODT applica la dimensione esplicita al
+  posto del calcolo automatico (per gli SVG, l'advice di Blueprint su
+  =org-odt--image-size= misura width/height o viewBox e si ferma
+  quando =:width=/=:height= sono dati, vedi Flusso 11); LaTeX e HTML
+  seguono i loro attributi.
+- *Verifiche di Blueprint*: il test =odt-svg-user-width-honoured=
+  copre il caso esplicito.
+- *Limiti*: per i diagrammi molto larghi (C4 container, ER) a piena
+  pagina il testo resta piccolo: le alternative sono una pagina
+  orizzontale (template aziendale con uno stile di pagina landscape)
+  o un layout verticale nei sorgenti PlantUML.
+
+-----
+
 * Appendice A — Domande del framework e mapping ai comandi
 
 Le domande sotto, tratte dalla metodologia di assessment, indicano quale
