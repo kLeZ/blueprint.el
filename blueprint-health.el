@@ -153,17 +153,27 @@ See `blueprint--files-health-summary'."
 master.org and everything it includes."
   (blueprint--files-health-summary (blueprint--document-files)))
 
-(defconst blueprint--health-color-thresholds '(50 . 80)
-  "Score thresholds (RED . YELLOW) of `blueprint--health-score-color'.
-Below RED a component is red, below YELLOW yellow, otherwise green.
-They mirror the warning threshold of `blueprint-ci-validate' (50) and
-the default `blueprint-delivery-score-threshold' (80).")
+(defcustom blueprint-delivery-score-threshold 80
+  "Minimum health score considered acceptable for delivery.
+`blueprint-pre-delivery-check' reports WARN when the score is below
+this value, and the health-colored graphs turn green at the same
+score (`blueprint--health-score-color'), so the colors follow the
+threshold when it is customized."
+  :type 'integer
+  :group 'blueprint)
+
+(defconst blueprint--health-red-threshold 50
+  "Health score below which a component is red in the graphs.
+Mirrors the warning threshold of `blueprint-ci-validate' (50).  The
+yellow/green threshold is `blueprint-delivery-score-threshold'.")
 
 (defun blueprint--health-score-color (score)
   "Return the fill color for a component with health SCORE.
-Red, yellow or green according to `blueprint--health-color-thresholds'."
-  (cond ((< score (car blueprint--health-color-thresholds)) "#ff6b6b")
-        ((< score (cdr blueprint--health-color-thresholds)) "#ffd93d")
+Red below `blueprint--health-red-threshold', yellow below
+`blueprint-delivery-score-threshold', otherwise green: the yellow
+threshold is the delivery threshold, so a customized one is followed."
+  (cond ((< score blueprint--health-red-threshold) "#ff6b6b")
+        ((< score blueprint-delivery-score-threshold) "#ffd93d")
         (t "#6bcb77")))
 
 (defconst blueprint--not-included-color "#cccccc"

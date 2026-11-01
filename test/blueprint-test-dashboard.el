@@ -242,6 +242,20 @@ arc42.org; a different shape under the same key would break it."
   (should (equal (blueprint--health-score-color 79) "#ffd93d"))
   (should (equal (blueprint--health-score-color 80) "#6bcb77")))
 
+(ert-deftest blueprint-test-graph/score-color-follows-delivery-threshold ()
+  "The yellow/green threshold is `blueprint-delivery-score-threshold':
+customizing it moves the green edge of the graphs."
+  (let ((blueprint-delivery-score-threshold 60))
+    (should (equal (blueprint--health-score-color 59) "#ffd93d"))
+    (should (equal (blueprint--health-score-color 60) "#6bcb77")))
+  (let ((blueprint-delivery-score-threshold 90))
+    (should (equal (blueprint--health-score-color 85) "#ffd93d"))
+    (should (equal (blueprint--health-score-color 90) "#6bcb77")))
+  ;; The red edge stays at the CI threshold.
+  (let ((blueprint-delivery-score-threshold 30))
+    (should (equal (blueprint--health-score-color 49) "#ff6b6b"))
+    (should (equal (blueprint--health-score-color 50) "#6bcb77"))))
+
 (ert-deftest blueprint-test-daily/candidates-weighted-over-documents ()
   "Daily candidates sum all documents and sort by penalty points."
   (blueprint-test--with-project

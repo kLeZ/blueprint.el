@@ -85,35 +85,49 @@ Returns the position where new content should be inserted, or nil."
                                ("Document" 20 t)])
   (tabulated-list-init-header))
 
+(defconst blueprint--question-regexp "\\<QUESTION\\>"
+  "Regexp of an open question marker, weighted in `blueprint--health-weights'.
+The list of questions and the dashboard QUESTION column count exactly
+the same occurrences, so their numbers always agree.")
+
 (defun blueprint--question-entries ()
   "Return the tabulated-list entries of the open questions.
-One entry per \"- QUESTION\" list item in exported text of every
-document of every component (arc42.org, functional.org,
-infrastructure.org; see `blueprint--component-document-paths').
-The entry id is (COMPONENT FILE LINE)."
+One entry per QUESTION marker in exported text of the documents of
+every component that are part of the document
+\(`blueprint--component-included-paths'), the same occurrences the
+dashboard QUESTION column counts (without master.org, the ones
+`blueprint-sync' would include).  The entry id is (COMPONENT FILE
+LINE); the text is the line of the marker, stripped of the
+\"- QUESTION\" prefix when the marker is a list item."
   (let ((entries '()))
     (dolist (id (sort (hash-table-keys (blueprint--components)) #'string<))
-      (dolist (file (blueprint--component-document-paths id))
+      (dolist (file (blueprint--component-included-paths id))
         (with-temp-buffer
           (blueprint--insert-org-file file)
           ;; Questions in non-exported text (template guides) are
-          ;; examples, not open questions.
-          (dolist (pos (blueprint--marker-positions
-                        "^-[ \t]*QUESTION[ \t]+\\(.*\\)"))
+          ;; examples, not open questions: `blueprint--marker-positions'
+          ;; already leaves those regions out.
+          (dolist (pos (blueprint--marker-positions blueprint--question-regexp))
             (goto-char pos)
-            (looking-at "^-[ \t]*QUESTION[ \t]+\\(.*\\)")
-            (push (list (list id file (line-number-at-pos))
-                        (vector id (match-string 1)
-                                (file-name-nondirectory file)))
-                  entries)))))
+            (let* ((line (buffer-substring (line-beginning-position)
+                                           (line-end-position)))
+                   (text (string-trim
+                          (replace-regexp-in-string
+                           "\\`-[ \t]*QUESTION[ \t]*" "" line))))
+              (push (list (list id file (line-number-at-pos))
+                          (vector id text (file-name-nondirectory file)))
+                    entries))))))
     (nreverse entries)))
 
 ;;;###autoload
 (defun blueprint-list-questions ()
   "List all open questions across all components.
-Questions are collected from every document of each component
-\(arc42.org, functional.org, infrastructure.org).  In the list,
-\\<blueprint-questions-mode-map>\\[blueprint-questions-visit] opens the document at the question."
+The questions are the QUESTION markers of the documents of each
+component that master.org includes -- exactly the occurrences the
+dashboard QUESTION column counts, so the two numbers always agree
+\(without master.org, the documents `blueprint-sync' would include).
+In the list, \\<blueprint-questions-mode-map>\\[blueprint-questions-visit]
+opens the document at the question."
   (interactive)
   (let ((entries (blueprint--question-entries)))
     (if (null entries)

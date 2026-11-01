@@ -338,6 +338,45 @@ the document at the question's line."
           (unless (memq buf buffers-before)
             (kill-buffer buf)))))))
 
+(ert-deftest blueprint-test-questions/list-matches-dashboard-count ()
+  "The question list counts exactly what the dashboard QUESTION column
+counts: every QUESTION marker in exported text of the documents
+master.org includes, list items and prose alike; markers outside the
+document are not listed."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "svc" (concat "#+TITLE: svc\n\n* Introduction\n\n"
+                   "Prose mentioning a QUESTION in the text.\n\n"
+                   "* Open Questions\n- QUESTION elenco\n"))
+    (blueprint-test--write-document
+     "svc" "functional.org"
+     "#+TITLE: f\n\n* Area\n\n- QUESTION non inclusa\n")
+    (blueprint-test--write-file
+     "master.org"
+     (concat "#+TITLE: Doc\n\n* Parte 0\n\nIntro.\n\n"
+             "# @@blueprint-sync-start@@\n"
+             "#+INCLUDE: \".blueprint/components/svc/arc42.org\" :minlevel 3\n"
+             "# @@blueprint-sync-end@@\n"))
+    (let ((buffers-before (buffer-list)))
+      (unwind-protect
+          (progn
+            (blueprint-list-questions)
+            (with-current-buffer "*Blueprint Questions*"
+              ;; Two entries: the list item and the prose marker.
+              (should (= 2 (length tabulated-list-entries)))
+              (should (equal (mapcar (lambda (e) (aref (cadr e) 1))
+                                     tabulated-list-entries)
+                             '("Prose mentioning a QUESTION in the text."
+                               "elenco"))))
+            ;; The dashboard QUESTION column agrees.
+            (let ((summary (blueprint--unit-health-summary
+                            (car (blueprint--document-units)))))
+              (should (= 2 (blueprint--health-marker-count
+                            (plist-get summary :counts) "\\<QUESTION\\>")))))
+        (dolist (buf (buffer-list))
+          (unless (memq buf buffers-before)
+            (kill-buffer buf)))))))
+
 (ert-deftest blueprint-test-questions/unknown-component-errors ()
   "Adding a question to a non-existent component raises an error."
   (blueprint-test--with-project

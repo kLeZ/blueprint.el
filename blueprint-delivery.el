@@ -28,11 +28,9 @@
 (require 'blueprint-health)
 (require 'blueprint-lint)
 
-(defcustom blueprint-delivery-score-threshold 80
-  "Minimum health score considered acceptable for delivery.
-`blueprint-pre-delivery-check' reports WARN when the score is below this value."
-  :type 'integer
-  :group 'blueprint)
+;; `blueprint-delivery-score-threshold' is defined in blueprint-health.el
+;; (which this module requires): the health-colored graphs use the same
+;; threshold, so a customized delivery threshold is followed everywhere.
 
 (defun blueprint--delivery-count-marker (marker)
   "Return the number of MARKER occurrences in the document.
