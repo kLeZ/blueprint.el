@@ -6,83 +6,167 @@
 Tutte le modifiche rilevanti di questo progetto sono documentate in questo
 file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 
+* 0.4.0 — 2026-11-02
+
+Revisione completa della 0.3.0 e retrocompatibilità con tutte le
+versioni precedenti, con migrazione facoltativa. Suite ERT da 501 a 554
+test.
+
+** Versione del progetto e migrazioni opzionali
+- Blueprint legge di nuovo ogni formato scritto in passato: ADR in un
+  file ciascuno (fino a 2026-03), glossario e riferimenti scritti nella
+  data directory (fino a 2026-09), agenda della 0.3.0.
+- =.blueprint/blueprint-version.org= registra la versione Blueprint del
+  progetto e le migrazioni applicate; senza, la versione viene dedotta.
+- =blueprint-project-upgrade= (=C-c b ^=, =u= in dashboard): piano delle
+  migrazioni disponibili (14 formati dalle versioni precedenti la 0.1.0)
+  e dei template di progetto e utente vecchi o personalizzati; applica
+  solo su richiesta, con backup in =_archive/= e avviso git.
+- Dashboard, report JSON e =blueprint-ci-validate= mostrano versione e
+  migrazioni (effetto sul codice d'uscita: =blueprint-ci-pending-migrations=).
+- Nuove opzioni: =blueprint-upgrade-backup=,
+  =blueprint-upgrade-backup-directory=, =blueprint-upgrade-git-check=,
+  =blueprint-template-status-scopes=, =blueprint-dashboard-show-version=,
+  =blueprint-ci-pending-migrations=, =blueprint-diff-default-base=,
+  =blueprint-agenda-view=, =blueprint-glossary-source-position=.
+
+** Correzioni
+- CI: =blueprint-sync.el= richiede =blueprint-history= e
+  =blueprint-roam.el= richiede =blueprint-graph= (byte-compile rosso su
+  29.1 e snapshot); il workflow di test installa Graphviz e il test del
+  preview si salta senza =dot=; matrice di byte-compile con
+  =fail-fast: false=.
+- =blueprint-add-component= di nuovo autoload (il cookie era finito sul
+  =defconst= dei template).
+- Changelog: le ADR fuori dall'export (=:noexport:=, =COMMENT=) non
+  entrano più; l'esempio "ADR 0000" del template finiva in ogni
+  =CHANGELOG.org=.
+- Agenda: il link =:ORIGIN:= si risolve dal file dell'agenda (era
+  relativo alla root ma il file sta nella data directory); gli ID usano
+  il percorso relativo alla root, così sopravvivono allo spostamento
+  del progetto (gli ID della 0.3.0 vengono riconosciuti: al primo
+  refresh passano al formato nuovo conservando date e stato);
+  =org-agenda-files= come stringa (file di elenco) non viene più
+  trasformato in lista di caratteri.
+- Diff del componente: il default confronta con =HEAD=, incluse le
+  modifiche già in stage; una revisione vuota al prompt non viene più
+  passata a git.
+- Report JSON: owner e tech assenti sono =null= e =included= falso è
+  =false= (=json-serialize= scriveva ={}=); le dipendenze vengono
+  calcolate anche quando =blueprint-graph= non è ancora caricato.
+- Preview: il timer usa la root del file salvato, non il buffer
+  corrente al momento dello scatto; =blueprint--dashboard-svg-generate=
+  rispetta l'argomento =ROOT=; un errore di rendering diventa un
+  messaggio invece di uscire dal timer.
+- Cluster roam: i link si leggono attraverso i nodi del file (in
+  org-roam =links.source= è un ID di nodo) e le destinazioni =id:= si
+  riportano al file del nodo; una seconda chiamata non fallisce più su
+  buffer in sola lettura.
+- Lint del ciclo di vita: i FIXME contati sono quelli dei documenti
+  del componente inclusi in master.org, come nella dashboard.
+- Domande: lo stato di una voce è il marker trovato (un ANSWERED in
+  prosa non è più "open"); =blueprint-answer-question= propone solo le
+  righe di elenco, anche rientrate, e non scrive =[FONTE: ]= vuoto.
+- Glossario: aggiunta in una sezione vuota senza errore; le voci
+  seguono il formato del template (definizione, poi =/Fonte: .../=),
+  anche quelle catturate con org-capture (=bg=), che ora finiscono come
+  heading di livello 2 nella prima sezione invece che in coda al file.
+- Grafo SVG (dashboard, preview, backend Graphviz di
+  =blueprint-dependency-graph=): gli id con trattino (=order-service=)
+  erano un errore di sintassi DOT e il grafo non veniva generato; ora
+  sono quotati e un errore di =dot= viene segnalato.
+- Agenda: =blueprint-agenda= apre una vista con le scadenze e tutte le
+  voci aperte (con =org-agenda-list= le voci senza data non
+  comparivano); DEADLINE, SCHEDULED e CLOSED su un'unica riga di
+  planning (la seconda riga non era planning e la data si perdeva al
+  refresh successivo).
+- Roam: similarità con lo schema reale di org-roam (tag per
+  =node-id=, nodo di file di livello 0); la colonna "In comune" mostra
+  solo ciò che è condiviso.
+- Diff: solo le righe dentro gli hunk sono contenuto; "domande
+  risolte" è il netto delle righe ANSWERED; i file non ancora aggiunti
+  a git compaiono come file nuovi.
+- Cancellazione del primo componente di una sezione: nessuna
+  interruzione di pagina residua in testa alla sezione.
+- =blueprint-adr-list= non elenca l'ADR d'esempio del template.
+- Template =arc42-enterprise.org= con la guida completa di
+  =component.org= (esempi, cosa scrivere, modelli di diagramma) più le
+  parti enterprise; la guida di entrambi spiega
+  =#+BLUEPRINT_LIFECYCLE:=.
+- Report JSON: chiave =lifecycle= per componente.
+- Autoload su =blueprint-dashboard-svg=, =blueprint-component-diff=,
+  =blueprint-preview-mode=, =blueprint-roam-similar= e
+  =blueprint-roam-clusters=.
+- Documentazione: AGENTS.md allineato al codice (struttura di
+  =blueprint-init=, percorso degli ADR, template, calcolo dello score);
+  USAGE senza il gap del glossario già chiuso.
+
 * 0.3.0 — 2026-11-01
 
-Chiusura della roadmap di sviluppo: nove moduli nuovi,ifecycle dei
-componenti, report JSON per la CI e documentazione completa (README,
-USAGE, AGENTS). La suite ERT passa da 391 a 501 test; 101 sono
-regressioni sui bug fix documentati.
+Chiusura della roadmap di sviluppo (PLAN.org, fase 9 e 10.8). Suite ERT
+da 425 a 501 test.
 
 ** Nuovi moduli
-- *blueprint-history.el* — registro dello score nel tempo
-  (=blueprint-metrics-history=): ogni snapshot scrive una riga in
-  =.blueprint/history.tsv= e un grafico SVG =metrics-history.svg= con
-  soglie del punteggio.
-- *blueprint-agenda.el* — i punti aperti (QUESTION, [DA VALIDARE],
-  FIXME, TODO) del documento diventano TODO triage su org-agenda
-  (=blueprint-agenda-refresh=, file =.blueprint/agenda.org=); caching
-  basata su mtime di tutti i documenti inclusi.
-- *blueprint-changelog.el* — =CHANGELOG.org= generato da git log e
-  ADR accettate (=blueprint-changelog-generate=).
-- *blueprint-diff.el* — diff semantico del componente
-  (=blueprint-component-diff=): differenze di testo fra revisioni git
-  + conteggio marker e sezioni (a fronte/a dopo), con =--no-ext-diff=
-  forzato per l'affidabilità in batch.
-- *blueprint-preview.el* — anteprima dal vivo del grafo dipendenze
-  (image-mode ricaricata su ogni update, o ogni 0,5 s in =auto-mode=).
-- *blueprint-roam.el* (soft dep) — ricerca semantica fra componenti e
-  cluster via org-roam se installato.
+- *blueprint-history.el*: =blueprint-sync= registra score, penalità,
+  parole e conteggi dei marker in =.blueprint/metrics-history.org=
+  (=blueprint-history-on-sync=, riga saltata se i valori non cambiano);
+  =blueprint-metrics-history= (=C-c b x=) disegna lo score nel tempo in
+  SVG (9.3).
+- *blueprint-agenda.el*: i marker QUESTION e FIXME del documento
+  (=blueprint-agenda-marker-types=) diventano voci TODO di
+  =.blueprint/agenda.org=; DEADLINE, SCHEDULED e stato sopravvivono al
+  refresh; =blueprint-agenda= (=C-c b U=) apre =org-agenda-list= su quel
+  file (9.6).
+- *blueprint-changelog.el*: =blueprint-changelog-generate= (=C-c b J=)
+  scrive =CHANGELOG.org= da =git log= e dalle ADR accettate (9.1).
+- *blueprint-diff.el*: =blueprint-component-diff= mostra il =git diff=
+  della directory del componente con una sintesi (file, heading,
+  marker aggiunti e rimossi, domande risolte); sempre =--no-ext-diff=,
+  perché un =diff.external= nella gitconfig produrrebbe un formato non
+  leggibile; tasto =d= nella lista componenti (9.7).
+- *blueprint-preview.el*: =blueprint-preview= apre il grafo colorato
+  per health in una finestra laterale e attiva =blueprint-preview-mode=,
+  che lo rigenera a ogni salvataggio con debounce di
+  =blueprint-preview-delay= (1 s) (9.10).
 
 ** Funzioni estese
-- *Ciclo di vita dei componenti*: keyword =#+BLUEPRINT_LIFECYCLE:
-  active|maintenance|deprecated|retired= (default =active=) mostrata
-  nel dashboard col carattere  "●" e una colonna dedicata; il lint
-  segnala i componenti =retired= ancora inclusi in master.org.
-- *Domande*: metadati estesi sulla riga QUESTION (priorità, owner,
-  [FONTE: X]), comando =blueprint-answer-question= per chiudere con
-  risposta inline, e filtri (--open / --all) nella lista domande,
-  ora allineata alla dashboard (residui 9.31).
-- *Dashboard*: summary line con prossima milestone (TODO con data più
-  vicina dai file .org di progetto) e conteggio TODO aperti; colori
-  della colonna score allineati alla soglia di consegna.
-- *Glossario*: =blueprint-glossary-add= instrada nelle sezioni del
-  template (Termini tecnici con uso specifico / Acronimi) invece di
-  un append generico (10.8).
-- *Cancellazione componenti*: =blueprint-delete-component= rimuove
-  gli include da master.org e segnala le dipendenze pendenti.
-- *Grafo dipendenze*: i cluster ignorano le dipendenze sconosciute
-  (componenti rimossi o digitati male).
+- *Ciclo di vita*: =#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived=
+  (default =active=), asse separato dal perimetro =#+BLUEPRINT_STATUS:=;
+  colonna =Life= nella dashboard; il lint avvisa per un componente
+  =active= con FIXME o che dipende da uno =deprecated=
+  (=blueprint-lint-lifecycle-checks=) (9.2).
+- *Domande*: tag opzionale =[TAG: ...]= sulla riga;
+  =blueprint-answer-question= riscrive la riga in
+  =- ANSWERED [data] testo [FONTE: ...]=, che non conta più in health,
+  dashboard e lint; la lista mostra Tag e State e filtra per tag (=t=) e
+  stato (=s=); le voci aperte coincidono con la colonna QUESTION (9.12,
+  residui 9.31).
+- *Dashboard*: con =CRONOPROGRAMMA.org= o =TODO.org= alla root
+  (=blueprint-milestone-files=) la riga di stato mostra il primo heading
+  TODO in ordine di file, con la sua DEADLINE, e il numero di TODO
+  aperti (9.11); il giallo/verde dei grafi segue
+  =blueprint-delivery-score-threshold=.
+- *Glossario*: =blueprint-glossary-add= chiede la sezione e inserisce un
+  heading di livello 2 con riga =/Fonte: .../=; =blueprint-glossary-lookup=
+  trova anche le voci nel formato precedente (10.8).
+- *Cancellazione componenti*: =blueprint-delete-component= rimuove le
+  righe =#+INCLUDE= e le headline del componente dalle sezioni
+  sincronizzate di master.org e chiede conferma aggiuntiva quando altri
+  componenti ne dipendono (9.13).
+- *Template enterprise*: =templates/arc42-enterprise.org= con Contesto
+  enterprise, Stakeholder e Conformità; =C-u C-c b A= lo propone (9.5).
+- *org-roam*: =blueprint-roam-similar= (similarità per tag, link e
+  titolo) e =blueprint-roam-clusters= (componenti connessi da
+  dipendenze e link) (9.8).
 
-** Integrazione CI / tooling esterno
-- =blueprint-ci-export-json= produce =blueprint-report.json=
-  (health, markers, componenti, dipendenze, lint-warnings, hash
-  stabile per tool esterni); suite dedicata =blueprint-test-ci.el=.
-- Workflow di test aggiornato con i nuovi file ERT nella matrice
-  Emacs; matrice =fail-fast: false= per non cancellare i risultati
-  di altre versioni.
-- Template arc42 *enterprise* per engagement grandi (9.5).
+** Integrazione CI
+- =blueprint-ci-export-json= scrive =blueprint-report.json= con health,
+  marker, componenti, dipendenze e warning del lint (9.4).
+- Workflow di test aggiornato con i nuovi file ERT.
 
 ** Documentazione
-- README, USAGE e AGENTS.md aggiornati: albero dei moduli, flussi
-  (aggiunta con template enterprise, lifecycle, cancellazione con
-  pulizia di master.org, glossario a sezioni), nuovo Flusso 13
-  (metriche nel tempo, milestone, agenda, changelog, diff, preview),
-  note di compatibilità per progetti esistenti.
-- Funzioni native di Org supportate documentate (9.16).
-- Chiusura formale della roadmap in PLAN.org (9.1–9.8, 9.10–9.13,
-  9.16, 10.8 e residui di 9.26/9.31; monorepo 9.9 rinviata).
-
-** Fix / regressioni coperte
-- NFR: placeholder della tabella rischi rimosso (R-001 parte corretta).
-- Copie da installazioni read-only (Nix store in CI): tutti i
-  template provisionati sono scrivibili.
-- Sync master: riga vuota spuria a ogni sync eliminata.
-- Export: diagrammi PlantUML e didascalie preservati anche headless;
-  titoli duplicati strip-ati fra file inclusi.
-- Domande: riga vuota preservata prima dell'heading successivo.
-- Smoke test end-to-end (init → add component → sync → CI → export)
-  con =default-directory= bloccato a livello top per evitare drift
-  da buffer find-file durante i passi git.
+- README, USAGE e AGENTS.md aggiornati; nuovo Flusso 13 in USAGE;
+  sezione "Funzioni native di Org supportate" (9.16).
 
 * 0.2.0 — versione precedente
 

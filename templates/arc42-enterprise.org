@@ -1,4 +1,4 @@
-#+TITLE: {{NAME}} — Architettura enterprise (arc42)
+#+TITLE: {{NAME}} -- Architettura enterprise (arc42)
 #+BLUEPRINT_DEPENDS:
 #+BLUEPRINT_OWNER:
 #+BLUEPRINT_TECH:
@@ -7,30 +7,82 @@
 #+CREATED: {{DATE}}
 #+STATUS: [DA VALIDARE]
 
-* Guida alla compilazione — arc42 enterprise                        :noexport:
+* Guida alla compilazione — arc42 enterprise                       :noexport:
 
-Questo template e' la struttura arc42 standard di =component.org= con
-tre sezioni aggiuntive per i componenti di rilievo in engagement
-grandi: /Contesto enterprise/, /Stakeholder e punti di contatto/ e
-/Conformità e compliance/.  Le convenzioni sono quelle di tutti i
-template: le sezioni nascono vuote e il lint segnala il file come
-privo di contenuto finché non si scrive; quando si scrive una sezione,
-marcarla =[DA VALIDARE]= finché non confermata da una fonte attendibile
+Questo file documenta l'architettura del componente seguendo la struttura
+arc42 di =component.org=, con tre sezioni in più per i componenti di
+rilievo degli engagement grandi: /Contesto enterprise/, /Stakeholder e
+punti di contatto/ e /Conformità e compliance/.  Le sezioni nascono vuote: quando se ne scrive il contenuto, marcarla
+con =[DA VALIDARE]= fino a quando non è confermato da una fonte attendibile
 (codice, log, intervista o documento), poi sostituire il marker con
-=[APPROVATO YYYY-MM-DD]= o =[FINDING]= secondo l'esito della verifica.
+=[APPROVATO YYYY-MM-DD]= o =[FINDING]= a seconda dell'esito della verifica.
+Finché una sezione è vuota, =blueprint-lint= segnala il file come privo di
+contenuto.
 
 Gerarchia delle fonti (dalla più affidabile): codice → test → log →
 monitoring → interviste → documentazione preesistente.
 
-** Sezioni aggiuntive rispetto al template standard
+** Esempio: intestazione e dipendenze
 
-- /Contesto enterprise/: il perimetro del componente a livello
-  enterprise, con rimando alla Parte I del master
-  (=enterprise/context.org=, generata da =blueprint-generate-enterprise-c4=).
-- /Stakeholder e punti di contatto/: chi decide, chi usa, chi opera e
-  chi verifica: la mappa dei referenti con il loro ruolo nel confronto.
-- /Conformità e compliance/: gli obblighi normativi e di policy che
-  riguardano questo componente, con fonte, verifica ed esito.
+#+BEGIN_SRC org
+#+BLUEPRINT_DEPENDS: order-service notification-service
+#+BLUEPRINT_OWNER: team-payments
+#+BLUEPRINT_TECH: Java 17 / Spring Boot 3 / PostgreSQL 15
+#+BLUEPRINT_STATUS: in-scope
+#+BLUEPRINT_LIFECYCLE: active
+#+END_SRC
+
+=#+BLUEPRINT_STATUS:= vale =in-scope= (default), =out-of-scope= o =tbd=.
+Un componente =out-of-scope= va escluso dall'assessment ma resta tracciato
+(motivazione da documentare in Parte 0 del master); =blueprint-lint=
+segnala se un componente =in-scope= dipende da uno =out-of-scope=.
+
+=#+BLUEPRINT_LIFECYCLE:= è il ciclo di vita del componente, un asse
+diverso dal perimetro: =draft=, =active= (default), =deprecated= o
+=archived=. La dashboard lo mostra nella colonna =Life=; =blueprint-lint=
+segnala un componente =active= con FIXME aperti o che dipende da uno
+=deprecated=.
+
+** Esempio: tabella utenti e ruoli
+
+| Ruolo           | Descrizione                                     | Tipo (umano/sistema) |
+|-----------------+-------------------------------------------------+----------------------|
+| Operatore cassa | Avvia transazioni di pagamento POS              | umano                |
+| order-service   | Chiama l'API di autorizzazione in modo sincrono | sistema              |
+| Stripe          | Provider esterno — processa l'addebito          | sistema esterno      |
+
+** Esempio: sistemi confinanti
+
+| Sistema          | Direzione | Tipo interazione       | Note                                     |
+|------------------+-----------+------------------------+------------------------------------------|
+| order-service    | IN        | REST sincrono (HTTP/2) | Invia richiesta di autorizzazione        |
+| notification-svc | OUT       | Kafka (asincrono)      | Evento =PaymentAuthorized= dopo successo |
+| Stripe API v3    | OUT       | HTTPS REST             | Delega autorizzazione carta al provider  |
+
+** Esempio: vincoli
+
+| Vincolo      | Tipo (tecnico/org/normativo) | Impatto                          | Fonte      |
+|--------------+------------------------------+----------------------------------+------------|
+| PCI-DSS v4.0 | normativo                    | Nessun dato di carta in chiaro   | audit 2023 |
+| Java 17 LTS  | tecnico                      | Librerie incompatibili < Java 17 | ADR 0001   |
+
+** Esempio: tabella Responsibility
+
+| Aspetto         | Approccio rilevato                              | Note                |
+|-----------------+-------------------------------------------------+---------------------|
+| Sicurezza       | TLS 1.3 in ingresso; no dati carta in chiaro    | [APPROVATO 2024-02] |
+| Autenticazione  | JWT Bearer validato dall'API Gateway            | [DA VALIDARE]       |
+| Autorizzazione  | Ruoli nel JWT claim =scope=                     | [DA VALIDARE]       |
+| Logging         | Structured JSON su stdout → Datadog             | [FINDING]           |
+| Gestione errori | Circuit breaker Resilience4j su chiamate Stripe | [DA VALIDARE]       |
+| Transazionalità | Saga orchestrata: compensazione via evento      | [DA VALIDARE]       |
+
+** Esempio: rischi locali al componente
+
+| Rischio                            | Probabilità | Impatto | Livello | Mitigazione                    |
+|------------------------------------+-------------+---------+---------+--------------------------------|
+| Timeout Stripe non gestito in modo | Media       | Alto    | Alto    | Aggiungere retry con backoff   |
+| idempotente → doppio addebito      |             |         |         | esponenziale e idempotency key |
 
 ** Esempio: tabella stakeholder
 
@@ -46,6 +98,133 @@ monitoring → interviste → documentazione preesistente.
 |-------------------+-------------+-------------------------------+---------------------|
 | PCI-DSS v4.0      | audit 2023  | Nessun dato carta in chiaro   | [APPROVATO 2024-02] |
 | GDPR — retention  | DPO         | Policy di cancellazione dati  | [DA VALIDARE]       |
+
+** Cosa scrivere in ogni sezione
+
+- /Introduction/: cosa fa il componente, a chi serve, qual è il suo ruolo
+  nell'architettura di sistema.
+- /Contesto enterprise/: il perimetro del componente a livello
+  enterprise, con rimando alla Parte I del master (=enterprise/context.org=,
+  diagramma da =blueprint-generate-enterprise-c4=).
+- /Stakeholder e punti di contatto/: chi decide, chi usa, chi opera e chi
+  verifica: i referenti con il loro ruolo nel confronto (tabella come
+  nell'esempio sopra).
+- /Context and Scope/: contesto e perimetro: utenti e ruoli, sistemi
+  confinanti (tabelle come negli esempi sopra), confini del componente;
+  diagramma C4 di contesto.
+- /Constraints/: vincoli tecnici, organizzativi, normativi che impattano le
+  scelte architetturali (tabella come nell'esempio sopra).
+- /Solution Strategy/: principi architetturali, pattern adottati, scelte
+  tecnologiche rilevanti con motivazione (se ricostruibile).
+- /Building Blocks/: vista statica dei building block interni (C4 container;
+  C4 L3 se la complessità lo richiede).
+- /Runtime Behavior/: flussi principali a runtime; per ogni flusso gli attori
+  coinvolti (casi d'uso) e il dettaglio degli scambi di messaggi (sequenza).
+  =blueprint-runtime-add-flow= crea la sottosezione di un flusso.
+- /Processi di business/: processi multi-attore rilevanti per il componente,
+  come diagramma di attività UML con corsie per attore.
+  =blueprint-runtime-add-process= crea la sottosezione di un processo.
+- /Deployment/: ambienti, host, configurazione; il dettaglio va nel
+  censimento infrastrutturale (=infrastructure.org= accanto a questo file).
+- /Responsibility/: aspetti trasversali (sicurezza, autenticazione,
+  autorizzazione, logging, gestione errori, transazionalità), tabella come
+  nell'esempio sopra.
+- /Conformità e compliance/: obblighi normativi e di policy che riguardano
+  il componente, con fonte, verifica ed esito (tabella come nell'esempio
+  sopra).
+- /Risks/: rischi tecnici specifici del componente; quelli trasversali vanno
+  nel registro rischi del progetto (=nfr/risks.org=).
+- /Open Questions/: domande emerse durante l'analisi che richiedono
+  validazione (=blueprint-add-question=).
+- /Diagrams/: diagrammi aggiuntivi non collocabili nelle sezioni precedenti.
+
+** Modelli di diagramma
+
+Da copiare nella sezione di destinazione togliendo =:eval never=, che qui
+impedisce a Babel di generare i file a ogni export (Babel valuta anche i
+blocchi dei sottoalberi =:noexport:=).
+
+Contesto (Context and Scope):
+
+#+begin_src plantuml :file {{ID}}-context.svg :eval never
+!include <C4/C4_Context>
+System({{ID}}, "{{NAME}}", "")
+Person(user, "Utente")
+' Aggiungere sistemi esterni con System_Ext(id, "Nome", "Descrizione")
+Rel(user, {{ID}}, "Usa")
+@enduml
+#+end_src
+
+Container (Building Blocks):
+
+#+begin_src plantuml :file {{ID}}-containers.svg :eval never
+!include <C4/C4_Container>
+System_Boundary({{ID}}, "{{NAME}}") {
+  Container(app, "Applicazione", "Tecnologia", "Descrizione")
+  ContainerDb(db, "Database", "Tecnologia", "Descrizione")
+}
+@enduml
+#+end_src
+
+Casi d'uso di un flusso (Runtime Behavior), vista per stakeholder non tecnici:
+
+#+begin_src plantuml :file {{ID}}-uc-main.svg :eval never
+@startuml
+left to right direction
+actor "Utente" as u
+rectangle "{{NAME}}" {
+  usecase "Caso d'uso 1" as uc1
+  usecase "Caso d'uso 2" as uc2
+}
+u --> uc1
+u --> uc2
+@enduml
+#+end_src
+
+Sequenza di un flusso (Runtime Behavior), vista per i team tecnici e per la
+documentazione delle API:
+
+#+begin_src plantuml :file {{ID}}-seq-main.svg :eval never
+@startuml
+participant "A" as a
+participant "B" as b
+a -> b : messaggio
+b --> a : risposta
+@enduml
+#+end_src
+
+Processo di business con corsie (Processi di business):
+
+#+begin_src plantuml :file {{ID}}-process-main.svg :eval never
+@startuml
+|Attore 1|
+start
+:Attività 1;
+|Attore 2|
+:Attività 2;
+if (Condizione?) then (si)
+  :Attività 3a;
+else (no)
+  :Attività 3b;
+endif
+|Attore 1|
+:Attività 4;
+stop
+@enduml
+#+end_src
+
+Deployment:
+
+#+begin_src plantuml :file {{ID}}-deployment.svg :eval never
+node "Ambiente: [nome]" {
+  node "Host: [nome]" {
+    artifact "{{NAME}}"
+  }
+  database "DB: [nome]" {
+  }
+}
+@enduml
+#+end_src
 
 * Introduction
 <<{{ID}}-intro>>

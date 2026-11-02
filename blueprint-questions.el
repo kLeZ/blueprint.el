@@ -93,6 +93,22 @@ keep working."
       (blueprint--invalidate-cache file))
     (message "Added question to %s" component)))
 
+(defconst blueprint--question-row-regexp
+  "^\\([ \t]*\\)-[ \t]*QUESTION[ \t]+\\(.*\\)$"
+  "Regexp of an open question row, the list item `blueprint-add-question'
+writes.  Group 1 is the indentation, group 2 the text with its metadata.")
+
+(defun blueprint--question-row-p (file line)
+  "Return non-nil when LINE of FILE is an open question row.
+Only such a row can be answered: a QUESTION marker in prose counts as
+an open point but has no row to rewrite."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (forward-line (1- line))
+    (let ((case-fold-search nil))
+      (looking-at-p blueprint--question-row-regexp))))
+
 ;;;###autoload
 (defun blueprint-answer-question (entry fonte)
   "Answer an open question: rewrite its row as ANSWERED.
@@ -105,8 +121,13 @@ methodology's [FONTE: ...] marking.  The row becomes
 and stops counting in the health score, the dashboard and the lint,
 while the history stays in the file."
   (interactive
-   (let* ((open (cl-remove-if
-                 (lambda (e) (not (string= (aref (cadr e) 3) "open")))
+   (let* ((open (cl-remove-if-not
+                 (lambda (e)
+                   (and (string= (aref (cadr e) 3) "open")
+                        ;; A QUESTION marker in prose counts as open but
+                        ;; has no row to rewrite: not offered.
+                        (blueprint--question-row-p (nth 1 (car e))
+                                                   (nth 2 (car e)))))
                  (blueprint--question-entries)))
           (choices (mapcar (lambda (e)
                              (cons (format "%s: %s (%s:%d)"
@@ -128,11 +149,15 @@ while the history stays in the file."
         (goto-char (point-min))
         (forward-line (1- line))
         (beginning-of-line)
-        (unless (looking-at "^-[ \t]*QUESTION[ \t]+\\(.*\\)$")
+        (unless (looking-at blueprint--question-row-regexp)
           (user-error "Line %d of %s is not an open question anymore" line component))
-        (let ((text (string-trim (match-string 1))))
+        (let ((indent (match-string 1))
+              (text (string-trim (match-string 2))))
           (delete-region (line-beginning-position) (line-end-position))
-          (insert (format "- ANSWERED [%s] %s [FONTE: %s]" date text fonte))))
+          (insert (format "%s- ANSWERED [%s] %s%s" indent date text
+                          (if (and fonte (not (string-empty-p (string-trim fonte))))
+                              (format " [FONTE: %s]" (string-trim fonte))
+                            "")))))
       (save-buffer))
     (blueprint--invalidate-cache file)
     (message "Answered question in %s" component)))
@@ -184,7 +209,7 @@ LINE is the full line of one `blueprint--question-any-regexp'
 occurrence.  The metadata tokens ([TAG: ...], [FONTE: ...]) are
 stripped from the display text; a QUESTION marker in prose has no
 prefix and no metadata, and that is fine."
-  (let* ((state (if (string-match-p "\\`-[ \t]*ANSWERED[ \t]" line)
+  (let* ((state (if (string-match-p "\\`[ \t]*-[ \t]*ANSWERED[ \t]" line)
                     "answered" "open"))
          (text line)
          (tag "")
@@ -197,7 +222,7 @@ prefix and no metadata, and that is fine."
       (setq text (replace-match "" t t text)))
     (setq text (string-trim
                 (replace-regexp-in-string
-                 "\\`-[ \t]*\\(ANSWERED[ \t]+\\[[0-9-]+\\][ \t]+\\|ANSWERED[ \t]+\\|QUESTION[ \t]+\\)"
+                 "\\`[ \t]*-[ \t]*\\(ANSWERED[ \t]+\\[[0-9-]+\\][ \t]+\\|ANSWERED[ \t]+\\|QUESTION[ \t]+\\)"
                  "" text)))
     (list text tag state fonte)))
 
@@ -221,8 +246,15 @@ Component, Question, Tag, State and Document."
             (goto-char pos)
             (pcase-let* ((line (buffer-substring (line-beginning-position)
                                                  (line-end-position)))
-                         (`(,text ,tag ,state ,_fonte)
-                          (blueprint--question-parse line)))
+                         (`(,text ,tag ,_state ,_fonte)
+                          (blueprint--question-parse line))
+                         ;; The state is the marker found here, not the
+                         ;; shape of the line: a QUESTION occurrence is
+                         ;; open whatever the line, so the open entries
+                         ;; are exactly the dashboard QUESTION count.
+                         (state (if (let ((case-fold-search nil))
+                                      (looking-at "QUESTION"))
+                                    "open" "answered")))
               (push (list (list id file (line-number-at-pos))
                           (vector id text tag state
                                   (file-name-nondirectory file)))

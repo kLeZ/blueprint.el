@@ -458,5 +458,33 @@ degrades to nil instead of breaking the dashboard."
                (lambda (&rest _) (error "boom"))))
       (should (null (blueprint--milestone-summary))))))
 
+(ert-deftest blueprint-test-graph/dot-ids-are-quoted ()
+  "Component ids are slugs with hyphens: unquoted they are a DOT syntax
+error.  Both the dashboard SVG and the Graphviz dependency graph quote
+them and render."
+  (skip-unless (executable-find "dot"))
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "order-service"
+     "#+TITLE: order-service\n#+BLUEPRINT_DEPENDS: auth-db\n\n* Introduction\n")
+    (blueprint-test--write-component "auth-db" "#+TITLE: auth-db\n")
+    (let ((svg (blueprint--dashboard-svg-generate)))
+      (should (file-exists-p svg))
+      (should (string-match-p "order&#45;service" (blueprint-test--read-file svg))))
+    (let ((svg (blueprint--graph-graphviz (blueprint--graph-deps)
+                                          (blueprint--root))))
+      (should (string-suffix-p ".svg" svg))
+      (should (string-match-p "auth&#45;db" (blueprint-test--read-file svg))))))
+
+(ert-deftest blueprint-test-graph/dot-failure-signals ()
+  "A failing `dot' is an error, not the path of an SVG never written."
+  (skip-unless (executable-find "dot"))
+  (let ((dot (make-temp-file "bp-" nil ".dot" "digraph { a -> ; }"))
+        (svg (make-temp-file "bp-" nil ".svg")))
+    (delete-file svg)
+    (unwind-protect
+        (should-error (blueprint--dot-render dot svg))
+      (ignore-errors (delete-file dot)))))
+
 (provide 'blueprint-test-dashboard)
 ;;; blueprint-test-dashboard.el ends here

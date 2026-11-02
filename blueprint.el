@@ -2,7 +2,7 @@
 ;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "29.1") (transient "0.4"))
 ;; Keywords: tools, architecture, documentation
 ;; URL: https://github.com/kLeZ/blueprint.el
@@ -79,6 +79,7 @@
 (require 'blueprint-changelog)
 (require 'blueprint-diff)
 (require 'blueprint-preview)
+(require 'blueprint-upgrade)
 
 ;; Optional integrations (soft dependencies)
 (require 'blueprint-roam nil t)
@@ -111,7 +112,7 @@
     ("d" "pre-delivery check" blueprint-pre-delivery-check)
     ("g" "list findings" blueprint-list-findings)
     ("u" "list unvalidated" blueprint-list-unvalidated)
-    ("U" "org-agenda questions" blueprint-agenda)]
+    ("U" "org-agenda triage" blueprint-agenda)]
    ["Dashboard"
     ("B" "dashboard" blueprint-dashboard)
     ("F" "focus mode" blueprint-focus)
@@ -128,7 +129,8 @@
    ["Templates"
     ("D" "diff" blueprint-template-diff)
     ("M" "migrate" blueprint-template-migrate)
-    ("m" "migrate data directory" blueprint-migrate-directory)]
+    ("m" "migrate data directory" blueprint-migrate-directory)
+    ("^" "upgrade project" blueprint-project-upgrade)]
    ["Export"
     ("E" "export (default backend)" blueprint-export)
     ("P" "export PDF" blueprint-export-pdf)
@@ -200,6 +202,7 @@
     (define-key map (kbd "D") #'blueprint-template-diff)
     (define-key map (kbd "M") #'blueprint-template-migrate)
     (define-key map (kbd "m") #'blueprint-migrate-directory)
+    (define-key map (kbd "^") #'blueprint-project-upgrade)
     ;; Export
     (define-key map (kbd "E") #'blueprint-export)
     (define-key map (kbd "P") #'blueprint-export-pdf)

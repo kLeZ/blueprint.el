@@ -54,7 +54,8 @@ per-component and per-ADR data, not project-level deliverables."
       (should (string-match-p "Term-B" content)))))
 
 (ert-deftest blueprint-test-glossary/add-has-source-line ()
-  "Added term uses the template format: a /Fonte: .../ line, no drawer.
+  "Added term uses the template format: definition, then a /Fonte: .../
+line, no drawer.
 The old :SOURCE: drawer format is still readable (see the lookup
 tests) but new entries follow the glossary template itself."
   (blueprint-test--with-project
@@ -78,7 +79,7 @@ tests) but new entries follow the glossary template itself."
                "^\\* Termini tecnici con uso specifico\n\\(?:.*\n\\)*\\*\\* SAG"
                content))
       (should (string-match-p
-               "^\\*\\* SAG\n/Fonte: team/\nSlowly Applicable Granularity"
+               "^\\*\\* SAG\nSlowly Applicable Granularity\n/Fonte: team/\n"
                content)))))
 
 (ert-deftest blueprint-test-glossary/add-defaults-to-first-section ()
@@ -415,6 +416,68 @@ exactly the one of older versions."
                          "\\] Chi usa il servizio\\? \\[TAG: integrazione\\]"
                          " \\[FONTE: referente BSP\\]$")
                  content))))))
+
+(ert-deftest blueprint-test-glossary/lookup-finds-orphan-legacy-file ()
+  "A term written by older versions to .blueprint/glossary.org (a file
+master.org never included) is still found, with a pointer to the
+migration."
+  (blueprint-test--with-project
+    (blueprint-test--write-file
+     ".blueprint/glossary.org"
+     "* Saga\n:PROPERTIES:\n:SOURCE: codice\n:END:\nTransazione distribuita\n")
+    (let ((msg ""))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq msg (apply #'format fmt args)))))
+        (blueprint-glossary-lookup "Saga"))
+      (should (string-match-p "Transazione distribuita" msg))
+      (should (string-match-p "blueprint-project-upgrade" msg))
+      (should-not (string-match-p ":SOURCE:" msg)))))
+
+(ert-deftest blueprint-test-glossary/add-to-empty-section ()
+  "A section with no contents at all (heading only) still takes a
+term, inserted right under it and before the next section."
+  (blueprint-test--with-project
+    (blueprint-test--write-file
+     "glossary.org"
+     "#+TITLE: Glossario\n\n* Vuota\n* Termini di dominio\n\n** A\n/Fonte: x/\nDef.\n")
+    (blueprint-glossary-add "Zeta" "Ultima." "doc" "Vuota")
+    (let ((content (blueprint-test--read-file
+                    (expand-file-name "glossary.org" default-directory))))
+      (should (string-match-p
+               "^\\* Vuota\n\n\\*\\* Zeta\nUltima\\.\n/Fonte: doc/\n\n\\* Termini di dominio"
+               content)))))
+
+(ert-deftest blueprint-test-questions/answered-in-prose-is-not-open ()
+  "The state of a list entry is the marker found, not the shape of the
+line: an ANSWERED word in prose is not an open question, so the open
+entries stay equal to the dashboard QUESTION column."
+  (blueprint-test--with-project
+    (blueprint-test--write-component
+     "svc" (concat "#+TITLE: svc\n\n* Open Questions\n\n"
+                   "Il punto risulta ANSWERED nel verbale.\n"
+                   "- QUESTION Davvero aperta\n"))
+    (let ((open (cl-remove-if-not
+                 (lambda (e) (string= (aref (cadr e) 3) "open"))
+                 (blueprint--question-entries))))
+      (should (= (length open) 1))
+      (should (string= (aref (cadr (car open)) 1) "Davvero aperta")))))
+
+(ert-deftest blueprint-test-questions/only-rows-are-answerable ()
+  "A QUESTION marker in prose is open but has no row to rewrite: only
+list rows (also indented ones) are answerable; an empty fonte adds no
+empty [FONTE: ] token."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-component
+                 "svc" (concat "#+TITLE: svc\n\n* Open Questions\n\n"
+                               "Resta una QUESTION nel testo.\n"
+                               "  - QUESTION Rientrata\n"))))
+      (should-not (blueprint--question-row-p file 5))
+      (should (blueprint--question-row-p file 6))
+      (blueprint-answer-question (list "svc" file 6) "")
+      (should (string-match-p
+               (concat "^  - ANSWERED \\[" (format-time-string "%Y-%m-%d")
+                       "\\] Rientrata$")
+               (blueprint-test--read-file file))))))
 
 (ert-deftest blueprint-test-questions/answer-stops-counting ()
   "An answered question is not an open point anymore: health, dashboard

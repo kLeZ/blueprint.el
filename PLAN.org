@@ -470,8 +470,9 @@ trasforma i marker di =blueprint-agenda-marker-types= (default QUESTION e
 FIXME) in voci TODO di =.blueprint/agenda.org=, con componente, link
 all'origine e ID stabile (hash di file+testo+occorrenza): DEADLINE,
 SCHEDULED e stato TODO/DONE impostati a mano sopravvivono al refresh.
-=blueprint-agenda= (tasto =U=) rigenera e apre =org-agenda-list= ristretta al
-file; =blueprint-agenda-add-to-org-agenda= (default nil) lo aggiunge anche a
+=blueprint-agenda= (tasto =U=) rigenera e apre una vista agenda ristretta al
+file (scadenze, poi tutte le voci aperte: =org-agenda-list= da sola, come
+nella prima versione, non mostrava le voci senza data); =blueprint-agenda-add-to-org-agenda= (default nil) lo aggiunge anche a
 =org-agenda-files=. Le righe ANSWERED sono storia e non diventano voci. Il
 file vive nella data directory e non è incluso in master.org. Test:
 =test/blueprint-test-agenda.el=.
@@ -542,7 +543,7 @@ che vale la pena avere a colpo d'occhio quanto l'health score.
 Proposta minimale: per convenzione, se esistono =CRONOPROGRAMMA.org= e/o
 =TODO.org= nella root del progetto, =blueprint-dashboard-refresh= aggiunge
 alla header-line la prossima milestone aperta (prima riga con keyword
-TODO=/non completata sotto un heading o tabella riconosciuta come
+=TODO=/non completata sotto un heading o tabella riconosciuta come
 milestone) e il conteggio degli item =TODO= aperti nel progetto. Nessun
 nuovo formato da imporre: si riusa Org standard (keyword TODO/DONE,
 tabelle) già presente nei progetti pilota. Non implementato: da valutare
@@ -1242,6 +1243,41 @@ messaggio) e ignora gli esempi della guida =:noexport:=. Le voci legacy
 esistenti restano intatte, nessuna migrazione. Test:
 =blueprint-test-glossary/*= aggiornati e nuovi in
 =test/blueprint-test-content.el=.
+
+*Rivista (2026-11-02)*: *decisione dell'utente*: "nessuna migrazione"
+voleva dire nessuna migrazione /obbligatoria/, non nessuna migrazione. Le
+voci legacy restano leggibili senza toccarle e ora c'è anche il percorso
+per convertirle (passo =glossary-sections= di =blueprint-project-upgrade=,
+vedi 10.9). Formato delle voci allineato al template: definizione, poi riga
+=/Fonte: .../= (=blueprint-glossary-source-position= per l'ordine inverso).
+
+** +10.9 Versione del progetto e migrazioni opzionali+ ✅
+Richiesta dell'utente (2026-11-02): il pacchetto deve leggere ogni formato
+che ha scritto, fino alle versioni precedenti la 0.1.0, senza chiedere una
+migrazione (chi ha una scadenza non deve essere costretto a migrare la
+documentazione), e deve sempre offrire un percorso di migrazione
+facoltativo; la dashboard deve mostrare la versione Blueprint del progetto
+e se servono adeguamenti, anche dei template utente. Decisioni in
+=docs/adr/ADR-002-project-version-and-migrations.org=.
+
+*Fatto (2026-11-02)*: inventario dei formati di ogni epoca ricostruito
+dalla storia git (14 cambi, ADR-002). Lettura ripristinata dove mancava:
+ADR in un file ciascuno (fino a 2026-03), glossario e riferimenti scritti
+nella data directory (fino a 2026-09), ID dell'agenda della 0.3.0. Nuovo
+=blueprint-upgrade.el=: =.blueprint/blueprint-version.org= (versione e
+migrazioni applicate, scritto da =blueprint-init=, mai obbligatorio:
+altrimenti la versione si deduce), registro =blueprint-upgrade-steps=
+(rilevatore in sola lettura e applicazione idempotente per ogni formato),
+=blueprint-project-upgrade= (=C-c b ^=, =u= in dashboard) con piano,
+backup in =_archive/=, avviso git, stato dei template di progetto e utente
+classificati con gli hash di tutte le versioni rilasciate
+(=scripts/gen-template-history.sh=). Dashboard, report JSON e
+=blueprint-ci-validate= (effetto configurabile) mostrano versione e
+migrazioni. Configurabili anche base del diff, vista dell'agenda e
+posizione della fonte nel glossario. Verificato su progetti creati con il
+codice reale di 0.1.0, 0.2.0 (tag, febbraio, marzo, settembre, ottobre) e
+0.3.0, e con un progetto pre-0.1.0 ricostruito (il codice dell'initial
+commit non si carica). Test: =test/blueprint-test-upgrade.el=.
 
 ** +10.7 Gestione perimetro (inclusi/esclusi) (PRIORITÀ BASSA)+ ✅
 Non esisteva un modo strutturato per marcare componenti come "fuori perimetro

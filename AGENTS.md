@@ -27,7 +27,7 @@ emacs -Q --batch \
   -l blueprint-nfr.el -l blueprint-delivery.el -l blueprint-export.el \
   -l blueprint-dashboard.el -l blueprint-watch.el -l blueprint-capture.el \
   -l blueprint-history.el -l blueprint-agenda.el -l blueprint-changelog.el \
-  -l blueprint-diff.el -l blueprint-preview.el \
+  -l blueprint-diff.el -l blueprint-preview.el -l blueprint-upgrade.el \
   -l test/blueprint-test-helpers.el \
   -l test/blueprint-test-core.el -l test/blueprint-test-health.el \
   -l test/blueprint-test-lint.el -l test/blueprint-test-c4.el \
@@ -43,6 +43,7 @@ emacs -Q --batch \
   -l test/blueprint-test-history.el -l test/blueprint-test-agenda.el \
   -l test/blueprint-test-changelog.el -l test/blueprint-test-diff.el \
   -l test/blueprint-test-roam.el -l test/blueprint-test-preview.el \
+  -l test/blueprint-test-upgrade.el \
   -f ert-run-tests-batch-and-exit
 
 # Single test by name pattern
@@ -92,6 +93,29 @@ emacs -Q --batch -l blueprint.el -f blueprint-ci-export    # exit 0=ok, 2=error
 
 Bump `;;  Version: X.Y.Z` in `blueprint.el` header and push to `main` — the
 release workflow creates the git tag and GitHub release automatically.
+Before the bump, run `scripts/gen-template-history.sh` and commit
+`blueprint-template-history.el` (MD5 of every version of every system
+template; `blueprint-test-upgrade/current-templates-are-in-history` fails
+when a template changed and the table was not regenerated).
+
+### Format changes: read the old, offer the migration
+
+A project must never have to migrate before work goes on (user rule,
+2026-11-02, docs/adr/ADR-002): every change to what Blueprint writes on
+disk (file location, keyword, heading layout, ID scheme) must
+
+1. keep reading the previous format, with a test on a fixture written as
+   the old code wrote it;
+2. add a step to `blueprint-upgrade-steps` (`blueprint-upgrade.el`), in
+   chronological order, with `:era` (the versions that wrote the old
+   format), a read-only detector and an idempotent apply function, plus a
+   test of both;
+3. never run the migration on its own: `blueprint-project-upgrade` applies
+   it when the user asks, after the backup.
+
+Projects from every era back to the initial commit exist; the initial
+commit itself (`8b44775`) does not even load, its layout is in
+`blueprint-test-upgrade/pre-010-layout-step`.
 
 ## Architecture
 
@@ -136,7 +160,9 @@ modules; no logic lives there.
 | 2        | `~/.config/blueprint/templates/` | User defaults           |
 | 3        | `templates/` in package dir      | System fallback         |
 
-Template files: `component.org`, `adr.org`, `master.org`, `functional.org`,
+Template files: `component.org`, `arc42-enterprise.org` (component.org plus
+the enterprise sections, chosen with `C-u` on `blueprint-add-component`),
+`adr.org`, `master.org`, `functional.org`,
 `infrastructure.org`, `glossary.org`, `references.org`,
 `enterprise-context.org`, `enterprise-dependencies.org`, `nfr-quality.org`,
 `nfr-constraints.org`, `nfr-risks.org`.
@@ -198,7 +224,9 @@ have their own suites: `blueprint-history.el`, `blueprint-agenda.el`,
 `blueprint-changelog.el` (git + ADRs), `blueprint-diff.el` (semantic component
 diff; always requests plain unified diffs with `--no-ext-diff`, because a
 `diff.external` in the user's git config would otherwise feed a format the
-summary cannot parse), `blueprint-preview.el` (live graph preview) and the
+summary cannot parse), `blueprint-preview.el` (live graph preview),
+`blueprint-upgrade.el` (project version, optional migrations, template
+status; `blueprint-template-history.el` is generated) and the
 JSON report in `blueprint-ci.el` (`blueprint-ci-export-json`, hash tables
 with string keys because an alist value that is a list is not serializable
 without ambiguity).
@@ -238,6 +266,7 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | `blueprint-test-diff.el`       | Diff semantico del componente: sintesi pura, delta marker, e2e con repository git temporaneo |
 | `blueprint-test-roam.el`       | Logica pura roam (cluster, similarità); i comandi con database sono skip senza org-roam |
 | `blueprint-test-preview.el`    | Preview dal vivo: hook, debounce, aggiornamento buffer, warning unico senza Graphviz |
+| `blueprint-test-upgrade.el`    | Versione di progetto, passi di migrazione (fixture per ogni formato storico), backup, controllo git, stato dei template, dashboard e CI |
 
 ## Blueprint init: full project structure
 
@@ -246,20 +275,27 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 ```
 .blueprint/
 ├── components/
-├── adr/
-├── templates/             # copied from system if absent
-├── enterprise/
-│   ├── enterprise-context.org
-│   └── enterprise-dependencies.org
-├── nfr/
-│   ├── nfr-quality.org
-│   ├── nfr-constraints.org
-│   └── nfr-risks.org
-├── _archive/
-├── glossary.org
-└── references.org
+├── adr/                   # created empty; ADRs live in .blueprint/adr.org
+└── templates/             # project overrides, initially empty
+enterprise/
+├── context.org            # from enterprise-context.org
+└── dependencies.org       # from enterprise-dependencies.org
+nfr/
+├── quality-scenarios.org  # from nfr-quality.org
+├── constraints.org        # from nfr-constraints.org
+└── risks.org              # from nfr-risks.org
+_archive/
+glossary.org
+references.org
 master.org                 # six-part assessment deliverable
 ```
+
+`.blueprint/blueprint-version.org` (Blueprint version of the layout and
+migrations applied, see `blueprint-upgrade.el`) is written by
+`blueprint-init` too, never overwritten by a re-run.  Generated later, in
+the data directory and never included in master.org: `adr.org`
+(`blueprint-adr-new`), `metrics-history.org` (every `blueprint-sync`),
+`agenda.org` (`blueprint-agenda-refresh`), `notes.org` (org-capture).
 
 `blueprint-add-component` creates three files per component:
 
@@ -387,7 +423,9 @@ Templates follow the methodology from
   della riga 143.
 
 - **ADR — modello single-file**: gli ADR sono ora in un unico file
-  `.blueprint/adr/adr.org`. Ogni ADR è un heading di livello 1 con formato
+  `adr.org` nella data directory (`.blueprint/adr.org`, via
+  `blueprint--data-path`; la directory `adr/` creata da `blueprint-init`
+  resta vuota). Ogni ADR è un heading di livello 1 con formato
   `* ADR 0001: Titolo` e status nel `:PROPERTIES:` drawer
   (`:STATUS: proposed|accepted|deprecated|superseded`).
   `blueprint--adr-next-number` scansiona i heading in `adr.org` anziché contare
@@ -541,13 +579,66 @@ Templates follow the methodology from
   lo scheletro che i comandi `blueprint-functional-add-*` /
   `blueprint-runtime-add-*` inseriscono per le sezioni che creano.
 
+- **Revisione della 0.3.0 (CI rossa e difetti dei moduli nuovi)**: il
+  byte-compile falliva perché `blueprint-sync.el` leggeva
+  `blueprint-history-on-sync` con un `require` soft (variabile void se
+  `blueprint-history` non era caricato) e `blueprint-roam.el` chiamava
+  `blueprint--dependency-clusters` senza `require 'blueprint-graph`;
+  ora sono `require` normali (nessun ciclo: history -> health -> core).
+  Il test `blueprint-test-preview/update-refreshes-preview-buffer`
+  richiede `dot`: il workflow installa Graphviz e il test ha
+  `skip-unless`. Altri difetti corretti, con test di regressione:
+  `;;;###autoload` spostato per errore sul `defconst` dei template
+  (`blueprint-add-component` non più autoload); `:ORIGIN:` dell'agenda
+  relativo alla root ma scritto in un file della data directory (link
+  rotto) e ID basati sul path assoluto; il changelog elencava l'ADR
+  d'esempio `:noexport:` del template; `json-serialize` scrive `nil`
+  come `{}` (usare `:null`/`:false`); in org-roam `links.source` è un
+  ID di nodo, non un file; il timer del preview risolveva la root dal
+  buffer corrente allo scatto; `blueprint-component-diff` senza
+  revisione ignorava le modifiche in stage e passava `""` a git;
+  `blueprint-roam-clusters` falliva alla seconda chiamata (buffer
+  read-only); il lint del ciclo di vita contava i FIXME del solo
+  arc42.org; lo stato delle domande veniva dal prefisso della riga e
+  non dal marker; `blueprint-glossary-add` su sezione vuota faceva
+  `goto-char nil`.
+
+- **Seconda passata sulla 0.3.0 (dichiarato ma non funzionante)**:
+  gli id dei componenti sono slug con trattini e un id DOT non quotato
+  ammette solo lettere, cifre e `_`: `dot` usciva con errore di sintassi e
+  dashboard SVG, preview e backend Graphviz non producevano nulla.
+  **Fix**: `blueprint--dot-id` (quota) e `blueprint--dot-render` (errore
+  se `dot` fallisce), in `blueprint-core.el`. `blueprint-agenda` usava
+  `org-agenda-list`, che mostra solo voci datate: ora è una vista a
+  blocchi agenda + `alltodo` con `org-agenda-files` nelle impostazioni del
+  comando (valgono anche per `g`). Org legge come planning solo la riga
+  subito dopo l'heading: DEADLINE/SCHEDULED/CLOSED vanno su una riga sola
+  (`blueprint--agenda-planning-line`). Schema org-roam: la tabella `tags`
+  ha `node-id`, non `node`; `links.source` è un ID di nodo; il nodo di
+  file ha `level` 0. Il parser del diff legge il contenuto solo dentro gli
+  hunk (`@@`). Test: `blueprint-test-graph/dot-ids-are-quoted`,
+  `blueprint-test-agenda/agenda-view-lists-undated-entries`,
+  `.../planning-line-survives-two-refreshes`,
+  `blueprint-test-roam/similar-uses-roam-schema`,
+  `blueprint-test-diff/summary-only-hunk-content`,
+  `.../untracked-files-shown`,
+  `blueprint-test-delete-component/first-component-no-stray-break`.
+
 ## Health scoring
 
-Score starts at 100, deducting per unresolved marker across all component files:
+The score covers the document only (`blueprint--document-files`: master.org
+and everything it includes). Markers add weighted penalty points P
+(`blueprint--health-weights`):
 
-- **Technical markers**: `QUESTION` = −3, `TBD` = −2, `FIXME` = −4
-- **Methodology markers**: `[DA VALIDARE]` = −1, `[FINDING]` = −2,
-  `[DA REVISIONARE]` = −1
+- **Technical markers**: `QUESTION` = 3, `TBD` = 2, `FIXME` = 4
+- **Methodology markers**: `[DA VALIDARE]` = 1, `[DA REVISIONARE]` = 1,
+  `[FINDING]` = 0 (a result the assessment delivers, still counted by the
+  metrics and the lists)
+
+P is set against the W words of exported text of the same files:
+`score = round(100 * W / (W + N * P))` with N =
+`blueprint-health-words-per-point` (default 100), 100 when P is 0
+(`blueprint--health-score-from`).
 
 Only markers in exported text count: `blueprint--uncounted-regions`
 (`blueprint-core.el`) excludes export-excluded subtrees (`:noexport:`,
@@ -560,13 +651,13 @@ ignores lines in non-exported subtrees (`blueprint--non-exported-subtrees`)
 but, unlike marker counting, still treats src blocks and verbatim as
 content.
 
-Clamped to 0 minimum. Technical marker results cached by MD5 via
-`blueprint--cached-metrics`. Methodology markers counted separately via
-`blueprint--methodology-metrics` (not cached — avoids cache key collision with
-the existing cache keyed by file path).
+Per-file counts and words are cached via `blueprint--cached-metrics` under
+the kind `document-stats` (keys are `(FILE . KIND)`, so they never collide
+with the technical counts cached for arc42.org).
 
-`blueprint-list-findings` and `blueprint-list-unvalidated` scan all `.org` files
-in the project and display results in a read-only buffer.
+`blueprint-list-findings` and `blueprint-list-unvalidated` scan the document
+files (master.org and its includes) and display results in a read-only
+buffer.
 `blueprint--display-marker-list` captures `(blueprint--root)` **before**
 `(with-current-buffer ...)` to avoid stale `default-directory` from pre-existing
 result buffers (isolation-critical for tests).

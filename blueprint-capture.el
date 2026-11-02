@@ -39,8 +39,14 @@
          ;; file `blueprint-init' creates and `master.org' includes -- created
          ;; from the template if this is the first glossary write in the
          ;; project, same as `blueprint--notes-file' above.
-         (file ,(blueprint--ensure-glossary))
-         "* %^{Term}\n:PROPERTIES:\n:SOURCE: %^{Source}\n:END:\n%?")))))
+         ;; Same format as `blueprint-glossary-add': a level-2 entry at
+         ;; the end of the first section of the template (org-capture
+         ;; files the "* " entry as a child of the headline), with the
+         ;; definition followed by the /Fonte: .../ line.
+         (file+headline ,(blueprint--ensure-glossary)
+                        ,(or (car (blueprint--glossary-sections))
+                             "Termini di dominio"))
+         "* %^{Term}\n%?\n/Fonte: %^{Source}/")))))
 
 ;;;###autoload
 (defun blueprint-capture-setup ()

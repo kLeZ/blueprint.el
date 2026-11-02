@@ -122,8 +122,8 @@ M-x blueprint-template-migrate  (oppure: C-c b M)
 Copia i template di sistema in =.blueprint/templates/=. Da quel momento, i
 template locali hanno precedenza su quelli di sistema.
 
-I template disponibili: =component.org=, =functional.org=, =infrastructure.org=,
-=adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
+I template disponibili: =component.org=, =arc42-enterprise.org=,
+=functional.org=, =infrastructure.org=, =adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
 =enterprise-dependencies.org=, =nfr-quality.org=, =nfr-constraints.org=, =nfr-risks.org=.
 
 ** Azione 2-bis: Scegliere il nome della directory dati (opzionale)
@@ -233,13 +233,14 @@ degli altri componenti.
 M-x blueprint-delete-component  (oppure: C-c b X)
 #+end_src
 
-Chiede conferma e cancella la directory del componente. Prima di
-confermare, rimuove da master.org le righe =#+INCLUDE= e le headline del
-componente dentro le sezioni sincronizzate (il prossimo =blueprint-sync=
-riporta la sezione al formato esatto), e chiede una conferma aggiuntiva
-quando altri componenti dichiarano ancora il nome in =#+BLUEPRINT_DEPENDS:=:
-quelle dipendenze restano in vita (giudizio umano) e il lint le segnala come
-pendenti finché non vengono rimosse a mano.
+Chiede conferma e cancella la directory del componente. La conferma
+avverte quando altri componenti dichiarano ancora il nome in
+=#+BLUEPRINT_DEPENDS:=: quelle dipendenze restano in vita (giudizio umano)
+e il lint le segnala come pendenti finché non vengono rimosse a mano. Dopo
+la conferma, prima di cancellare la directory, rimuove da master.org le
+righe =#+INCLUDE= e le headline del componente dentro le sezioni
+sincronizzate (il prossimo =blueprint-sync= riporta la sezione al formato
+esatto).
 
 ** Verificare lo stato del perimetro
 
@@ -577,8 +578,8 @@ Source: contratto-cliente-2024
 #+end_src
 
 Il termine viene inserito in =glossary.org= come heading di livello 2 in
-fondo alla sezione scelta, nel formato del template stesso: riga
-=/Fonte: contratto-cliente-2024/= e definizione. La sezione si chiede
+fondo alla sezione scelta, nel formato del template stesso: definizione e
+riga =/Fonte: contratto-cliente-2024/=. La sezione si chiede
 (=Termini di dominio= di default, poi =Termini tecnici con uso specifico=
 e =Acronimi e abbreviazioni=). Le voci scritte dalle versioni vecchie
 (livello 1 con drawer =:PROPERTIES:= in coda al file) restano valide:
@@ -972,8 +973,8 @@ Se alla radice del progetto esiste =CRONOPROGRAMMA.org= o =TODO.org=
 (=C-c b B=) aggiunge la prossima milestone aperta (primo heading con la
 keyword =TODO= in ordine di file, con la eventuale =:DEADLINE:= come data)
 e il numero di =TODO= aperti. Nessun formato nuovo: si riusano gli heading
-TODO/DONE di Org. Un file malformato non rompe la dashboard: il pannello
-degrada a nil.
+TODO/DONE di Org. Un file malformato non rompe la dashboard: la riga di
+stato resta senza milestone.
 
 ** Domande: tag, risposte e filtri
 
@@ -1006,9 +1007,11 @@ si può limitare a =SINCE..HEAD=) e dalle ADR con =:STATUS: accepted=. Il file
 ** Confronto fra versioni di un componente
 
 =M-x blueprint-component-diff= mostra il =git diff= della directory del
-componente con in testa una sintesi semantica: file toccati, heading
+componente rispetto all'ultimo commit (=HEAD=, modifiche già in stage
+comprese) con in testa una sintesi semantica: file toccati, heading
 cambiati, marker aggiunti/rimossi, domande risolte. Con argomento prefisso
-si può confrontare contro una revisione (tag o commit). Nella lista
+si può confrontare contro una revisione (tag o commit). I file mai
+aggiunti a git (untracked) non compaiono. Nella lista
 componenti (=C-c b l=) il tasto =d= fa lo stesso per il componente al punto.
 Il comando è di sola lettura.
 
@@ -1081,7 +1084,7 @@ noti.
 - *Verifiche di Blueprint*: lo stile =PageBreak= e' nella lista degli
   stili extra di =blueprint-check-odt-styles=, segnalato se un
   template aziendale non lo definisce.
-- *Limiti*: una macro Org non e' usable qui (si espanderebbe dentro un
+- *Limiti*: una macro Org non e' utilizzabile qui (si espanderebbe dentro un
   paragrafo, producendo un =<text:p>= annidato in ODT).
 
 ** Keyword di export per backend
@@ -1113,6 +1116,102 @@ noti.
   pagina il testo resta piccolo: le alternative sono una pagina
   orizzontale (template aziendale con uno stile di pagina landscape)
   o un layout verticale nei sorgenti PlantUML.
+
+-----
+
+* Flusso 14 — Aggiornare un progetto esistente
+
+/Quando: un progetto creato con una versione precedente di Blueprint, anche
+anteriore alla 0.1.0./
+
+Blueprint legge ogni formato che ha scritto in passato: un progetto vecchio
+si apre e si lavora subito, senza migrare nulla. La migrazione esiste sempre
+ma è facoltativa, da fare quando c'è tempo: nessuna scadenza deve dipendere
+dall'aggiornamento della documentazione.
+
+** Versione del progetto
+
+=.blueprint/blueprint-version.org= registra la versione di Blueprint con cui
+il progetto è stato creato o aggiornato e le migrazioni applicate.
+=blueprint-init= lo scrive; nei progetti che non lo hanno, la versione viene
+dedotta dalla struttura dei file (per esempio "0.2.0 (fino a 2026-03)" per
+un progetto con gli ADR in un file ciascuno). Il file non è incluso in
+=master.org=.
+
+La riga di stato della dashboard (=C-c b B=) mostra la versione, dichiarata
+o dedotta, il numero di migrazioni disponibili e i template di progetto e
+utente più vecchi di quelli di sistema (=blueprint-dashboard-show-version=
+per nasconderla). Il tasto =u= nella dashboard apre il piano.
+
+** Il piano di migrazione
+
+#+begin_src
+M-x blueprint-project-upgrade  (oppure: C-c b ^)
+#+end_src
+
+Apre il buffer =*Blueprint Upgrade*= con una riga per ogni passo disponibile
+e per ogni template da rivedere. Nulla cambia finché non lo si chiede:
+
+- =x= applica il passo al punto (o aggiorna il template al punto), dopo
+  conferma;
+- =X= applica tutti i passi, poi propone di aggiornare i template non
+  modificati;
+- =d= (o =RET=) mostra i file di un passo o il diff di un template;
+- =g= ricalcola il piano.
+
+I passi, dal formato più vecchio:
+
+| Passo                    | Formato di partenza                                          |
+|--------------------------+--------------------------------------------------------------|
+| =component-arc42-layout= | componente con =* Component= e sezioni di livello 2 (< 0.1.0) |
+| =component-dir-ids=      | directory del componente con il nome digitato, non l'id       |
+| =project-files=          | file di progetto mancanti (Parti I e V, glossario, ...)       |
+| =master-sync-sections=   | master.org senza le sezioni sincronizzate di Parte III e IV   |
+| =component-documents=    | componenti senza =functional.org= / =infrastructure.org=      |
+| =adr-single-file=        | un file per ADR in =.blueprint/adr/= (fino a 2026-03)         |
+| =orphan-glossary=        | termini scritti in =.blueprint/glossary.org= (fino a 2026-09) |
+| =orphan-references=      | riferimenti scritti in =.blueprint/references.org=            |
+| =references-table-rows=  | riferimenti come heading con drawer =:TYPE:=                  |
+| =data-directory=         | =.blueprint= quando =blueprint-directory-name= è un altro     |
+| =glossary-sections=      | termini come heading di livello 1 con drawer =:SOURCE:=       |
+| =lifecycle-keyword=      | componenti senza =#+BLUEPRINT_LIFECYCLE:= (diventa =active=)  |
+| =agenda-ids=             | =agenda.org= della 0.3.0 (ID su percorsi assoluti)            |
+| =version-file=           | progetto senza =blueprint-version.org=                        |
+
+I file creati da =project-files= e =component-documents= nascono vuoti: il
+lint li segnala finché non vengono compilati, e il prossimo =blueprint-sync=
+li include nel documento.
+
+** Sicurezza
+
+Prima di toccare un file, ogni migrazione lo copia in
+=_archive/migration-AAAAMMGG-HHMMSS/= con lo stesso percorso relativo, insieme
+a =report.org= con i passi applicati (=blueprint-upgrade-backup=,
+=blueprint-upgrade-backup-directory=). In un repository git con modifiche non
+committate il comando avvisa e prosegue (=blueprint-upgrade-git-check=:
+=warn=, =refuse= per fermarsi, nil per non controllare); rinomina e
+cancellazioni passano da =git mv= e =git rm= quando i file sono tracciati.
+
+** Template di progetto e utente
+
+Le copie in =.blueprint/templates/= e in =~/.config/blueprint/templates/=
+(=blueprint-template-status-scopes=) vengono confrontate con tutte le versioni
+rilasciate dei template di sistema:
+
+- /versione precedente/: copia identica a una versione vecchia, mai
+  modificata. =x= la sostituisce con quella attuale, conservando la vecchia
+  in una directory =backup-AAAAMMGG-HHMMSS= accanto;
+- /personalizzato/: diverso da ogni versione rilasciata. Non viene mai
+  sostituito: =d= mostra il diff con il template attuale e l'allineamento si
+  fa a mano.
+
+** CI
+
+=blueprint-ci-validate= riporta versione e migrazioni disponibili; il codice
+d'uscita cambia solo se lo si chiede con =blueprint-ci-pending-migrations=
+(=ignore= di default, =warn= esce con 1, =error= con 2). Il report JSON
+(=blueprint-ci-export-json=) ha le stesse informazioni nella chiave
+=blueprint=.
 
 -----
 
@@ -1193,12 +1292,5 @@ associato e' un gap attuale dello strumento (vedi Appendice C).
 I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
 Richiedono gestione manuale fino all'implementazione.
 
-** Instradamento del glossario nelle sezioni del template
-=blueprint-glossary-add= inserisce ogni termine come heading di livello 1
-con drawer =:PROPERTIES:= in coda al file, non come heading di livello 2
-con riga =/Fonte: .../= nella sezione "Termini di dominio" o "Termini
-tecnici con uso specifico" del template (a differenza di
-=blueprint-reference-add=, che dalla fase 10.6 instrada correttamente nelle
-sezioni di =references.org=). Aggiungere il termine a mano nella sezione
-corretta, o lasciarlo in coda al file e riorganizzare in seguito. Vedi
-PLAN.org, Fase 10.8.
+Nessuno al momento. L'ultimo, l'instradamento di =blueprint-glossary-add=
+nelle sezioni del template, è chiuso dalla 0.3.0 (PLAN.org, Fase 10.8).

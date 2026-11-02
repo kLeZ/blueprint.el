@@ -103,8 +103,14 @@ a \"deprecated\" one (#+BLUEPRINT_LIFECYCLE:)."
         (setq warnings (append (reverse (blueprint--lint-content id file))
                                warnings)))
       ;; Life cycle of the component itself (#+BLUEPRINT_LIFECYCLE:).
+      ;; FIXMEs of every document of the component that master.org
+      ;; includes, as the dashboard FIXME column counts them: not
+      ;; arc42.org alone, and nothing of a document left out.
       (when blueprint-lint-lifecycle-checks
-        (let ((fixmes (nth 2 (blueprint--component-metrics file))))
+        (let ((fixmes (nth (cl-position "\\<FIXME\\>" blueprint--health-weights
+                                        :key #'car :test #'string=)
+                           (plist-get (blueprint--component-health-summary id)
+                                      :counts))))
           (when (and (string= (blueprint--component-lifecycle-status id)
                               "active")
                      (> fixmes 0))

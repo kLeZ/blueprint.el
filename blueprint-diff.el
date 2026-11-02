@@ -31,28 +31,33 @@ A plist with:
   :headings  the org headings touched, as (LEVEL TITLE) lists
   :deltas    an alist (MARKER ADDED REMOVED), one per
              `blueprint--diff-marker-names'
-  :resolved  the ANSWERED lines added, i.e. the questions the change
-             closed (a QUESTION rewritten as ANSWERED shows up as one
-             removed and one added line of the two markers)"
+  :resolved  the questions the change closed: ANSWERED rows added
+             minus ANSWERED rows removed (a QUESTION rewritten as
+             ANSWERED is one removed QUESTION and one added ANSWERED;
+             an ANSWERED row merely edited is one of each and closes
+             nothing), never below 0
+Only the lines inside a hunk (after an \"@@\" line) are content: the
+file headers (\"--- a/...\", \"+++ b/...\", index, mode lines) are
+not, whatever an added or removed content line starts with."
   (let ((files '())
         (headings '())
         (deltas (mapcar (lambda (m) (list m 0 0))
                         blueprint--diff-marker-names))
-        (resolved 0))
+        (in-hunk nil)
+        (case-fold-search nil))
     (dolist (line (split-string diff-text "\n" t))
       (let ((sign nil)
             (body nil))
         (cond
          ((string-match "\\`diff --git a/\\(.*\\) b/\\(.*\\)\\'" line)
-          (push (match-string 1 line) files))
-         ;; Added/removed lines: an org list line starts with "-" or
-         ;; "+", so a removed list line begins with "--" — only the
-         ;; three-dash file headers ("--- a/...") are not content.
-         ((and (string-match-p "\\`\\+" line)
-               (not (string-match-p "\\`\\+\\+\\+" line)))
+          (push (match-string 2 line) files)
+          (setq in-hunk nil))
+         ((string-prefix-p "@@" line)
+          (setq in-hunk t))
+         ((not in-hunk) nil)
+         ((string-prefix-p "+" line)
           (setq sign 'add body (substring line 1)))
-         ((and (string-match-p "\\`-" line)
-               (not (string-match-p "\\`---" line)))
+         ((string-prefix-p "-" line)
           (setq sign 'remove body (substring line 1))))
         (when sign
           (when (string-match "\\`\\(\\*+\\)[ \t]+\\(.*\\)\\'" body)
@@ -63,13 +68,12 @@ A plist with:
             (when (string-match-p (concat "\\<" (car d) "\\>") body)
               (if (eq sign 'add)
                   (cl-incf (nth 1 d))
-                (cl-incf (nth 2 d)))))
-          (when (and (eq sign 'add) (string-match-p "\\<ANSWERED\\>" body))
-            (cl-incf resolved)))))
-    (list :files (nreverse files)
-          :headings (nreverse headings)
-          :deltas deltas
-          :resolved resolved)))
+                (cl-incf (nth 2 d))))))))
+    (let ((answered (assoc "ANSWERED" deltas)))
+      (list :files (nreverse files)
+            :headings (nreverse headings)
+            :deltas deltas
+            :resolved (max 0 (- (nth 1 answered) (nth 2 answered)))))))
 
 (defun blueprint--diff-summary-text (summary)
   "Return the header lines describing SUMMARY."
@@ -91,28 +95,76 @@ A plist with:
                 (format "  %s: +%d/-%d\n" (car d) (nth 1 d) (nth 2 d)))
               (plist-get summary :deltas)
               "")
-   (format "Domande risolte (righe ANSWERED aggiunte): %d\n"
+   (format "Domande risolte (righe ANSWERED nette aggiunte): %d\n"
            (plist-get summary :resolved))))
+
+(defcustom blueprint-diff-default-base 'head
+  "What `blueprint-component-diff' compares with when given no revision.
+`head': the last commit, staged and unstaged changes together (in a
+repository without commits, the index); `index': the index, as a
+plain `git diff' does, so staged changes are not shown."
+  :type '(choice (const :tag "Last commit (HEAD)" head)
+                 (const :tag "Index (plain git diff)" index))
+  :group 'blueprint)
+
+(defun blueprint--diff-untracked (rel-dir)
+  "Return the diff of the untracked files under REL-DIR, as new files.
+A document created and not yet added to git (a new functional.org)
+is a change of the component, but `git diff' does not show it: each
+untracked file not ignored by git is diffed against /dev/null.  Run
+with `default-directory' at the project root."
+  (let ((files (with-temp-buffer
+                 (when (eq 0 (call-process "git" nil t nil "ls-files" "-z"
+                                           "--others" "--exclude-standard"
+                                           "--" rel-dir))
+                   (split-string (buffer-string) "\0" t)))))
+    (mapconcat
+     (lambda (file)
+       (with-temp-buffer
+         ;; --no-index exits 1 when the files differ: that is the
+         ;; normal case here, not a failure.
+         (call-process "git" nil t nil "diff" "--no-color" "--no-ext-diff"
+                       "--no-index" "--" "/dev/null" file)
+         (buffer-string)))
+     files "")))
+
+(defun blueprint--diff-has-head-p ()
+  "Return non-nil when the git repository of `default-directory' has a
+commit (HEAD resolves)."
+  (eq 0 (ignore-errors
+          (call-process "git" nil nil nil
+                        "rev-parse" "--verify" "--quiet" "HEAD"))))
 
 ;;;###autoload
 (defun blueprint-component-diff (&optional component revision)
   "Show the git diff of COMPONENT's directory with a semantic summary.
-REVISION, when non-nil, diffs against it (`git diff REVISION -- dir');
-the default is the working tree.  The buffer holds the summary and the
-diff in `diff-mode'.  Signals `user-error' outside a git repository."
+REVISION, when non-nil and not empty, diffs against it (`git diff
+REVISION -- dir').  Without one, `blueprint-diff-default-base' says
+what to compare with: by default the last commit (HEAD), staged
+changes included, since a plain `git diff' would hide what is already
+in the index.  In a repository without commits it
+falls back to the working tree against the index.  Untracked files of
+the component (not ignored by git) are shown as new files.  The buffer holds
+the summary and the diff in `diff-mode'.  Signals `user-error' outside
+a git repository."
   (interactive
    (list (completing-read "Component: "
                           (hash-table-keys (blueprint--components)) nil t)
          (when current-prefix-arg
-           (read-string "Diff against (revision, empty = working tree): "))))
+           (read-string "Diff against (revision, empty = HEAD): "))))
   (let* ((comps (blueprint--components))
-         (dir (gethash component comps)))
+         (dir (gethash component comps))
+         (revision (and revision (not (string-empty-p revision)) revision)))
     (unless dir (user-error "Component %s not found" component))
     (let* ((root (blueprint--root))
            (default-directory root)
            (rel-dir (file-relative-name dir root))
+           (base (or revision
+                     (and (eq blueprint-diff-default-base 'head)
+                          (blueprint--diff-has-head-p)
+                          "HEAD")))
            (args (append '("diff" "--no-color" "--no-ext-diff")
-                         (when revision (list revision))
+                         (when base (list base))
                          (list "--" rel-dir)))
            (diff-text (with-temp-buffer
                         (let ((exit (condition-case err
@@ -125,7 +177,8 @@ diff in `diff-mode'.  Signals `user-error' outside a git repository."
                             (user-error
                              "git diff failed (exit %d): is the project a git repository?"
                              exit))
-                          (buffer-string))))
+                          (concat (buffer-string)
+                                  (blueprint--diff-untracked rel-dir)))))
            (summary (blueprint--diff-summary diff-text))
            (buf (get-buffer-create (format "*Blueprint Diff: %s*" component))))
       (with-current-buffer buf

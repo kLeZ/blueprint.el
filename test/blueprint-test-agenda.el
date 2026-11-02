@@ -59,7 +59,62 @@ entry, with component, stable ID and origin link."
         (should (string-match-p "^\\*\\* TODO FIXME: beta — .*FIXME here" content))
         (should (string-match-p ":BLUEPRINT_MARKER: QUESTION" content))
         (should (string-match-p ":ID: [0-9a-f]\\{10\\}" content))
-        (should (string-match-p ":ORIGIN: .*arc42.org" content))))))
+        (should (string-match-p ":ORIGIN: .*arc42.org" content))
+        ;; The link resolves from the agenda file, which lives in the
+        ;; data directory, not at the project root.
+        (string-match ":ORIGIN: \\[\\[file:\\([^]]+\\)\\]" content)
+        (should (file-exists-p
+                 (expand-file-name (match-string 1 content)
+                                   (file-name-directory file))))))))
+
+(ert-deftest blueprint-test-agenda/ids-survive-moving-the-project ()
+  "The IDs hash the path relative to the root: the same project in
+another directory gets the same IDs, so its deadlines survive a move."
+  (let (ids)
+    (dotimes (_ 2)
+      (blueprint-test--with-project
+        (blueprint-test-agenda--write-project)
+        (push (mapcar (lambda (e) (plist-get e :id))
+                      (blueprint--agenda-entries))
+              ids)))
+    (should (car ids))
+    (should (equal (car ids) (cadr ids)))))
+
+(ert-deftest blueprint-test-agenda/legacy-ids-keep-dates ()
+  "An agenda written by 0.3.0 (IDs hashed on absolute paths) keeps its
+DEADLINE and state at the first refresh, which rewrites the IDs."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (blueprint-agenda-refresh)
+    (let* ((agenda (blueprint--agenda-file))
+           (entry (car (blueprint--agenda-entries)))
+           (legacy (plist-get entry :legacy-id))
+           (content (blueprint-test--read-file agenda)))
+      (should-not (equal legacy (plist-get entry :id)))
+      ;; Turn the file into what 0.3.0 wrote: legacy ID, DONE, deadline.
+      (setq content (replace-regexp-in-string
+                     (concat ":ID: " (plist-get entry :id))
+                     (concat ":ID: " legacy) content t t))
+      (setq content (replace-regexp-in-string
+                     "^\\*\\* TODO \\(QUESTION: alpha[^\n]*\\)\n"
+                     "** DONE \\1\nDEADLINE: <2026-12-24 gio>\n" content))
+      (with-temp-file agenda (insert content))
+      (blueprint-agenda-refresh)
+      (let ((after (blueprint-test-agenda--content)))
+        (should (string-match-p
+                 "^\\*\\* DONE QUESTION: alpha[^\n]*\nDEADLINE: <2026-12-24" after))
+        (should (string-match-p (concat ":ID: " (plist-get entry :id)) after))))))
+
+(ert-deftest blueprint-test-agenda/org-agenda-files-as-file-untouched ()
+  "When `org-agenda-files' names a file (a string), the refresh does
+not mangle it into a list."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (require 'org-agenda)
+    (let ((org-agenda-files "~/.agenda_files")
+          (blueprint-agenda-add-to-org-agenda t))
+      (blueprint-agenda-refresh)
+      (should (equal org-agenda-files "~/.agenda_files")))))
 
 (ert-deftest blueprint-test-agenda/ids-are-stable-across-refreshes ()
   "The ID of an entry does not change when the file is regenerated."
@@ -92,6 +147,47 @@ entry, with component, stable ID and origin link."
         (should (string-match-p "DEADLINE: <2026-12-24" content))
         ;; The entry itself is still there.
         (should (string-match-p "QUESTION: alpha" content))))))
+
+(ert-deftest blueprint-test-agenda/planning-line-survives-two-refreshes ()
+  "CLOSED, DEADLINE and SCHEDULED together survive repeated refreshes:
+they are written back on the single planning line Org reads (a second
+planning line would be plain text and lost at the next refresh)."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (blueprint-agenda-refresh)
+    (let* ((agenda (blueprint--agenda-file))
+           (content (blueprint-test--read-file agenda)))
+      (with-temp-file agenda
+        (insert (replace-regexp-in-string
+                 "\\(^\\*\\* \\)TODO \\(QUESTION: alpha[^\n]*\n\\)"
+                 (concat "\\1DONE \\2CLOSED: [2026-11-02 lun 10:00] "
+                         "DEADLINE: <2026-12-24 gio> SCHEDULED: <2026-12-01 mar>\n")
+                 content)))
+      (blueprint-agenda-refresh)
+      (blueprint-agenda-refresh)
+      (let ((content (blueprint-test-agenda--content)))
+        (should (string-match-p
+                 (concat "^\\*\\* DONE QUESTION: alpha[^\n]*\n"
+                         "CLOSED: \\[2026-11-02 [^]]*\\] "
+                         "DEADLINE: <2026-12-24[^>]*> "
+                         "SCHEDULED: <2026-12-01[^>]*>\n:PROPERTIES:")
+                 content))))))
+
+(ert-deftest blueprint-test-agenda/agenda-view-lists-undated-entries ()
+  "`blueprint-agenda' shows the open entries even without a date:
+right after a refresh none has one, and a date-only agenda would be
+empty."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (require 'org-agenda)
+    (unwind-protect
+        (progn
+          (blueprint-agenda)
+          (with-current-buffer org-agenda-buffer-name
+            (should (string-match-p "QUESTION: alpha" (buffer-string)))
+            (should (string-match-p "FIXME: beta" (buffer-string)))))
+      (when (get-buffer org-agenda-buffer-name)
+        (kill-buffer org-agenda-buffer-name)))))
 
 (ert-deftest blueprint-test-agenda/done-state-preserved-across-refresh ()
   "An entry marked DONE by hand stays DONE after the refresh."

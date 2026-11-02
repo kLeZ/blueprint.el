@@ -109,18 +109,18 @@ flags it -- and joins nothing."
       (dolist (entry deps)
         (let ((id (car entry))
               (color (blueprint--graph-health-color (car entry))))
-          (insert (format "  %s [label=\"%s\", fillcolor=\"%s\"];\n"
-                          id id color))))
+          (insert (format "  %s [label=%s, fillcolor=\"%s\"];\n"
+                          (blueprint--dot-id id) (blueprint--dot-id id)
+                          color))))
       (insert "\n")
       (dolist (entry deps)
         (dolist (dep (cdr entry))
-          (insert (format "  %s -> %s;\n" (car entry) dep))))
+          (insert (format "  %s -> %s;\n"
+                          (blueprint--dot-id (car entry))
+                          (blueprint--dot-id dep)))))
       (insert "}\n"))
     (if (executable-find "dot")
-        (progn
-          (call-process "dot" nil nil nil "-Tsvg" "-o" svg-file dot-file)
-          (delete-file dot-file)
-          svg-file)
+        (blueprint--dot-render dot-file svg-file)
       dot-file)))
 
 ;;;###autoload

@@ -42,6 +42,7 @@
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'blueprint-history)
 
 ;; The sync marker pairs (`blueprint-sync-start-marker' and friends)
 ;; live in blueprint-core.el: `blueprint-delete-component' removes the
@@ -226,9 +227,10 @@ them, and the page-break lines that precede that headline.  Content
 outside the markers is never touched.  Does nothing when master.org
 does not exist or no marker pair is present.
 
-A page break left before the wrong component (because the first
-remaining one should not have one) is cosmetic: the next
-`blueprint-sync' regenerates the section exactly."
+When the removed component was the first of a section, the page
+break of the component that becomes first is removed too:
+`blueprint-sync' never writes a break before the first component, so
+the section stays exactly as the next sync would write it."
   (let* ((root (blueprint--root))
          (file (blueprint--master-file root))
          (dir (gethash id (blueprint--components))))
@@ -269,8 +271,30 @@ remaining one should not have one) is cosmetic: the next
                                          (line-end-position))
                                         breaks))
                       (delete-region (point) (line-beginning-position 2))
-                      (forward-line -1))))))
+                      (forward-line -1)))))
+              (when begins
+                (blueprint--sync-drop-leading-breaks breaks)))
             (save-buffer)))))))
+
+(defun blueprint--sync-drop-leading-breaks (breaks)
+  "Delete the BREAKS lines that open a sync-marker section.
+A page break goes before every component of a section but the first:
+breaks before the first headline of a section (left there when the
+first component was removed) are deleted.  Blank lines are skipped."
+  (dolist (region (reverse (blueprint--sync-marker-regions)))
+    (save-excursion
+      (goto-char (car region))
+      (let ((end (copy-marker (cdr region))))
+        (while (and (< (point) end)
+                    (let ((line (buffer-substring (line-beginning-position)
+                                                  (line-end-position))))
+                      (cond ((member line breaks)
+                             (delete-region (point) (line-beginning-position 2))
+                             t)
+                            ((string-blank-p line)
+                             (forward-line 1)
+                             t)))))
+        (set-marker end nil)))))
 
 ;;;###autoload
 (defun blueprint-sync ()
@@ -298,14 +322,12 @@ gets a page break between consecutive components (see
          blueprint-sync-infra-end-marker
          (blueprint--generate-includes-for "infrastructure.org" breaks)))
       (save-buffer))
-    ;; Metrics history: guarded and non-fatal, so a problem there never
-    ;; breaks the sync.
+    ;; Metrics history: non-fatal, so a problem there never breaks the
+    ;; sync.
     (when blueprint-history-on-sync
-      (require 'blueprint-history nil t)
-      (when (fboundp 'blueprint-history-record)
-        (condition-case err
-            (blueprint-history-record)
-          (error (message "Blueprint history: %s" (error-message-string err))))))
+      (condition-case err
+          (blueprint-history-record)
+        (error (message "Blueprint history: %s" (error-message-string err)))))
     (message "Master file synchronized")))
 
 (provide 'blueprint-sync)

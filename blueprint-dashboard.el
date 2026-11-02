@@ -23,6 +23,7 @@
 (require 'blueprint-core)
 (require 'blueprint-c4)
 (require 'blueprint-health)
+(require 'blueprint-upgrade)
 
 (defvar blueprint-dashboard-focus nil
   "When non-nil, dashboard shows only components with open markers.")
@@ -140,6 +141,7 @@ master.org shows the status `blueprint--dashboard-not-included'."
     (define-key map (kbd "F") #'blueprint-dashboard-toggle-focus)
     (define-key map (kbd "O") #'blueprint-dashboard-toggle-out-of-scope)
     (define-key map (kbd "G") #'blueprint-dashboard-svg)
+    (define-key map (kbd "u") #'blueprint-project-upgrade)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Keymap for `blueprint-dashboard-mode'.")
@@ -253,12 +255,41 @@ swallowed: a malformed milestone file must never break the dashboard."
               (append (car todos) (list :open (length todos))))))
       (error nil))))
 
+(defcustom blueprint-dashboard-show-version t
+  "When non-nil, the dashboard summary shows the project version.
+The Blueprint version of the project (declared in blueprint-version.org
+or inferred from its layout), the number of optional migrations
+available and of project/user templates older than the system ones or
+customized; `u' in the dashboard opens the plan
+\(`blueprint-project-upgrade')."
+  :type 'boolean
+  :group 'blueprint)
+
+(defun blueprint--dashboard-version-part ()
+  "Return the version part of the dashboard summary, or nil.
+See `blueprint-dashboard-show-version'."
+  (when blueprint-dashboard-show-version
+    (let ((u (blueprint--upgrade-summary)))
+      (when u
+        (concat
+         (format " | Blueprint %s (%s)"
+                 (plist-get u :version)
+                 (if (eq (plist-get u :source) 'declared) "dichiarata" "dedotta"))
+         (when (plist-get u :pending)
+           (format " | Migrazioni disponibili: %d [u]"
+                   (length (plist-get u :pending))))
+         (when (or (> (plist-get u :templates) 0)
+                   (> (plist-get u :customized) 0))
+           (format " | Template: %d da aggiornare, %d personalizzati"
+                   (plist-get u :templates) (plist-get u :customized))))))))
+
 (defun blueprint--dashboard-summary-line ()
   "Return the summary shown in the dashboard mode line.
 Health of the whole document, number of components and of other
-document files, active filters, and -- when a milestone file exists
-at the root (`blueprint-milestone-files') -- the next open milestone
-and the count of open TODO items."
+document files, active filters, -- when a milestone file exists at
+the root (`blueprint-milestone-files') -- the next open milestone and
+the count of open TODO items, and the project version with the
+migrations available (`blueprint-dashboard-show-version')."
   (let* ((units (blueprint--document-units))
          (milestone (blueprint--milestone-summary)))
     (concat
@@ -274,7 +305,8 @@ and the count of open TODO items."
                (if (plist-get milestone :date)
                    (format " (%s)" (plist-get milestone :date))
                  "")
-               (plist-get milestone :open))))))
+               (plist-get milestone :open)))
+     (blueprint--dashboard-version-part))))
 
 (defun blueprint-dashboard-refresh ()
   "Refresh the dashboard buffer."
@@ -326,7 +358,6 @@ and the count of open TODO items."
   (setq blueprint-dashboard-out-of-scope-only t)
   (blueprint-dashboard))
 
-;;;###autoload
 (defun blueprint--dashboard-svg-generate (&optional root)
   "Generate the health-colored dependency SVG of the project at ROOT.
 Writes dashboard.svg at the project root and returns its path.
@@ -336,6 +367,9 @@ is shared by `blueprint-dashboard-svg' and the live preview
   (unless (executable-find "dot")
     (user-error "Graphviz (dot) not found; install it to generate SVG dashboards"))
   (let* ((root (or root (blueprint--root)))
+         ;; The component and health lookups below resolve the project
+         ;; from `default-directory': bind it, so ROOT is honoured.
+         (default-directory (file-name-as-directory root))
          (dot-file (expand-file-name "dashboard.dot" root))
          (svg-file (expand-file-name "dashboard.svg" root))
          (comps (blueprint--components))
@@ -348,23 +382,27 @@ is shared by `blueprint-dashboard-svg' and the live preview
        (let* ((file (blueprint--component-file id))
               (color (blueprint--component-health-color id))
               (deps-str (blueprint--org-keyword file "BLUEPRINT_DEPENDS")))
-         (push (format "  %s [label=\"%s\", fillcolor=\"%s\"];" id id color) lines)
+         (push (format "  %s [label=%s, fillcolor=\"%s\"];"
+                       (blueprint--dot-id id) (blueprint--dot-id id) color)
+               lines)
          (when deps-str
            (dolist (dep (split-string deps-str))
-             (push (format "  %s -> %s;" id dep) lines)))))
+             (push (format "  %s -> %s;"
+                           (blueprint--dot-id id) (blueprint--dot-id dep))
+                   lines)))))
      comps)
     (push "}" lines)
     (with-temp-file dot-file
       (insert (mapconcat #'identity (nreverse lines) "\n")))
-    (call-process "dot" nil nil nil "-Tsvg" "-o" svg-file dot-file)
-    (delete-file dot-file)
-    svg-file))
+    (blueprint--dot-render dot-file svg-file)))
 
+;;;###autoload
 (defun blueprint-dashboard-svg ()
   "Generate an SVG overview of the project using Graphviz.
 Each component is a node colored by its health score over its
 documents in master.org (see `blueprint--component-health-color'):
-red below 50, yellow below 80, green otherwise, grey when master.org
+red below 50, yellow below `blueprint-delivery-score-threshold' (80),
+green otherwise, grey when master.org
 includes none of its documents.  Edges are the dependencies.  Writes
 dashboard.svg to the project root, shows it in the *Blueprint Graph*
 buffer and returns its path."

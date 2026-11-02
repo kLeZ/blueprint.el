@@ -35,19 +35,23 @@ Without `dot' installed the preview cannot render: the user is told
 once per session instead of at every save.")
 
 (defun blueprint-preview--in-project-p ()
-  "Return non-nil when the current buffer's file is in a Blueprint
-project and is an Org file."
+  "Return the project root when the current buffer's file is an Org
+file of a Blueprint project, nil otherwise."
   (and buffer-file-name
        (string-match-p "\\.org\\'" buffer-file-name)
        (ignore-errors (blueprint--root))))
 
-(defun blueprint-preview--update ()
-  "Regenerate the preview graph and refresh the preview buffer.
-Called by the debounced timer.  Without Graphviz, warns once per
-session and stays silent afterwards."
+(defun blueprint-preview--update (&optional root)
+  "Regenerate the preview graph of ROOT and refresh the preview buffer.
+ROOT defaults to the project of the current buffer.  The debounced
+timer passes the root of the file that was saved: when the timer fires
+the current buffer can be anything (another project, *scratch*).
+Without Graphviz, warns once per session and stays silent afterwards;
+any other failure is reported as a message at every update.  Returns
+the SVG path, or nil when nothing was rendered."
   (setq blueprint-preview--timer nil)
   (condition-case err
-      (let ((svg-file (blueprint--dashboard-svg-generate))
+      (let ((svg-file (blueprint--dashboard-svg-generate root))
             (buf (get-buffer "*Blueprint Preview*")))
         (when buf
           (with-current-buffer buf
@@ -69,18 +73,27 @@ session and stays silent afterwards."
     (user-error
      (unless blueprint-preview--warned
        (setq blueprint-preview--warned t)
-       (message "Blueprint preview: %s" (error-message-string err))))))
+       (message "Blueprint preview: %s" (error-message-string err))))
+    ;; Any other failure (Graphviz rejecting the graph, a file that
+    ;; cannot be read) is reported at every update: it runs from a
+    ;; timer, where an uncaught error would only say "Error running
+    ;; timer".
+    (error
+     (message "Blueprint preview: %s" (error-message-string err))
+     nil)))
 
 (defun blueprint-preview--on-save ()
   "After-save hook of `blueprint-preview-mode': debounce the update."
-  (when (blueprint-preview--in-project-p)
-    (when (and blueprint-preview--timer
-               (timerp blueprint-preview--timer))
-      (cancel-timer blueprint-preview--timer))
-    (setq blueprint-preview--timer
-          (run-with-timer blueprint-preview-delay nil
-                          #'blueprint-preview--update))))
+  (let ((root (blueprint-preview--in-project-p)))
+    (when root
+      (when (and blueprint-preview--timer
+                 (timerp blueprint-preview--timer))
+        (cancel-timer blueprint-preview--timer))
+      (setq blueprint-preview--timer
+            (run-with-timer blueprint-preview-delay nil
+                            #'blueprint-preview--update root)))))
 
+;;;###autoload
 (define-minor-mode blueprint-preview-mode
   "Toggle the live preview of the dependency graph.
 When enabled, saving any Org file of the project regenerates the
@@ -105,10 +118,11 @@ seconds) and updates the *Blueprint Preview* buffer when it exists.
 project files.  Requires Graphviz (dot); without it, says so once and
 keeps trying at every save."
   (interactive)
-  (blueprint-preview-mode 1)
-  (with-current-buffer (get-buffer-create "*Blueprint Preview*")
-    (blueprint-preview--update)
-    (special-mode))
+  (let ((root (blueprint--root)))
+    (blueprint-preview-mode 1)
+    (with-current-buffer (get-buffer-create "*Blueprint Preview*")
+      (special-mode)
+      (blueprint-preview--update root)))
   (set-window-buffer
    (or (get-buffer-window "*Blueprint Preview*")
        (display-buffer-in-side-window

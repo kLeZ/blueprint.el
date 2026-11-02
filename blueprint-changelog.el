@@ -19,6 +19,7 @@
 ;;; Code:
 
 (require 'blueprint-core)
+(require 'blueprint-adr)
 (require 'org-element)
 
 (defun blueprint--changelog-git-log (&optional since)
@@ -55,31 +56,19 @@ Returns a list of (HASH DATE SUBJECT), most recent first."
 
 (defun blueprint--changelog-adr-accepted ()
   "Return the accepted ADRs of the project as (NUMBER TITLE DATE) lists.
-The ADRs are the level-1 headings `* ADR NNNN: Title' of
-.blueprint/adr.org with :STATUS: accepted in their PROPERTIES drawer;
-DATE is the :DATE: property.  nil without adr.org or without accepted
-ADRs."
-  (let ((file (blueprint--data-path "adr.org"))
-        (adrs '()))
-    (when (file-exists-p file)
-      (with-temp-buffer
-        (blueprint--insert-org-file file)
-        (org-element-map (org-element-parse-buffer 'headline) 'headline
-          (lambda (hl)
-            (when (and (= (org-element-property :level hl) 1)
-                       (string= (downcase
-                                 (or (org-element-property :STATUS hl) ""))
-                                "accepted"))
-              (let ((raw (org-element-property :raw-value hl))
-                    (date (org-element-property :DATE hl)))
-                (when (and raw
-                           (string-match
-                            "\\`ADR \\([0-9]\\{4\\}\\):[ \t]*\\(.*\\)\\'" raw))
-                  (push (list (match-string 1 raw)
-                              (match-string 2 raw)
-                              date)
-                        adrs)))))))
-      (nreverse adrs))))
+The ADRs of `blueprint--adr-entries' with status accepted: the
+level-1 headings `* ADR NNNN: Title' of .blueprint/adr.org with
+:STATUS: accepted (headings the export leaves out, like the example
+\"ADR 0000\" of the adr.org template, are not ADRs of the project) and
+the accepted ADR files of the older one-file-per-ADR model.  nil
+without accepted ADRs."
+  (delq nil
+        (mapcar (lambda (e)
+                  (when (string= (plist-get e :status) "accepted")
+                    (list (plist-get e :number)
+                          (plist-get e :title)
+                          (plist-get e :date))))
+                (blueprint--adr-entries))))
 
 (defun blueprint--changelog-assembly (log-entries adrs project)
   "Return the contents of CHANGELOG.org.

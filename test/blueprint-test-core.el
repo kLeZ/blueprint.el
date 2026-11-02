@@ -454,6 +454,30 @@ Content outside the sync markers is untouched."
       (should-not (string-match-p "^\\*\\* beta$"
                                   (blueprint-test--read-file master))))))
 
+(ert-deftest blueprint-test-delete-component/first-component-no-stray-break ()
+  "Deleting the first component of the sections leaves no page break
+in front of the one that becomes first: master.org is exactly what
+the next sync writes."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "alpha")
+    (blueprint-test--write-component "beta")
+    (blueprint-test--write-component "charlie")
+    (require 'blueprint-sync)
+    (blueprint-test--write-synced-master nil t)
+    (let ((blueprint-history-on-sync nil))
+      (blueprint-sync)
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+        (blueprint-delete-component "alpha"))
+      (let* ((master (expand-file-name "master.org" default-directory))
+             (after-delete (blueprint-test--read-file master)))
+        ;; One break per section, before charlie only.
+        (with-temp-buffer
+          (insert after-delete)
+          (goto-char (point-min))
+          (should (= 1 (count-matches "PageBreak"))))
+        (blueprint-sync)
+        (should (equal after-delete (blueprint-test--read-file master)))))))
+
 (ert-deftest blueprint-test-delete-component/dependents-confirmed-and-reported ()
   "Deleting a component asked about dependents and leaves their DEPENDS alone."
   (blueprint-test--with-project
@@ -560,6 +584,31 @@ standard arc42 ones the lint expects."
       (should (string-match-p "^\\* Building Blocks$" content))
       (should (string-match-p "<<servizio-critico-stakeholders>>" content))
       (should-not (string-match-p "{{" content)))))
+
+(ert-deftest blueprint-test-add-component/enterprise-template-has-standard-guide ()
+  "The enterprise template follows the conventions of component.org:
+its :noexport: guide carries every section of the standard guide (so
+also the diagram models, never evaluated) plus the enterprise examples,
+and every body heading of component.org is in the enterprise body."
+  (let* ((std (blueprint-test--read-file
+               (expand-file-name "component.org" blueprint-template-dir)))
+         (ent (blueprint-test--read-file
+               (expand-file-name "arc42-enterprise.org" blueprint-template-dir)))
+         (headings (lambda (text re)
+                     (let ((found '()) (start 0))
+                       (while (string-match re text start)
+                         (push (match-string 1 text) found)
+                         (setq start (match-end 0)))
+                       (nreverse found)))))
+    (dolist (h (funcall headings std "^\\*\\* \\(.*\\)$"))
+      (should (member h (funcall headings ent "^\\*\\* \\(.*\\)$"))))
+    (dolist (h (funcall headings std "^\\* \\([^G].*\\)$"))
+      (should (member h (funcall headings ent "^\\* \\(.*\\)$"))))
+    (should (string-match-p "^\\*\\* Esempio: tabella stakeholder$" ent))
+    (should (string-match-p "/Conformità e compliance/:" ent))
+    (should-not (string-match-p "plantuml[^\n]*:file[^\n]*\n" 
+                                (replace-regexp-in-string
+                                 "plantuml[^\n]*:eval never[^\n]*\n" "" ent)))))
 
 (ert-deftest blueprint-test-add-component/enterprise-template-listed ()
   "`arc42-enterprise.org' is among the candidates

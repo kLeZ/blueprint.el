@@ -127,9 +127,14 @@ line) are left out."
                        (buffer-substring (line-beginning-position)
                                          (line-end-position))
                        "|" t "[ \t]+"))
-               (numbers (cl-remove-if-not #'numberp
-                                          (mapcar #'string-to-number
-                                                  (cdr cells)))))
+               ;; `string-to-number' reads "abc" as 0: check the cells
+               ;; first, so a hand-edited row is left out, not charted
+               ;; as a score of 0.
+               (numbers (and (cl-every
+                              (lambda (c)
+                                (string-match-p "\\`-?[0-9]+\\(?:\\.[0-9]+\\)?\\'" c))
+                              (cdr cells))
+                             (mapcar #'string-to-number (cdr cells)))))
           (when (and cells (= (length numbers) 8))
             (push (cons (car cells) numbers) rows)))))
     (nreverse rows)))

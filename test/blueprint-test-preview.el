@@ -29,8 +29,10 @@ and cancels the pending timer."
 stacking."
   (blueprint-test--with-project
     (let* ((calls 0)
+           (roots '())
            (blueprint--preview-stub
-            (lambda ()
+            (lambda (&optional root)
+              (push root roots)
               (setq calls (1+ calls))
               "/tmp/does-not-matter.svg")))
       (cl-letf (((symbol-function 'blueprint--dashboard-svg-generate)
@@ -45,12 +47,18 @@ stacking."
               (blueprint-preview--on-save)
               ;; One pending timer, not two.
               (should (timerp blueprint-preview--timer))
-              ;; Cancel the real timer (it would fire in the middle of
-              ;; the suite with the wrong default-directory) and run
-              ;; the update directly.
+              ;; The timer carries the root of the saved file: when it
+              ;; fires the current buffer may belong to another project.
+              (should (equal (timer--args blueprint-preview--timer)
+                             (list (blueprint--root))))
+              ;; Cancel the real timer and run its update directly, from
+              ;; a buffer outside the project.
               (cancel-timer blueprint-preview--timer)
-              (blueprint-preview--update)
+              (let ((default-directory temporary-file-directory))
+                (apply #'blueprint-preview--update
+                       (timer--args blueprint-preview--timer)))
               (should (= calls 1))
+              (should (equal roots (list (blueprint--root))))
               (should (null blueprint-preview--timer)))
           (blueprint-preview-mode -1))))))
 
@@ -70,7 +78,10 @@ stacking."
 
 (ert-deftest blueprint-test-preview/update-refreshes-preview-buffer ()
   "The update regenerates the graph and refreshes the *Blueprint
-Preview* buffer when it exists (in batch: the SVG source as text)."
+Preview* buffer when it exists (in batch: the SVG source as text).
+Needs Graphviz: without `dot' the update only warns (covered by
+`blueprint-test-preview/missing-graphviz-warns-once')."
+  (skip-unless (executable-find "dot"))
   (blueprint-test--with-project
     (blueprint-test--write-component "svc")
     (let ((blueprint-preview--timer nil)
@@ -85,9 +96,12 @@ Preview* buffer when it exists (in batch: the SVG source as text)."
                      (expand-file-name "dashboard.svg" default-directory)))
             (with-current-buffer "*Blueprint Preview*"
               (should (string-match-p "<svg" (buffer-string))))
-            ;; A second update refreshes the same buffer.
+            ;; A second update refreshes the same buffer, also when it
+            ;; runs from a buffer outside the project (the timer case).
             (blueprint-test--write-component "other")
-            (blueprint-preview--update)
+            (let ((root (blueprint--root))
+                  (default-directory temporary-file-directory))
+              (blueprint-preview--update root))
             (with-current-buffer "*Blueprint Preview*"
               (should (string-match-p "other" (buffer-string)))))
         (dolist (buf (buffer-list))
@@ -109,6 +123,20 @@ ever breaking the save."
         (should (string-match-p "Graphviz" (car messages)))
         (blueprint-preview--update)
         (should (= 1 (length messages)))))))
+
+(ert-deftest blueprint-test-preview/render-failure-reported-not-raised ()
+  "A failure other than missing Graphviz (here a generator error) is
+reported as a message at every update and never escapes the timer."
+  (let ((messages '()))
+    (cl-letf (((symbol-function 'blueprint--dashboard-svg-generate)
+               (lambda (&optional _root) (error "Graphviz failed")))
+              ((symbol-function 'message)
+               (lambda (fmt &rest args)
+                 (push (apply #'format fmt args) messages))))
+      (should-not (blueprint-preview--update "/tmp/"))
+      (should-not (blueprint-preview--update "/tmp/"))
+      (should (= 2 (length messages)))
+      (should (string-match-p "Graphviz failed" (car messages))))))
 
 (provide 'blueprint-test-preview)
 ;;; blueprint-test-preview.el ends here
