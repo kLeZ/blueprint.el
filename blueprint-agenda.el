@@ -179,7 +179,7 @@ Returns the file path."
               "documento (QUESTION, FIXME...) come TODO per org-agenda.\n"
               "DEADLINE, SCHEDULED, CLOSED e stato vengono preservati al\n"
               "refresh (gli ID sono stabili); il resto della voce viene\n"
-              "rigenerato.  Non e' incluso in master.org.\n\n")
+              "rigenerato.  Non è incluso in master.org.\n\n")
       (dolist (type blueprint-agenda-marker-types)
         (let ((of-type (cl-remove-if-not
                         (lambda (e) (string= (plist-get e :type) type))

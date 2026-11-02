@@ -658,15 +658,6 @@ and keeps DEADLINE, SCHEDULED, CLOSED and state."
   (require 'blueprint-agenda)
   (list (blueprint--upgrade-rel (blueprint-agenda-refresh) (blueprint--root))))
 
-(defun blueprint--upgrade-step-version-file (root)
-  "Detector: no blueprint-version.org (version not declared)."
-  (let ((file (blueprint--version-file root)))
-    (unless (file-exists-p file) (list file))))
-
-(defun blueprint--upgrade-apply-version-file (_root)
-  "Nothing to do here: `blueprint-upgrade-apply' writes the file."
-  (list "blueprint-version.org"))
-
 (defun blueprint--upgrade-step-data-directory (root)
   "Detector: project on the legacy .blueprint directory while
 `blueprint-directory-name' names another one."
@@ -695,7 +686,7 @@ and keeps DEADLINE, SCHEDULED, CLOSED and state."
      :apply blueprint--upgrade-apply-component-dirs)
     (:id "project-files"
      :era "0.1.0 o 0.2.0 (fino a 2026-02)"
-     :title "File di progetto mancanti creati dai template (vuoti: il lint li segnala finche' non si compilano)"
+     :title "File di progetto mancanti creati dai template (vuoti: il lint li segnala finché non si compilano)"
      :detect blueprint--upgrade-step-project-files
      :apply blueprint--upgrade-apply-project-files)
     (:id "master-sync-sections"
@@ -747,12 +738,7 @@ and keeps DEADLINE, SCHEDULED, CLOSED and state."
      :era "0.3.0"
      :title "ID dell'agenda rigenerati (date e stati conservati)"
      :detect blueprint--upgrade-step-agenda-ids
-     :apply blueprint--upgrade-apply-agenda-ids)
-    (:id "version-file"
-     :era nil
-     :title "Versione Blueprint dichiarata in blueprint-version.org"
-     :detect blueprint--upgrade-step-version-file
-     :apply blueprint--upgrade-apply-version-file))
+     :apply blueprint--upgrade-apply-agenda-ids))
   "Registry of the optional migration steps, oldest format first.
 Each step is a plist: :id (recorded in blueprint-version.org), :era
 \(the layout it migrates from, used to infer the version of an
@@ -1009,6 +995,7 @@ Returns a plist (:applied :report :backup)."
     (define-key map "d" #'blueprint-upgrade-details-at-point)
     (define-key map (kbd "RET") #'blueprint-upgrade-details-at-point)
     (define-key map "g" #'blueprint-project-upgrade)
+    (define-key map "v" #'blueprint-upgrade-declare-version)
     map)
   "Keymap for `blueprint-upgrade-mode'.")
 
@@ -1018,7 +1005,8 @@ Returns a plist (:applied :report :backup)."
 \\<blueprint-upgrade-mode-map>\\[blueprint-upgrade-apply-at-point] applies the step at point, or updates the stale
 template at point; \\[blueprint-upgrade-apply-all] applies every pending step;
 \\[blueprint-upgrade-details-at-point] shows the files of a step or the diff of a template;
-\\[blueprint-project-upgrade] refreshes.  Nothing is applied without confirmation."
+\\[blueprint-upgrade-declare-version] writes blueprint-version.org; \[blueprint-project-upgrade] refreshes.
+Nothing is applied without confirmation."
   (setq tabulated-list-format [("Tipo" 9 t) ("Passo / file" 34 t)
                                ("Da" 24 t) ("Descrizione" 60 nil)])
   (tabulated-list-init-header))
@@ -1034,7 +1022,7 @@ template at point; \\[blueprint-upgrade-apply-all] applies every pending step;
                (let ((step (car p)))
                  (list (list 'step (plist-get step :id) (cdr p))
                        ;; A step that says nothing about the layout
-                       ;; (version-file) has no :era, and
+                       ;; would have no :era, and
                        ;; tabulated-list needs a string in every column.
                        (vector "passo" (plist-get step :id)
                                (or (plist-get step :era) "--")
@@ -1085,8 +1073,35 @@ always optional."
         (setq header-line-format (blueprint--upgrade-header root))
         (tabulated-list-print)
         (when (null tabulated-list-entries)
-          (message "Nothing to migrate: the project is in the current format")))
+          (message "Nothing to migrate: the project is in the current format%s"
+                   (if (file-exists-p (blueprint--version-file root))
+                       ""
+                     "; v declares its version"))))
       (switch-to-buffer (current-buffer)))))
+
+(defun blueprint-upgrade-declare-version ()
+  "Write blueprint-version.org for the project of the plan.
+The version is the inferred one while format migrations are pending
+\(the era of the oldest), the package version otherwise; the
+migrations already recorded are kept.  Declaring the version is not a
+migration step: every applied step and `blueprint-init' write the file
+too (ADR-002, D7)."
+  (interactive)
+  (let* ((root (or blueprint-upgrade--root (blueprint--root)))
+         (default-directory root)
+         (pending (blueprint--upgrade-pending root))
+         (declared (blueprint--version-read root))
+         (version (if (cl-some (lambda (p) (plist-get (car p) :era)) pending)
+                      (car (blueprint--project-version root pending))
+                    (blueprint-package-version))))
+    (when (yes-or-no-p (format "Declare Blueprint version %s in %s? "
+                               version
+                               (file-relative-name (blueprint--version-file root)
+                                                   root)))
+      (blueprint--version-write version (cdr declared) root)
+      (message "Declared version %s" version)
+      (when (derived-mode-p 'blueprint-upgrade-mode)
+        (blueprint-project-upgrade)))))
 
 (defun blueprint-upgrade-apply-at-point ()
   "Apply the step at point, or update the stale template at point."

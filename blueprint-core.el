@@ -193,9 +193,9 @@ the file path."
                         ""))
               "\n"
               "File gestito da Blueprint: la versione del pacchetto con cui il\n"
-              "progetto e' stato creato o aggiornato e le migrazioni applicate\n"
-              "da `blueprint-project-upgrade'.  Non e' incluso in master.org e\n"
-              "non e' obbligatorio: senza, la versione viene dedotta dai file.\n"))
+              "progetto è stato creato o aggiornato e le migrazioni applicate\n"
+              "da `blueprint-project-upgrade'.  Non è incluso in master.org e\n"
+              "non è obbligatorio: senza, la versione viene dedotta dai file.\n"))
     (blueprint--invalidate-cache file)
     file))
 

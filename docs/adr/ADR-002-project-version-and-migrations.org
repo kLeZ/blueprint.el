@@ -75,6 +75,10 @@ Written by =blueprint-init= and by every applied migration, never
 required: a project without it gets an /inferred/ version from its
 layout (rows 1-14 are the detectors), shown as such.
 
+Revised for 0.4.1 (user decision 2026-11-02, see D7): writing the file
+is not a migration step.  A project with nothing to migrate declares
+its version from the plan buffer (=v=).
+
 ** D2: a registry of migration steps and one optional command
 
 Each step has an id, the version that introduced the format, a
@@ -110,6 +114,34 @@ dashboard opens the upgrade plan.  The JSON report gets the same fields.
 User decision: the effect on =blueprint-ci-validate= is configurable
 (=blueprint-ci-pending-migrations=: =ignore= by default, =warn= exits 1,
 =error= exits 2).
+
+** D7: the version file is not a migration step (0.4.1)
+
+0.4.0 registered the creation of =blueprint-version.org= as a step
+(=version-file=) like the format migrations.  At the first use on the pilot
+project it showed three inconsistencies: applying any
+other step wrote the file, so =version-file= vanished from the plan
+without being applied or recorded in =#+BLUEPRINT_MIGRATIONS:=; a
+project already in the current format counted "1 migration available"
+in the dashboard and exited 1 in CI with
+=blueprint-ci-pending-migrations= set to =warn=, only for a missing
+metadata file; and the step had no =:era=, the cause of the plan
+crash fixed in PLAN 9.32.
+
+Decision (user, 2026-11-02): =version-file= leaves the registry.  The
+file is still written by =blueprint-init= and by every applied
+migration; the plan buffer has =v= (=blueprint-upgrade-declare-version=)
+to write it on demand, with the inferred version when steps are still
+pending and the package version otherwise, keeping the recorded
+migrations.  "Migrations available" counts only format conversions.
+=#+BLUEPRINT_MIGRATIONS:= keeps listing only steps of the registry; a
+=version-file= id written by 0.4.0 stays readable (the list is
+informational, no code decides on it).
+
+Alternatives: keep the step and record it when the file is created by
+another step (minimal, but the noise in dashboard and CI stays); show
+the step only when nothing else is pending (the plan is coherent, the
+noise stays when it is alone).
 
 ** D6: configurable behaviour (user decision 2026-11-02)
 

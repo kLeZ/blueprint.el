@@ -836,5 +836,29 @@ An include as a src/example block is not live text either."
       (let ((b (blueprint-test--write-file "b.org" "* B\n")))
         (should (member b (blueprint--document-files)))))))
 
+;; Italian text written by the package (generated files, plan titles,
+;; templates) uses real accented letters: "e'" for "è" leaked into
+;; blueprint-version.org, the agenda header and a plan title in 0.4.0.
+(ert-deftest blueprint-test-core/no-apostrophe-accents-in-package-text ()
+  "No source or template of the package writes an accent as an apostrophe."
+  (let ((re (concat "\\(?:^\\|[^`[:alnum:]-]\\)"
+                    "\\(?:e\\|perche\\|finche\\|poiche\\|gia\\|piu\\|puo"
+                    "\\|cosi\\|cioe\\|pero\\|nonche\\|affinche\\|sara"
+                    "\\|verra\\|potra\\|dovra\\)'"))
+        (found '()))
+    (dolist (file (append
+                   (directory-files blueprint--package-dir t "\\.el\\'")
+                   (directory-files (expand-file-name "templates"
+                                                      blueprint--package-dir)
+                                    t "\\.org\\'")))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (while (re-search-forward re nil t)
+          (push (format "%s:%d" (file-name-nondirectory file)
+                        (line-number-at-pos))
+                found))))
+    (should-not found)))
+
 (provide 'blueprint-test-core)
 ;;; blueprint-test-core.el ends here

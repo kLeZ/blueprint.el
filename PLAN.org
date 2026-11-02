@@ -1126,6 +1126,26 @@ il titolo è tagliato a =blueprint-dashboard-milestone-width= (40, nil per
 non tagliare) con "...", e il titolo intero resta nel tooltip. Test
 =milestone-title-cut-after-version=.
 
+** 9.34 Il file di versione non è un passo di migrazione (FATTO)
+Segnalato dal progetto pilota (2026-11-02): applicato solo
+=lifecycle-keyword=, il piano si è svuotato, perché ogni passo applicato
+scrive =blueprint-version.org= e il passo =version-file= risultava fatto
+senza essere registrato; su un progetto già nel formato attuale lo
+stesso passo contava come migrazione disponibile in dashboard e CI.
+*Fatto (2026-11-02)*: decisione dell'utente, ADR-002 D7. Passo tolto dal
+registro, =v= nel piano (=blueprint-upgrade-declare-version=). Test sul
+progetto senza file, sulla dichiarazione con passi pendenti e senza, e
+sul file scritto da un passo applicato.
+
+** 9.35 Accenti scritti come apostrofi nei testi generati (FATTO)
+Segnalato dal progetto pilota (2026-11-02): =blueprint-version.org=
+generato con "e'" invece di "è". Stesso difetto nell'intestazione di
+=agenda.org= e nel titolo del passo =project-files=. *Fatto
+(2026-11-02)*: cinque stringhe corrette, test
+=no-apostrophe-accents-in-package-text= su tutti i sorgenti e i
+template. Restano 31 occorrenze in =USAGE.org= (documentazione, non
+testo generato), da correggere a parte.
+
 --------------
 
 * Fase 10 --- Allineamento metodologico (gap assessment-framework)

@@ -82,17 +82,53 @@ named as typed is older than 0.1.0."
     (should (equal (blueprint--project-version)
                    '("precedente a 0.1.0" . inferred)))))
 
-(ert-deftest blueprint-test-upgrade/version-file-step ()
-  "A project in the current format without blueprint-version.org has one
-step, declaring the version; it does not change the inferred version."
+(ert-deftest blueprint-test-upgrade/missing-version-file-is-not-a-step ()
+  "A project in the current format without blueprint-version.org has no
+pending migration (ADR-002, D7): the version is inferred, and
+`blueprint-upgrade-declare-version' writes it without recording a step."
   (blueprint-test-upgrade--with-current-project
     (delete-file (blueprint--version-file))
-    (should (equal (blueprint-test-upgrade--ids) '("version-file")))
+    (should (null (blueprint-test-upgrade--ids)))
     (should (equal (blueprint--project-version)
                    (cons (blueprint-package-version) 'inferred)))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+      (blueprint-upgrade-declare-version))
+    (should (equal (blueprint--version-read)
+                   (list (blueprint-package-version))))))
+
+(ert-deftest blueprint-test-upgrade/declare-version-with-steps-pending ()
+  "While format steps are pending, the declared version is the inferred
+one (the era of the oldest pending step), not the package version."
+  (blueprint-test-upgrade--with-current-project
+    (delete-file (blueprint--version-file))
+    (blueprint-test--write-file
+     ".blueprint/adr/0001-x.org" "#+TITLE: 0001 - X\n#+STATUS: proposed\n")
+    (let ((inferred (car (blueprint--project-version))))
+      (should-not (equal inferred (blueprint-package-version)))
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+        (blueprint-upgrade-declare-version))
+      (should (equal (blueprint--version-read) (list inferred))))))
+
+(ert-deftest blueprint-test-upgrade/declare-version-keeps-migrations ()
+  "With nothing pending, declaring brings the version to the package
+one and keeps the migrations already recorded."
+  (blueprint-test-upgrade--with-current-project
+    (blueprint--version-write "0.1.0" '("adr-single-file"))
+    (cl-letf (((symbol-function 'yes-or-no-p) (lambda (_) t)))
+      (blueprint-upgrade-declare-version))
+    (should (equal (blueprint--version-read)
+                   (list (blueprint-package-version) "adr-single-file")))))
+
+(ert-deftest blueprint-test-upgrade/applied-step-writes-version-file ()
+  "Applying a format step writes blueprint-version.org with that step
+only: the file is a by-product, not a step of its own."
+  (blueprint-test-upgrade--with-current-project
+    (delete-file (blueprint--version-file))
+    (blueprint-test--write-file
+     ".blueprint/adr/0001-x.org" "#+TITLE: 0001 - X\n#+STATUS: proposed\n")
     (blueprint-upgrade-apply)
     (should (equal (blueprint--version-read)
-                   (list (blueprint-package-version) "version-file")))))
+                   (list (blueprint-package-version) "adr-single-file")))))
 
 (ert-deftest blueprint-test-upgrade/master-sections-heading-from-system-template ()
   "When the project copy of master.org's template is itself old (no
@@ -474,18 +510,19 @@ a customized copy is refused."
       (should (string-match-p "adr-single-file" (buffer-string))))
     (should (blueprint--adr-legacy-files))))
 
-;; Regression (PLAN 9.32): version-file has no :era, and a nil cell made
-;; tabulated-list-print fail on every project without blueprint-version.org.
-(ert-deftest blueprint-test-upgrade/plan-buffer-with-version-file-pending ()
+;; Regression (PLAN 9.32): the 0.4.0 version-file step had no :era, and a
+;; nil cell made tabulated-list-print fail on every project without
+;; blueprint-version.org.
+(ert-deftest blueprint-test-upgrade/plan-buffer-without-version-file ()
   "The plan opens on a project without blueprint-version.org."
   (blueprint-test-upgrade--with-current-project
     (delete-file (blueprint--version-file default-directory))
-    (should (assoc "version-file"
-                   (mapcar (lambda (p) (cons (plist-get (car p) :id) p))
-                           (blueprint--upgrade-pending default-directory))))
+    (blueprint-test--write-file
+     ".blueprint/adr/0001-x.org" "#+TITLE: 0001 - X\n#+STATUS: proposed\n")
     (blueprint-project-upgrade)
     (with-current-buffer "*Blueprint Upgrade*"
-      (should (string-match-p "version-file" (buffer-string))))))
+      (should (string-match-p "adr-single-file" (buffer-string)))
+      (should-not (string-match-p "version-file" (buffer-string))))))
 
 (ert-deftest blueprint-test-upgrade/plan-entries-are-strings-for-every-step ()
   "Every column of every possible plan row is a string."

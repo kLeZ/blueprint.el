@@ -1138,7 +1138,9 @@ il progetto è stato creato o aggiornato e le migrazioni applicate.
 =blueprint-init= lo scrive; nei progetti che non lo hanno, la versione viene
 dedotta dalla struttura dei file (per esempio "0.2.0 (fino a 2026-03)" per
 un progetto con gli ADR in un file ciascuno). Il file non è incluso in
-=master.org=.
+=master.org=. Lo scrive anche ogni migrazione applicata; scriverlo non è
+una migrazione, quindi un progetto nel formato attuale senza il file non
+ha migrazioni disponibili e lo dichiara con =v= nel piano.
 
 La riga di stato della dashboard (=C-c b B=) mostra la versione, dichiarata
 o dedotta, il numero di migrazioni disponibili e i template di progetto e
@@ -1159,6 +1161,8 @@ e per ogni template da rivedere. Nulla cambia finché non lo si chiede:
 - =X= applica tutti i passi, poi propone di aggiornare i template non
   modificati;
 - =d= (o =RET=) mostra i file di un passo o il diff di un template;
+- =v= scrive =blueprint-version.org= (versione dedotta finché restano
+  passi da applicare, altrimenti quella del pacchetto);
 - =g= ricalcola il piano.
 
 I passi, dal formato più vecchio:
@@ -1178,7 +1182,6 @@ I passi, dal formato più vecchio:
 | =glossary-sections=      | termini come heading di livello 1 con drawer =:SOURCE:=       |
 | =lifecycle-keyword=      | componenti senza =#+BLUEPRINT_LIFECYCLE:= (diventa =active=)  |
 | =agenda-ids=             | =agenda.org= della 0.3.0 (ID su percorsi assoluti)            |
-| =version-file=           | progetto senza =blueprint-version.org=                        |
 
 I file creati da =project-files= e =component-documents= nascono vuoti: il
 lint li segnala finché non vengono compilati, e il prossimo =blueprint-sync=
