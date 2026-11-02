@@ -81,4 +81,5 @@ jobs:
             -l test/blueprint-test-diff.el \
             -l test/blueprint-test-roam.el \
             -l test/blueprint-test-preview.el \
+            -l test/blueprint-test-upgrade.el \
             -f ert-run-tests-batch-and-exit

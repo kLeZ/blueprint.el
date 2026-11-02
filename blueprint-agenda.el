@@ -46,6 +46,17 @@ whatever this value."
   :type 'boolean
   :group 'blueprint)
 
+(defcustom blueprint-agenda-view 'block
+  "What `blueprint-agenda' opens on the agenda file.
+`block': the week with the dated entries, then every open TODO entry;
+`agenda': only the week (`org-agenda-list': entries without a
+DEADLINE or SCHEDULED date do not appear); `todo': only the list of
+open TODO entries (`org-todo-list')."
+  :type '(choice (const :tag "Week, then all open entries" block)
+                 (const :tag "Week only (dated entries)" agenda)
+                 (const :tag "Open TODO entries only" todo))
+  :group 'blueprint)
+
 (defun blueprint--agenda-file ()
   "Return the path of the generated agenda file, in the data directory."
   (blueprint--data-path "agenda.org"))
@@ -100,7 +111,13 @@ of `blueprint-agenda-marker-types', then by position."
                           :line (line-number-at-pos)
                           :id (blueprint--agenda-id
                                (file-relative-name file root)
-                               text occurrence))
+                               text occurrence)
+                          ;; The ID Blueprint 0.3.0 wrote (absolute
+                          ;; path): looked up when the current one is
+                          ;; not in the file yet, so a 0.3.0 agenda
+                          ;; keeps its dates and states.
+                          :legacy-id (blueprint--agenda-id
+                                      file text occurrence))
                     entries))))))
     (nreverse entries)))
 
@@ -170,7 +187,8 @@ Returns the file path."
           (when of-type
             (insert (format "* %s\n\n" type))
             (dolist (e of-type)
-              (let ((preserved (gethash (plist-get e :id) existing)))
+              (let ((preserved (or (gethash (plist-get e :id) existing)
+                                   (gethash (plist-get e :legacy-id) existing))))
                 (insert (format "** %s %s: %s — %s\n"
                                 (or (car preserved) "TODO")
                                 type
@@ -218,9 +236,10 @@ added to `org-agenda-files'.  Returns the file path."
 ;;;###autoload
 (defun blueprint-agenda ()
   "Refresh the Blueprint agenda and open it in `org-agenda'.
-A block agenda restricted to .blueprint/agenda.org (see
-`blueprint-agenda-refresh'): the week with the entries that have a
-DEADLINE or SCHEDULED date, then every open TODO entry, dated or not.
+A view restricted to .blueprint/agenda.org (see
+`blueprint-agenda-refresh'), chosen by `blueprint-agenda-view': by
+default the week with the entries that have a DEADLINE or SCHEDULED
+date, then every open TODO entry, dated or not.
 `org-agenda-list' alone would show only the dated entries, and a fresh
 refresh has none.  Deadlines and scheduled dates set in the file work
 as in any Org agenda; `g' in the agenda buffer keeps the restriction."
@@ -229,8 +248,10 @@ as in any Org agenda; `g' in the agenda buffer keeps the restriction."
     (require 'org-agenda)
     (let ((org-agenda-custom-commands
            `(("B" "Blueprint: scadenze e punti aperti"
-              ((agenda "")
-               (alltodo ""))
+              ,(pcase blueprint-agenda-view
+                 ('agenda '((agenda "")))
+                 ('todo '((alltodo "")))
+                 (_ '((agenda "") (alltodo ""))))
               ((org-agenda-files '(,file)))))))
       (org-agenda nil "B"))))
 

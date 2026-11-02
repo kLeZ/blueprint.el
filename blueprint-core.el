@@ -15,6 +15,7 @@
 (require 'org)
 (require 'org-element)
 (require 'tabulated-list)
+(require 'lisp-mnt)
 
 (defgroup blueprint nil
   "Text-first architectural assessment toolkit."
@@ -135,6 +136,76 @@ the legacy \".blueprint\" one.  Signals an error if there is none."
              root "Project %s still uses %s/; run `blueprint-migrate-directory' to rename it to %s/"
              root blueprint--legacy-directory-name configured))))))
     root))
+
+;;; --- Package and project version (see blueprint-upgrade.el) ---
+
+(defconst blueprint--package-dir
+  (file-name-directory (or load-file-name buffer-file-name default-directory))
+  "Directory holding the Blueprint sources.")
+
+(defvar blueprint--package-version-cache nil
+  "Cached result of `blueprint-package-version'.")
+
+(defun blueprint-package-version ()
+  "Return the version of the installed Blueprint package, as a string.
+Read from the Version: header of blueprint.el, the one the release
+workflow tags, so there is a single source.  \"unknown\" when the file
+cannot be read."
+  (or blueprint--package-version-cache
+      (setq blueprint--package-version-cache
+            (let ((main (expand-file-name "blueprint.el"
+                                          blueprint--package-dir)))
+              (or (and (file-readable-p main)
+                       (with-temp-buffer
+                         (insert-file-contents main)
+                         (lm-header "Version")))
+                  "unknown")))))
+
+(defconst blueprint-version-file-name "blueprint-version.org"
+  "Name of the file, in the data directory, holding the project version.")
+
+(defun blueprint--version-file (&optional root)
+  "Return the path of the project version file of ROOT."
+  (blueprint--data-path blueprint-version-file-name root))
+
+(defun blueprint--version-read (&optional root)
+  "Return (VERSION . MIGRATIONS) declared by the project at ROOT, or nil.
+VERSION is the #+BLUEPRINT_VERSION: value, MIGRATIONS the list of step
+ids in #+BLUEPRINT_MIGRATIONS:.  nil when the file does not exist."
+  (let ((file (blueprint--version-file root)))
+    (when (file-exists-p file)
+      (cons (blueprint--org-keyword file "BLUEPRINT_VERSION")
+            (let ((m (blueprint--org-keyword file "BLUEPRINT_MIGRATIONS")))
+              (and m (split-string m)))))))
+
+(defun blueprint--version-write (version migrations &optional root)
+  "Write the project version file of ROOT with VERSION and MIGRATIONS.
+MIGRATIONS is the list of step ids applied to the project.  Returns
+the file path."
+  (let ((file (blueprint--version-file root)))
+    (make-directory (file-name-directory file) t)
+    (with-temp-file file
+      (insert "#+TITLE: Versione Blueprint del progetto\n"
+              (format "#+BLUEPRINT_VERSION: %s\n" version)
+              (format "#+BLUEPRINT_MIGRATIONS:%s\n"
+                      (if migrations
+                          (concat " " (mapconcat #'identity migrations " "))
+                        ""))
+              "\n"
+              "File gestito da Blueprint: la versione del pacchetto con cui il\n"
+              "progetto e' stato creato o aggiornato e le migrazioni applicate\n"
+              "da `blueprint-project-upgrade'.  Non e' incluso in master.org e\n"
+              "non e' obbligatorio: senza, la versione viene dedotta dai file.\n"))
+    (blueprint--invalidate-cache file)
+    file))
+
+(defun blueprint--version-record-init (&optional root)
+  "Record the current package version for a new project at ROOT.
+Called by `blueprint-init'; never overwrites an existing file, so a
+re-run of `blueprint-init' on an old project does not claim it is
+up to date."
+  (unless (file-exists-p (blueprint--version-file root))
+    (blueprint--version-write (blueprint-package-version) nil root)))
 
 (defun blueprint--init-file (path template-name replacements)
   "Create PATH from TEMPLATE-NAME applying REPLACEMENTS, unless PATH exists.
@@ -267,6 +338,9 @@ Creates the following structure (the data directory is named after
                           "nfr-constraints.org" replacements)
     (blueprint--init-file (expand-file-name "nfr/risks.org" root)
                           "nfr-risks.org" replacements)
+    ;; 5. Version of the project layout (never overwritten: re-running
+    ;; init on an old project must not claim it is up to date).
+    (blueprint--version-record-init root)
     (message "Blueprint project '%s' initialized in %s" pname root)))
 
 (defun blueprint--components ()
@@ -1045,6 +1119,13 @@ Returns the first matching path, or nil if not found."
       (insert-file-contents path)
       (buffer-string))))
 
+(defun blueprint--component-id (name)
+  "Return the component id (directory name, diagram id) of NAME.
+Lowercase, with every character other than a-z, 0-9 and \"-\" turned
+into \"-\".  Until 2026-02 component directories were named as typed;
+`blueprint-project-upgrade' renames them to this id."
+  (replace-regexp-in-string "[^a-zA-Z0-9-]" "-" (downcase name)))
+
 (defconst blueprint--component-templates
   '("component.org" "arc42-enterprise.org")
   "Templates `blueprint-add-component' can build arc42.org from.
@@ -1083,7 +1164,7 @@ lookup.  Template placeholders replaced:
                               (or candidates '("component.org"))
                               nil t nil nil (car candidates))))))
   (let* ((template-name (or template-name "component.org"))
-         (id (replace-regexp-in-string "[^a-zA-Z0-9-]" "-" (downcase name)))
+         (id (blueprint--component-id name))
          (dir (expand-file-name id
                                 (blueprint--data-path "components")))
          (date (format-time-string "%Y-%m-%d"))

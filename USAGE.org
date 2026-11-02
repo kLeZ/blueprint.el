@@ -122,8 +122,8 @@ M-x blueprint-template-migrate  (oppure: C-c b M)
 Copia i template di sistema in =.blueprint/templates/=. Da quel momento, i
 template locali hanno precedenza su quelli di sistema.
 
-I template disponibili: =component.org=, =functional.org=, =infrastructure.org=,
-=adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
+I template disponibili: =component.org=, =arc42-enterprise.org=,
+=functional.org=, =infrastructure.org=, =adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
 =enterprise-dependencies.org=, =nfr-quality.org=, =nfr-constraints.org=, =nfr-risks.org=.
 
 ** Azione 2-bis: Scegliere il nome della directory dati (opzionale)
@@ -1116,6 +1116,102 @@ noti.
   pagina il testo resta piccolo: le alternative sono una pagina
   orizzontale (template aziendale con uno stile di pagina landscape)
   o un layout verticale nei sorgenti PlantUML.
+
+-----
+
+* Flusso 14 — Aggiornare un progetto esistente
+
+/Quando: un progetto creato con una versione precedente di Blueprint, anche
+anteriore alla 0.1.0./
+
+Blueprint legge ogni formato che ha scritto in passato: un progetto vecchio
+si apre e si lavora subito, senza migrare nulla. La migrazione esiste sempre
+ma è facoltativa, da fare quando c'è tempo: nessuna scadenza deve dipendere
+dall'aggiornamento della documentazione.
+
+** Versione del progetto
+
+=.blueprint/blueprint-version.org= registra la versione di Blueprint con cui
+il progetto è stato creato o aggiornato e le migrazioni applicate.
+=blueprint-init= lo scrive; nei progetti che non lo hanno, la versione viene
+dedotta dalla struttura dei file (per esempio "0.2.0 (fino a 2026-03)" per
+un progetto con gli ADR in un file ciascuno). Il file non è incluso in
+=master.org=.
+
+La riga di stato della dashboard (=C-c b B=) mostra la versione, dichiarata
+o dedotta, il numero di migrazioni disponibili e i template di progetto e
+utente più vecchi di quelli di sistema (=blueprint-dashboard-show-version=
+per nasconderla). Il tasto =u= nella dashboard apre il piano.
+
+** Il piano di migrazione
+
+#+begin_src
+M-x blueprint-project-upgrade  (oppure: C-c b ^)
+#+end_src
+
+Apre il buffer =*Blueprint Upgrade*= con una riga per ogni passo disponibile
+e per ogni template da rivedere. Nulla cambia finché non lo si chiede:
+
+- =x= applica il passo al punto (o aggiorna il template al punto), dopo
+  conferma;
+- =X= applica tutti i passi, poi propone di aggiornare i template non
+  modificati;
+- =d= (o =RET=) mostra i file di un passo o il diff di un template;
+- =g= ricalcola il piano.
+
+I passi, dal formato più vecchio:
+
+| Passo                    | Formato di partenza                                          |
+|--------------------------+--------------------------------------------------------------|
+| =component-arc42-layout= | componente con =* Component= e sezioni di livello 2 (< 0.1.0) |
+| =component-dir-ids=      | directory del componente con il nome digitato, non l'id       |
+| =project-files=          | file di progetto mancanti (Parti I e V, glossario, ...)       |
+| =master-sync-sections=   | master.org senza le sezioni sincronizzate di Parte III e IV   |
+| =component-documents=    | componenti senza =functional.org= / =infrastructure.org=      |
+| =adr-single-file=        | un file per ADR in =.blueprint/adr/= (fino a 2026-03)         |
+| =orphan-glossary=        | termini scritti in =.blueprint/glossary.org= (fino a 2026-09) |
+| =orphan-references=      | riferimenti scritti in =.blueprint/references.org=            |
+| =references-table-rows=  | riferimenti come heading con drawer =:TYPE:=                  |
+| =data-directory=         | =.blueprint= quando =blueprint-directory-name= è un altro     |
+| =glossary-sections=      | termini come heading di livello 1 con drawer =:SOURCE:=       |
+| =lifecycle-keyword=      | componenti senza =#+BLUEPRINT_LIFECYCLE:= (diventa =active=)  |
+| =agenda-ids=             | =agenda.org= della 0.3.0 (ID su percorsi assoluti)            |
+| =version-file=           | progetto senza =blueprint-version.org=                        |
+
+I file creati da =project-files= e =component-documents= nascono vuoti: il
+lint li segnala finché non vengono compilati, e il prossimo =blueprint-sync=
+li include nel documento.
+
+** Sicurezza
+
+Prima di toccare un file, ogni migrazione lo copia in
+=_archive/migration-AAAAMMGG-HHMMSS/= con lo stesso percorso relativo, insieme
+a =report.org= con i passi applicati (=blueprint-upgrade-backup=,
+=blueprint-upgrade-backup-directory=). In un repository git con modifiche non
+committate il comando avvisa e prosegue (=blueprint-upgrade-git-check=:
+=warn=, =refuse= per fermarsi, nil per non controllare); rinomina e
+cancellazioni passano da =git mv= e =git rm= quando i file sono tracciati.
+
+** Template di progetto e utente
+
+Le copie in =.blueprint/templates/= e in =~/.config/blueprint/templates/=
+(=blueprint-template-status-scopes=) vengono confrontate con tutte le versioni
+rilasciate dei template di sistema:
+
+- /versione precedente/: copia identica a una versione vecchia, mai
+  modificata. =x= la sostituisce con quella attuale, conservando la vecchia
+  in una directory =backup-AAAAMMGG-HHMMSS= accanto;
+- /personalizzato/: diverso da ogni versione rilasciata. Non viene mai
+  sostituito: =d= mostra il diff con il template attuale e l'allineamento si
+  fa a mano.
+
+** CI
+
+=blueprint-ci-validate= riporta versione e migrazioni disponibili; il codice
+d'uscita cambia solo se lo si chiede con =blueprint-ci-pending-migrations=
+(=ignore= di default, =warn= esce con 1, =error= con 2). Il report JSON
+(=blueprint-ci-export-json=) ha le stesse informazioni nella chiave
+=blueprint=.
 
 -----
 

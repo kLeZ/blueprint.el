@@ -276,6 +276,7 @@ logical groups:
 | *Templates*    | =D= | diff                  |
 |                | =M= | migrate               |
 |                | =m= | migrate data dir      |
+|                | =^= | upgrade project       |
 | *Export*       | =E= | export (default)      |
 |                | =P= | export PDF            |
 |                | =O= | export ODT            |
@@ -558,9 +559,15 @@ emacs -Q --batch -l blueprint.el -f blueprint-ci-check-odt-styles
 emacs -Q --batch -l blueprint.el -f blueprint-ci-export-json
 #+end_src
 
-*Upgrading an existing project* needs no migration: files stay valid as they
-are, new files (metrics history, agenda) are only written when the commands
-run, and templates apply only to new components. Two behavior changes are
+*Upgrading an existing project* never requires a migration: Blueprint reads
+every layout it ever wrote, back to the versions before 0.1.0, so work goes
+on at once. Migrating is optional, whenever there is time:
+=blueprint-project-upgrade= (=C-c b ^=, or =u= in the dashboard) shows the
+plan (old formats found, project and user templates older than the system
+ones) and applies what you confirm, after a backup in =_archive/=. The
+project records its version in =.blueprint/blueprint-version.org=; the
+dashboard shows it, declared or inferred, with the migrations available (see
+USAGE.org, Flusso 14). Two behavior changes are
 deliberate and documented: the linter now also checks =#+BLUEPRINT_LIFECYCLE:=
 (an =active= component with FIXMEs, or depending on a =deprecated= one, is a
 warning -- disable with =blueprint-lint-lifecycle-checks= = nil, keep in mind
@@ -688,6 +695,8 @@ blueprint.el/
 ├── blueprint-changelog.el   # CHANGELOG.org from git log + accepted ADRs
 ├── blueprint-diff.el        # Semantic component diff (git, with summary)
 ├── blueprint-preview.el     # Live dependency-graph preview minor mode
+├── blueprint-upgrade.el     # Project version, optional migrations, template status
+├── blueprint-template-history.el # Generated: MD5 of every system template version
 ├── templates/
 │   ├── component.org        # Arc42 component template
 │   ├── arc42-enterprise.org # Arc42 template + enterprise sections (stakeholders, compliance)

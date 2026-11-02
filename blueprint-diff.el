@@ -98,6 +98,15 @@ not, whatever an added or removed content line starts with."
    (format "Domande risolte (righe ANSWERED nette aggiunte): %d\n"
            (plist-get summary :resolved))))
 
+(defcustom blueprint-diff-default-base 'head
+  "What `blueprint-component-diff' compares with when given no revision.
+`head': the last commit, staged and unstaged changes together (in a
+repository without commits, the index); `index': the index, as a
+plain `git diff' does, so staged changes are not shown."
+  :type '(choice (const :tag "Last commit (HEAD)" head)
+                 (const :tag "Index (plain git diff)" index))
+  :group 'blueprint)
+
 (defun blueprint--diff-untracked (rel-dir)
   "Return the diff of the untracked files under REL-DIR, as new files.
 A document created and not yet added to git (a new functional.org)
@@ -130,9 +139,10 @@ commit (HEAD resolves)."
 (defun blueprint-component-diff (&optional component revision)
   "Show the git diff of COMPONENT's directory with a semantic summary.
 REVISION, when non-nil and not empty, diffs against it (`git diff
-REVISION -- dir').  The default compares the working tree with the
-last commit (HEAD), staged changes included: a plain `git diff' would
-hide what is already in the index.  In a repository without commits it
+REVISION -- dir').  Without one, `blueprint-diff-default-base' says
+what to compare with: by default the last commit (HEAD), staged
+changes included, since a plain `git diff' would hide what is already
+in the index.  In a repository without commits it
 falls back to the working tree against the index.  Untracked files of
 the component (not ignored by git) are shown as new files.  The buffer holds
 the summary and the diff in `diff-mode'.  Signals `user-error' outside
@@ -150,7 +160,9 @@ a git repository."
            (default-directory root)
            (rel-dir (file-relative-name dir root))
            (base (or revision
-                     (and (blueprint--diff-has-head-p) "HEAD")))
+                     (and (eq blueprint-diff-default-base 'head)
+                          (blueprint--diff-has-head-p)
+                          "HEAD")))
            (args (append '("diff" "--no-color" "--no-ext-diff")
                          (when base (list base))
                          (list "--" rel-dir)))

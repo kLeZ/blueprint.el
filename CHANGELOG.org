@@ -8,6 +8,24 @@ file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 
 * Non rilasciato
 
+** Versione del progetto e migrazioni opzionali
+- Blueprint legge di nuovo ogni formato scritto in passato: ADR in un
+  file ciascuno (fino a 2026-03), glossario e riferimenti scritti nella
+  data directory (fino a 2026-09), agenda della 0.3.0.
+- =.blueprint/blueprint-version.org= registra la versione Blueprint del
+  progetto e le migrazioni applicate; senza, la versione viene dedotta.
+- =blueprint-project-upgrade= (=C-c b ^=, =u= in dashboard): piano delle
+  migrazioni disponibili (14 formati dalle versioni precedenti la 0.1.0)
+  e dei template di progetto e utente vecchi o personalizzati; applica
+  solo su richiesta, con backup in =_archive/= e avviso git.
+- Dashboard, report JSON e =blueprint-ci-validate= mostrano versione e
+  migrazioni (effetto sul codice d'uscita: =blueprint-ci-pending-migrations=).
+- Nuove opzioni: =blueprint-upgrade-backup=,
+  =blueprint-upgrade-backup-directory=, =blueprint-upgrade-git-check=,
+  =blueprint-template-status-scopes=, =blueprint-dashboard-show-version=,
+  =blueprint-ci-pending-migrations=, =blueprint-diff-default-base=,
+  =blueprint-agenda-view=, =blueprint-glossary-source-position=.
+
 ** Correzioni
 - CI: =blueprint-sync.el= richiede =blueprint-history= e
   =blueprint-roam.el= richiede =blueprint-graph= (byte-compile rosso su

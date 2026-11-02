@@ -187,6 +187,34 @@
       (should (string-match-p "Use PostgreSQL" (buffer-string)))
       (should-not (string-match-p "ADR 0000" (buffer-string))))))
 
+(defun blueprint-test-adr--write-legacy (num slug title status)
+  "Write a one-file ADR as Blueprint wrote them until 2026-03."
+  (blueprint-test--write-file
+   (format ".blueprint/adr/%s-%s.org" num slug)
+   (format "#+TITLE: %s \u2014 %s\n#+DATE: 2026-02-24\n#+STATUS: %s\n\n* Context\n\nC.\n\n* Decision\n\nD.\n\n* Consequences\n"
+           num title status)))
+
+(ert-deftest blueprint-test-adr/legacy-files-are-read ()
+  "ADRs written one per file (before 2026-03) are listed, numbered past
+and reach the changelog, without any migration."
+  (blueprint-test--with-project
+    (blueprint-test-adr--write-legacy "0001" "use-postgres" "Use PostgreSQL" "accepted")
+    (blueprint-test-adr--write-legacy "0002" "use-kafka" "Use Kafka" "proposed")
+    (should (string= (blueprint--adr-next-number) "0003"))
+    (blueprint-adr-new "Adopt OpenAPI")
+    (let ((entries (blueprint--adr-entries)))
+      (should (equal (mapcar (lambda (e) (plist-get e :number)) entries)
+                     '("0001" "0002" "0003")))
+      (should (equal (plist-get (car entries) :title) "Use PostgreSQL"))
+      (should (equal (plist-get (car entries) :status) "accepted")))
+    (blueprint-adr-list)
+    (with-current-buffer "*Blueprint ADRs*"
+      (should (string-match-p "Use Kafka" (buffer-string)))
+      (should (string-match-p "0002-use-kafka.org" (buffer-string))))
+    (require 'blueprint-changelog)
+    (should (equal (blueprint--changelog-adr-accepted)
+                   '(("0001" "Use PostgreSQL" "2026-02-24"))))))
+
 (ert-deftest blueprint-test-adr-list/ret-does-not-leak ()
   "RET of the ADR list is bound in its own keymap.
 `local-set-key' alone bound it in the shared `tabulated-list-mode-map'."

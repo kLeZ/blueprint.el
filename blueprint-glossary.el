@@ -42,6 +42,14 @@ first `blueprint-glossary-add' still has the sections and guidance a
      file "glossary.org" `(("{{DATE}}" . ,(format-time-string "%Y-%m-%d"))))
     file))
 
+(defcustom blueprint-glossary-source-position 'after
+  "Where `blueprint-glossary-add' writes the /Fonte: .../ line of a term.
+`after' the definition, as the glossary template does; `before' it,
+for glossaries kept that way."
+  :type '(choice (const :tag "After the definition (template)" after)
+                 (const :tag "Before the definition" before))
+  :group 'blueprint)
+
 (defun blueprint--glossary-sections ()
   "Return the level-1 headings of the real glossary sections, in file order.
 The :noexport: guide of the template and its example sub-sections are
@@ -119,7 +127,9 @@ readable by `blueprint-glossary-lookup'."
           ;; Exactly one blank line before the new entry.
           (unless (save-excursion (forward-line -1) (looking-at "^\\s-*$"))
             (insert "\n"))
-          (insert (format "** %s\n%s\n/Fonte: %s/\n" term definition source))
+          (insert (if (eq blueprint-glossary-source-position 'before)
+                      (format "** %s\n/Fonte: %s/\n%s\n" term source definition)
+                    (format "** %s\n%s\n/Fonte: %s/\n" term definition source)))
           ;; And one before the heading that follows, if any.
           (when (and next-heading (eq (char-after) ?*))
             (insert "\n"))))
@@ -132,6 +142,55 @@ readable by `blueprint-glossary-lookup'."
   (interactive)
   (find-file (blueprint--ensure-glossary)))
 
+(defun blueprint--glossary-orphan-file ()
+  "Return the glossary file older versions wrote by mistake, or nil.
+Until 2026-09 `blueprint-glossary-add' wrote to glossary.org inside
+the data directory, a file master.org never included, while the real
+glossary is glossary.org at the project root.  Its terms are still
+found by `blueprint-glossary-lookup'; `blueprint-project-upgrade'
+moves them into the real glossary."
+  (let ((file (blueprint--data-path "glossary.org")))
+    (and (file-exists-p file)
+         (not (file-equal-p file (blueprint--glossary-file)))
+         file)))
+
+(defun blueprint--glossary-find-term (file term)
+  "Return the entry of TERM in the glossary FILE as text, or nil.
+Both entry formats match: level-2 headings inside the sections and
+the legacy level-1 headings with a :PROPERTIES: drawer, whose drawer
+lines are left out of the text.  Entries inside the :noexport: guide
+of the template are not matched."
+  (with-temp-buffer
+    (blueprint--insert-org-file file)
+    (let ((excluded (blueprint--non-exported-subtrees))
+          (found nil))
+      (goto-char (point-min))
+      (while (and (not found)
+                  (re-search-forward
+                   (format "^\\*+ %s[ \t]*$" (regexp-quote term)) nil t))
+        (when (not (blueprint--in-regions-p (point) excluded))
+          (setq found t)))
+      (when found
+        (let* ((level (save-excursion
+                        (beginning-of-line)
+                        (skip-chars-forward "*")
+                        (- (point) (line-beginning-position))))
+               (start (line-beginning-position))
+               (end (or (save-excursion
+                          (when (re-search-forward
+                                 (format "^\\*\\{1,%d\\} " level) nil t)
+                            (line-beginning-position)))
+                        (point-max)))
+               (text (buffer-substring-no-properties start end)))
+          (string-trim
+           (mapconcat
+            #'identity
+            (cl-remove-if
+             (lambda (line)
+               (string-match-p "^:\\(PROPERTIES\\|SOURCE\\|END\\):" line))
+             (split-string text "\n"))
+            "\n")))))))
+
 ;;;###autoload
 (defun blueprint-glossary-lookup (term)
   "Search for TERM in the glossary and display its definition.
@@ -139,43 +198,25 @@ Both entry formats are found: the current one (level-2 headings
 inside the glossary sections) and the legacy one (level-1 headings
 with a :PROPERTIES: drawer at the end of the file).  Entries inside
 the :noexport: guide of the template are not matched.  For a legacy
-entry the drawer lines are not shown."
+entry the drawer lines are not shown.  A term not in the glossary is
+also looked up in the glossary file older versions wrote inside the
+data directory (`blueprint--glossary-orphan-file')."
   (interactive "sLookup term: ")
-  (let ((file (blueprint--glossary-file)))
-    (unless (file-exists-p file)
+  (let* ((file (blueprint--glossary-file))
+         (orphan (blueprint--glossary-orphan-file))
+         (text (or (and (file-exists-p file)
+                        (blueprint--glossary-find-term file term))
+                   (and orphan
+                        (let ((found (blueprint--glossary-find-term orphan term)))
+                          (and found
+                               (format "%s\n[%s, formato precedente: blueprint-project-upgrade lo sposta nel glossario]"
+                                       found
+                                       (file-relative-name orphan (blueprint--root)))))))))
+    (unless (or (file-exists-p file) orphan)
       (user-error "No glossary file found"))
-    (with-temp-buffer
-      (blueprint--insert-org-file file)
-      (let ((excluded (blueprint--non-exported-subtrees))
-            (found nil))
-        (goto-char (point-min))
-        (while (and (not found)
-                    (re-search-forward
-                     (format "^\\*+ %s[ \t]*$" (regexp-quote term)) nil t))
-          (when (not (blueprint--in-regions-p (point) excluded))
-            (setq found t)))
-        (if (not found)
-            (message "Term \"%s\" not found in glossary" term)
-          (let* ((level (save-excursion
-                          (beginning-of-line)
-                          (skip-chars-forward "*")
-                          (- (point) (line-beginning-position))))
-                 (start (line-beginning-position))
-                 (end (or (save-excursion
-                            (when (re-search-forward
-                                   (format "^\\*\\{1,%d\\} " level) nil t)
-                              (line-beginning-position)))
-                          (point-max)))
-                 (text (buffer-substring-no-properties start end)))
-            (setq text (mapconcat
-                        #'identity
-                        (cl-remove-if
-                         (lambda (line)
-                           (string-match-p
-                            "^:\\(PROPERTIES\\|SOURCE\\|END\\):" line))
-                         (split-string text "\n"))
-                        "\n"))
-            (message "%s" (string-trim text))))))))
+    (if text
+        (message "%s" text)
+      (message "Term \"%s\" not found in glossary" term))))
 
 (provide 'blueprint-glossary)
 ;;; blueprint-glossary.el ends here

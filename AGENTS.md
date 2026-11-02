@@ -27,7 +27,7 @@ emacs -Q --batch \
   -l blueprint-nfr.el -l blueprint-delivery.el -l blueprint-export.el \
   -l blueprint-dashboard.el -l blueprint-watch.el -l blueprint-capture.el \
   -l blueprint-history.el -l blueprint-agenda.el -l blueprint-changelog.el \
-  -l blueprint-diff.el -l blueprint-preview.el \
+  -l blueprint-diff.el -l blueprint-preview.el -l blueprint-upgrade.el \
   -l test/blueprint-test-helpers.el \
   -l test/blueprint-test-core.el -l test/blueprint-test-health.el \
   -l test/blueprint-test-lint.el -l test/blueprint-test-c4.el \
@@ -43,6 +43,7 @@ emacs -Q --batch \
   -l test/blueprint-test-history.el -l test/blueprint-test-agenda.el \
   -l test/blueprint-test-changelog.el -l test/blueprint-test-diff.el \
   -l test/blueprint-test-roam.el -l test/blueprint-test-preview.el \
+  -l test/blueprint-test-upgrade.el \
   -f ert-run-tests-batch-and-exit
 
 # Single test by name pattern
@@ -92,6 +93,29 @@ emacs -Q --batch -l blueprint.el -f blueprint-ci-export    # exit 0=ok, 2=error
 
 Bump `;;  Version: X.Y.Z` in `blueprint.el` header and push to `main` — the
 release workflow creates the git tag and GitHub release automatically.
+Before the bump, run `scripts/gen-template-history.sh` and commit
+`blueprint-template-history.el` (MD5 of every version of every system
+template; `blueprint-test-upgrade/current-templates-are-in-history` fails
+when a template changed and the table was not regenerated).
+
+### Format changes: read the old, offer the migration
+
+A project must never have to migrate before work goes on (user rule,
+2026-11-02, docs/adr/ADR-002): every change to what Blueprint writes on
+disk (file location, keyword, heading layout, ID scheme) must
+
+1. keep reading the previous format, with a test on a fixture written as
+   the old code wrote it;
+2. add a step to `blueprint-upgrade-steps` (`blueprint-upgrade.el`), in
+   chronological order, with `:era` (the versions that wrote the old
+   format), a read-only detector and an idempotent apply function, plus a
+   test of both;
+3. never run the migration on its own: `blueprint-project-upgrade` applies
+   it when the user asks, after the backup.
+
+Projects from every era back to the initial commit exist; the initial
+commit itself (`8b44775`) does not even load, its layout is in
+`blueprint-test-upgrade/pre-010-layout-step`.
 
 ## Architecture
 
@@ -200,7 +224,9 @@ have their own suites: `blueprint-history.el`, `blueprint-agenda.el`,
 `blueprint-changelog.el` (git + ADRs), `blueprint-diff.el` (semantic component
 diff; always requests plain unified diffs with `--no-ext-diff`, because a
 `diff.external` in the user's git config would otherwise feed a format the
-summary cannot parse), `blueprint-preview.el` (live graph preview) and the
+summary cannot parse), `blueprint-preview.el` (live graph preview),
+`blueprint-upgrade.el` (project version, optional migrations, template
+status; `blueprint-template-history.el` is generated) and the
 JSON report in `blueprint-ci.el` (`blueprint-ci-export-json`, hash tables
 with string keys because an alist value that is a list is not serializable
 without ambiguity).
@@ -240,6 +266,7 @@ directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
 | `blueprint-test-diff.el`       | Diff semantico del componente: sintesi pura, delta marker, e2e con repository git temporaneo |
 | `blueprint-test-roam.el`       | Logica pura roam (cluster, similarità); i comandi con database sono skip senza org-roam |
 | `blueprint-test-preview.el`    | Preview dal vivo: hook, debounce, aggiornamento buffer, warning unico senza Graphviz |
+| `blueprint-test-upgrade.el`    | Versione di progetto, passi di migrazione (fixture per ogni formato storico), backup, controllo git, stato dei template, dashboard e CI |
 
 ## Blueprint init: full project structure
 
@@ -263,10 +290,12 @@ references.org
 master.org                 # six-part assessment deliverable
 ```
 
-Generated later, in the data directory and never included in master.org:
-`adr.org` (`blueprint-adr-new`), `metrics-history.org` (every
-`blueprint-sync`), `agenda.org` (`blueprint-agenda-refresh`), `notes.org`
-(org-capture).
+`.blueprint/blueprint-version.org` (Blueprint version of the layout and
+migrations applied, see `blueprint-upgrade.el`) is written by
+`blueprint-init` too, never overwritten by a re-run.  Generated later, in
+the data directory and never included in master.org: `adr.org`
+(`blueprint-adr-new`), `metrics-history.org` (every `blueprint-sync`),
+`agenda.org` (`blueprint-agenda-refresh`), `notes.org` (org-capture).
 
 `blueprint-add-component` creates three files per component:
 

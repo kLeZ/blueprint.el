@@ -417,6 +417,22 @@ exactly the one of older versions."
                          " \\[FONTE: referente BSP\\]$")
                  content))))))
 
+(ert-deftest blueprint-test-glossary/lookup-finds-orphan-legacy-file ()
+  "A term written by older versions to .blueprint/glossary.org (a file
+master.org never included) is still found, with a pointer to the
+migration."
+  (blueprint-test--with-project
+    (blueprint-test--write-file
+     ".blueprint/glossary.org"
+     "* Saga\n:PROPERTIES:\n:SOURCE: codice\n:END:\nTransazione distribuita\n")
+    (let ((msg ""))
+      (cl-letf (((symbol-function 'message)
+                 (lambda (fmt &rest args) (setq msg (apply #'format fmt args)))))
+        (blueprint-glossary-lookup "Saga"))
+      (should (string-match-p "Transazione distribuita" msg))
+      (should (string-match-p "blueprint-project-upgrade" msg))
+      (should-not (string-match-p ":SOURCE:" msg)))))
+
 (ert-deftest blueprint-test-glossary/add-to-empty-section ()
   "A section with no contents at all (heading only) still takes a
 term, inserted right under it and before the next section."

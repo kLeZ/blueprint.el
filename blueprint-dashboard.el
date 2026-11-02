@@ -23,6 +23,7 @@
 (require 'blueprint-core)
 (require 'blueprint-c4)
 (require 'blueprint-health)
+(require 'blueprint-upgrade)
 
 (defvar blueprint-dashboard-focus nil
   "When non-nil, dashboard shows only components with open markers.")
@@ -140,6 +141,7 @@ master.org shows the status `blueprint--dashboard-not-included'."
     (define-key map (kbd "F") #'blueprint-dashboard-toggle-focus)
     (define-key map (kbd "O") #'blueprint-dashboard-toggle-out-of-scope)
     (define-key map (kbd "G") #'blueprint-dashboard-svg)
+    (define-key map (kbd "u") #'blueprint-project-upgrade)
     (define-key map (kbd "q") #'quit-window)
     map)
   "Keymap for `blueprint-dashboard-mode'.")
@@ -253,12 +255,41 @@ swallowed: a malformed milestone file must never break the dashboard."
               (append (car todos) (list :open (length todos))))))
       (error nil))))
 
+(defcustom blueprint-dashboard-show-version t
+  "When non-nil, the dashboard summary shows the project version.
+The Blueprint version of the project (declared in blueprint-version.org
+or inferred from its layout), the number of optional migrations
+available and of project/user templates older than the system ones or
+customized; `u' in the dashboard opens the plan
+\(`blueprint-project-upgrade')."
+  :type 'boolean
+  :group 'blueprint)
+
+(defun blueprint--dashboard-version-part ()
+  "Return the version part of the dashboard summary, or nil.
+See `blueprint-dashboard-show-version'."
+  (when blueprint-dashboard-show-version
+    (let ((u (blueprint--upgrade-summary)))
+      (when u
+        (concat
+         (format " | Blueprint %s (%s)"
+                 (plist-get u :version)
+                 (if (eq (plist-get u :source) 'declared) "dichiarata" "dedotta"))
+         (when (plist-get u :pending)
+           (format " | Migrazioni disponibili: %d [u]"
+                   (length (plist-get u :pending))))
+         (when (or (> (plist-get u :templates) 0)
+                   (> (plist-get u :customized) 0))
+           (format " | Template: %d da aggiornare, %d personalizzati"
+                   (plist-get u :templates) (plist-get u :customized))))))))
+
 (defun blueprint--dashboard-summary-line ()
   "Return the summary shown in the dashboard mode line.
 Health of the whole document, number of components and of other
-document files, active filters, and -- when a milestone file exists
-at the root (`blueprint-milestone-files') -- the next open milestone
-and the count of open TODO items."
+document files, active filters, -- when a milestone file exists at
+the root (`blueprint-milestone-files') -- the next open milestone and
+the count of open TODO items, and the project version with the
+migrations available (`blueprint-dashboard-show-version')."
   (let* ((units (blueprint--document-units))
          (milestone (blueprint--milestone-summary)))
     (concat
@@ -274,7 +305,8 @@ and the count of open TODO items."
                (if (plist-get milestone :date)
                    (format " (%s)" (plist-get milestone :date))
                  "")
-               (plist-get milestone :open))))))
+               (plist-get milestone :open)))
+     (blueprint--dashboard-version-part))))
 
 (defun blueprint-dashboard-refresh ()
   "Refresh the dashboard buffer."

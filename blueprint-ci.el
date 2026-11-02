@@ -24,6 +24,7 @@
 (require 'blueprint-c4)
 (require 'blueprint-lint)
 (require 'blueprint-health)
+(require 'blueprint-upgrade)
 
 (declare-function blueprint-sync "blueprint-sync" ())
 (declare-function blueprint-export "blueprint-export" ())
@@ -46,13 +47,26 @@ code 1 if any are found."
         (message "  %s" w))
       (when noninteractive (kill-emacs 1)))))
 
+(defcustom blueprint-ci-pending-migrations 'ignore
+  "Effect of the optional migrations available on `blueprint-ci-validate'.
+`ignore' only reports them (the default: Blueprint reads the old
+formats, a pending migration is not a defect), `warn' makes the run a
+warning (exit 1), `error' a failure (exit 2).  See
+`blueprint-project-upgrade'."
+  :type '(choice (const :tag "Report only" ignore)
+                 (const :tag "Warning (exit 1)" warn)
+                 (const :tag "Failure (exit 2)" error))
+  :group 'blueprint)
+
 ;;;###autoload
 (defun blueprint-ci-validate ()
   "Run full validation in batch mode: lint + health check + dependency check.
 Lint and health score cover the whole document, master.org and the
 files it includes (see `blueprint--lint-project' and
-`blueprint-health-score').  Exits with code 0 (pass), 1 (warnings),
-or 2 (errors)."
+`blueprint-health-score').  The project version and the optional
+migrations available are reported; they change the exit code only as
+`blueprint-ci-pending-migrations' says.  Exits with code 0 (pass), 1
+\(warnings), or 2 (errors)."
   (let ((exit-code 0)
         (all-warnings (blueprint--lint-project)))
     ;; Lint
@@ -79,6 +93,17 @@ or 2 (errors)."
                (setq exit-code 2)
                (message "ERROR: %s depends on unknown component \"%s\"" id dep))))))
      (blueprint--components))
+    ;; Project version and optional migrations
+    (let ((u (blueprint--upgrade-summary)))
+      (when u
+        (message "VERSION: project %s (%s), package %s"
+                 (plist-get u :version) (plist-get u :source) (plist-get u :package))
+        (when (plist-get u :pending)
+          (message "  MIGRATIONS available (blueprint-project-upgrade): %s"
+                   (mapconcat #'identity (plist-get u :pending) " "))
+          (pcase blueprint-ci-pending-migrations
+            ('warn (setq exit-code (max exit-code 1)))
+            ('error (setq exit-code 2))))))
     ;; Summary
     (message "Blueprint CI validate: %s"
              (pcase exit-code
@@ -177,9 +202,10 @@ by `json-serialize' as it is: no files are written, nothing printed.
 The counts follow the same principles as the dashboard: only the
 document (master.org and what it includes) and only exported text.
 Top-level keys: generated-at, project, health, document-files,
-components, dependencies, lint-warnings; component keys: id, scope,
-lifecycle, owner, tech, depends, included, documents, score, penalty,
-words, markers."
+components, dependencies, lint-warnings, blueprint (package and
+project version, pending migrations, stale and customized templates);
+component keys: id, scope, lifecycle, owner, tech, depends, included,
+documents, score, penalty, words, markers."
   (let* ((root (or root (blueprint--root)))
          (summary (blueprint--document-health-summary))
          (comps (blueprint--components))
@@ -236,7 +262,16 @@ words, markers."
                            (blueprint--document-files root))))
      `(components . ,(vconcat components))
      `(dependencies . ,(vconcat (or dependencies nil)))
-     `(lint-warnings . ,(vconcat (blueprint--lint-project))))))
+     `(lint-warnings . ,(vconcat (blueprint--lint-project)))
+     `(blueprint
+       . ,(let ((u (blueprint--upgrade-summary root)))
+            (blueprint--ci-report--table
+             `(package-version . ,(or (plist-get u :package) :null))
+             `(project-version . ,(or (plist-get u :version) :null))
+             `(version-source . ,(if u (symbol-name (plist-get u :source)) :null))
+             `(pending-migrations . ,(vconcat (plist-get u :pending)))
+             `(stale-templates . ,(or (plist-get u :templates) 0))
+             `(customized-templates . ,(or (plist-get u :customized) 0))))))))
 
 ;;;###autoload
 (defun blueprint-ci-export-json ()

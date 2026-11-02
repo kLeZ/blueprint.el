@@ -80,6 +80,31 @@ another directory gets the same IDs, so its deadlines survive a move."
     (should (car ids))
     (should (equal (car ids) (cadr ids)))))
 
+(ert-deftest blueprint-test-agenda/legacy-ids-keep-dates ()
+  "An agenda written by 0.3.0 (IDs hashed on absolute paths) keeps its
+DEADLINE and state at the first refresh, which rewrites the IDs."
+  (blueprint-test--with-project
+    (blueprint-test-agenda--write-project)
+    (blueprint-agenda-refresh)
+    (let* ((agenda (blueprint--agenda-file))
+           (entry (car (blueprint--agenda-entries)))
+           (legacy (plist-get entry :legacy-id))
+           (content (blueprint-test--read-file agenda)))
+      (should-not (equal legacy (plist-get entry :id)))
+      ;; Turn the file into what 0.3.0 wrote: legacy ID, DONE, deadline.
+      (setq content (replace-regexp-in-string
+                     (concat ":ID: " (plist-get entry :id))
+                     (concat ":ID: " legacy) content t t))
+      (setq content (replace-regexp-in-string
+                     "^\\*\\* TODO \\(QUESTION: alpha[^\n]*\\)\n"
+                     "** DONE \\1\nDEADLINE: <2026-12-24 gio>\n" content))
+      (with-temp-file agenda (insert content))
+      (blueprint-agenda-refresh)
+      (let ((after (blueprint-test-agenda--content)))
+        (should (string-match-p
+                 "^\\*\\* DONE QUESTION: alpha[^\n]*\nDEADLINE: <2026-12-24" after))
+        (should (string-match-p (concat ":ID: " (plist-get entry :id)) after))))))
+
 (ert-deftest blueprint-test-agenda/org-agenda-files-as-file-untouched ()
   "When `org-agenda-files' names a file (a string), the refresh does
 not mangle it into a list."
