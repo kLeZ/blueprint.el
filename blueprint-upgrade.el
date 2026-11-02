@@ -1033,7 +1033,11 @@ template at point; \\[blueprint-upgrade-apply-all] applies every pending step;
      (mapcar (lambda (p)
                (let ((step (car p)))
                  (list (list 'step (plist-get step :id) (cdr p))
-                       (vector "passo" (plist-get step :id) (plist-get step :era)
+                       ;; A step that says nothing about the layout
+                       ;; (version-file) has no :era, and
+                       ;; tabulated-list needs a string in every column.
+                       (vector "passo" (plist-get step :id)
+                               (or (plist-get step :era) "--")
                                (format "%s (%d file)" (plist-get step :title)
                                        (length (cdr p)))))))
              (blueprint--upgrade-pending root))

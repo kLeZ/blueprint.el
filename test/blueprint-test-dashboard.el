@@ -449,6 +449,31 @@ and says nothing when there is none."
       (should (string-match-p "Milestone: Consegna draft" line))
       (should (string-match-p "TODO aperti: 1" line)))))
 
+;; Regression (PLAN 9.33): a long milestone title pushed the version out
+;; of sight in a narrow window.
+(ert-deftest blueprint-test-dashboard/milestone-title-cut-after-version ()
+  "A long milestone title is cut to `blueprint-dashboard-milestone-width',
+keeps the full title in the tooltip and comes after the version."
+  (blueprint-test--with-project
+    (blueprint-test--write-component "svc")
+    (let ((long (make-string 80 ?x)))
+      (blueprint-test--write-file "TODO.org" (format "* TODO %s\n" long))
+      (cl-letf (((symbol-function 'blueprint--dashboard-version-part)
+                 (lambda () " | Blueprint 9.9.9 (dedotta)")))
+        (let* ((blueprint-dashboard-milestone-width 20)
+               (line (blueprint--dashboard-summary-line))
+               (pos (string-match "Milestone: " line)))
+          (should (string-match-p (concat "Milestone: " (make-string 17 ?x)
+                                          "\\.\\.\\. ")
+                                  line))
+          (should-not (string-match-p (make-string 21 ?x) line))
+          (should (equal (get-text-property (match-end 0) 'help-echo line)
+                         long))
+          (should (< (string-match "Blueprint 9.9.9" line) pos)))
+        (let* ((blueprint-dashboard-milestone-width nil)
+               (line (blueprint--dashboard-summary-line)))
+          (should (string-match-p long line)))))))
+
 (ert-deftest blueprint-test-dashboard/milestone-malformed-file-does-not-break ()
   "Whatever happens while parsing the milestone files, the summary
 degrades to nil instead of breaking the dashboard."

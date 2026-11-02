@@ -974,7 +974,9 @@ Se alla radice del progetto esiste =CRONOPROGRAMMA.org= o =TODO.org=
 keyword =TODO= in ordine di file, con la eventuale =:DEADLINE:= come data)
 e il numero di =TODO= aperti. Nessun formato nuovo: si riusano gli heading
 TODO/DONE di Org. Un file malformato non rompe la dashboard: la riga di
-stato resta senza milestone.
+stato resta senza milestone. La milestone viene dopo la versione del
+progetto e il titolo è tagliato a =blueprint-dashboard-milestone-width=
+caratteri (40; nil per non tagliarlo), con il titolo intero nel tooltip.
 
 ** Domande: tag, risposte e filtri
 

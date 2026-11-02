@@ -474,5 +474,28 @@ a customized copy is refused."
       (should (string-match-p "adr-single-file" (buffer-string))))
     (should (blueprint--adr-legacy-files))))
 
+;; Regression (PLAN 9.32): version-file has no :era, and a nil cell made
+;; tabulated-list-print fail on every project without blueprint-version.org.
+(ert-deftest blueprint-test-upgrade/plan-buffer-with-version-file-pending ()
+  "The plan opens on a project without blueprint-version.org."
+  (blueprint-test-upgrade--with-current-project
+    (delete-file (blueprint--version-file default-directory))
+    (should (assoc "version-file"
+                   (mapcar (lambda (p) (cons (plist-get (car p) :id) p))
+                           (blueprint--upgrade-pending default-directory))))
+    (blueprint-project-upgrade)
+    (with-current-buffer "*Blueprint Upgrade*"
+      (should (string-match-p "version-file" (buffer-string))))))
+
+(ert-deftest blueprint-test-upgrade/plan-entries-are-strings-for-every-step ()
+  "Every column of every possible plan row is a string."
+  (blueprint-test-upgrade--with-current-project
+    (cl-letf (((symbol-function 'blueprint--upgrade-pending)
+               (lambda (&optional _root)
+                 (mapcar (lambda (step) (list step "/tmp/x.org"))
+                         blueprint-upgrade-steps))))
+      (dolist (entry (blueprint--upgrade-plan-entries default-directory))
+        (should (cl-every #'stringp (append (cadr entry) nil)))))))
+
 (provide 'blueprint-test-upgrade)
 ;;; blueprint-test-upgrade.el ends here

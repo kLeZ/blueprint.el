@@ -283,13 +283,41 @@ See `blueprint-dashboard-show-version'."
            (format " | Template: %d da aggiornare, %d personalizzati"
                    (plist-get u :templates) (plist-get u :customized))))))))
 
+(defcustom blueprint-dashboard-milestone-width 40
+  "Maximum width of the milestone title in the dashboard summary.
+A longer title is cut with \"...\"; the full title stays in the
+tooltip.  nil shows the title as it is."
+  :type '(choice (const :tag "No limit" nil) integer)
+  :group 'blueprint)
+
+(defun blueprint--dashboard-milestone-part (milestone)
+  "Return the milestone part of the dashboard summary for MILESTONE.
+MILESTONE is a plist from `blueprint--milestone-summary'.  The title
+is cut to `blueprint-dashboard-milestone-width'."
+  (let* ((title (plist-get milestone :title))
+         (shown (if (and blueprint-dashboard-milestone-width
+                         (> (string-width title)
+                            blueprint-dashboard-milestone-width))
+                    (truncate-string-to-width
+                     title blueprint-dashboard-milestone-width nil nil "...")
+                  title)))
+    (format " | Milestone: %s%s | TODO aperti: %d"
+            (propertize shown 'help-echo title)
+            (if (plist-get milestone :date)
+                (format " (%s)" (plist-get milestone :date))
+              "")
+            (plist-get milestone :open))))
+
 (defun blueprint--dashboard-summary-line ()
   "Return the summary shown in the dashboard mode line.
 Health of the whole document, number of components and of other
-document files, active filters, -- when a milestone file exists at
-the root (`blueprint-milestone-files') -- the next open milestone and
-the count of open TODO items, and the project version with the
-migrations available (`blueprint-dashboard-show-version')."
+document files, active filters, the project version with the
+migrations available (`blueprint-dashboard-show-version') and -- when
+a milestone file exists at the root (`blueprint-milestone-files') --
+the next open milestone and the count of open TODO items.  The
+milestone comes last, cut to `blueprint-dashboard-milestone-width':
+its title is free text and in a narrow window it would push the
+version out of sight."
   (let* ((units (blueprint--document-units))
          (milestone (blueprint--milestone-summary)))
     (concat
@@ -299,14 +327,9 @@ migrations available (`blueprint-dashboard-show-version')."
              (cl-count 'part units :key (lambda (u) (plist-get u :kind)))
              (if blueprint-dashboard-focus " [FOCUS]" "")
              (if blueprint-dashboard-out-of-scope-only " [OUT-OF-SCOPE]" ""))
+     (blueprint--dashboard-version-part)
      (when milestone
-       (format " | Milestone: %s%s | TODO aperti: %d"
-               (plist-get milestone :title)
-               (if (plist-get milestone :date)
-                   (format " (%s)" (plist-get milestone :date))
-                 "")
-               (plist-get milestone :open)))
-     (blueprint--dashboard-version-part))))
+       (blueprint--dashboard-milestone-part milestone)))))
 
 (defun blueprint-dashboard-refresh ()
   "Refresh the dashboard buffer."

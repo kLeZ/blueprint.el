@@ -1091,6 +1091,41 @@ Le voci previste (tutte implementate):
   (2026-11-01), non implementato*: le note sono già testo esportato e
   i marker della metodologia bastano a tracciare la fonte.
 
+** 9.32 =blueprint-project-upgrade= fallisce con il passo =version-file= pendente (FATTO)
+Segnalato dal progetto pilota (2026-11-02), primo uso della 0.4.0 su un
+progetto reale senza =blueprint-version.org=: sia =C-c b ^= sia =u= nella
+dashboard danno =tabulated-list-print-entry: Wrong type argument:
+stringp, nil=, e il piano non si apre. Causa:
+=blueprint--upgrade-plan-entries= mette =(plist-get step :era)= nella
+terza colonna, e per =version-file= =:era= è nil per costruzione (il passo
+non dice nulla sul formato). Riprodotto in =emacs -Q --batch=, senza il
+buffer =*Blueprint Upgrade*= già aperto: il buffer esistente non c'entra.
+Il test di =test/blueprint-test-upgrade.el= che chiama
+=blueprint-project-upgrade= non copre il caso di un piano con
+=version-file= pendente (cioè ogni progetto senza file di versione, il
+caso tipico della migrazione). Da correggere: colonna vuota (o "--")
+quando =:era= è nil, più un test sul piano di un progetto 0.2.0 reale.
+
+*Fatto (2026-11-02)*: "--" nella colonna quando =:era= è nil. Test
+=plan-buffer-with-version-file-pending= (progetto senza file di versione)
+e =plan-entries-are-strings-for-every-step= (ogni passo del registro
+produce solo stringhe), entrambi rossi senza la correzione.
+
+** 9.33 Versione illeggibile nella riga di stato della dashboard (FATTO)
+Segnalato dal progetto pilota (2026-11-02): con la dashboard in una
+finestra affiancata la parte "Blueprint <versione>" della riga di stato
+non si vede, perché viene dopo la milestone e il titolo del primo TODO
+di =CRONOPROGRAMMA.org=/=TODO.org= è inserito per intero (nell'assessment
+è un heading lungo). Si vede solo massimizzando la finestra. Da valutare:
+troncare il titolo della milestone (=truncate-string-to-width= con una
+larghezza configurabile) e/o anticipare la versione rispetto alla
+milestone.
+
+*Fatto (2026-11-02)*: entrambe. La versione viene prima della milestone;
+il titolo è tagliato a =blueprint-dashboard-milestone-width= (40, nil per
+non tagliare) con "...", e il titolo intero resta nel tooltip. Test
+=milestone-title-cut-after-version=.
+
 --------------
 
 * Fase 10 --- Allineamento metodologico (gap assessment-framework)
