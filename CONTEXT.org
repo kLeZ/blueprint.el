@@ -1,13 +1,15 @@
 #+TITLE: Session Context
 #+VERSION: 2.0
 #+CREATED: 2026-09-26T13:30:00+02:00
-#+UPDATED: 2026-11-02T02:35:00+00:00
+#+UPDATED: 2026-11-02T02:45:00+00:00
 #+STATUS: paused
 
 * Current Task
 PR #2 (https://github.com/kLeZ/blueprint.el/pull/2), branch
 =ccr-76866253-yxr98p=: 0.3.0 review plus project versioning and optional
-migrations (ADR-002, PLAN 10.9). Waiting for CI and review.
+migrations (ADR-002, PLAN 10.9). User approved the PR (2026-11-02):
+version bumped to 0.4.0, PR merged to main, the release workflow creates
+tag v0.4.0 and the GitHub release.
 
 * Completed
 - [X] CI red on 0.3.0: byte-compile (sync used =blueprint-history-on-sync=
@@ -58,7 +60,7 @@ migrations (ADR-002, PLAN 10.9). Waiting for CI and review.
 | Hard require history in sync, graph in roam | No cycle; soft require left a free variable | |
 | Diff default HEAD, fallback index without commits | Staged changes were invisible | |
 | Agenda IDs root-relative (one-time ID change for 0.3.0 users) | Absolute paths broke preservation on move/clone | |
-| No version bump | Release is the user's call (bump on main triggers release) | |
+| Release 0.4.0 (minor, not 0.3.1) | New features (project version, migrations, options); user asked for the bump | |
 | Read every old format, migration optional | User rule 2026-11-02 (deadlines never depend on the tool) | [[file:docs/adr/ADR-002-project-version-and-migrations.org]] |
 | Version file .blueprint/blueprint-version.org | User: name must be unmistakable (not project.org) | ADR-002 D1 |
 | Backup in _archive/ plus non-blocking git warning | User chose both; git check configurable | ADR-002 D3 |
@@ -74,9 +76,8 @@ migrations (ADR-002, PLAN 10.9). Waiting for CI and review.
 | CHANGELOG.org, USAGE.org, PLAN.org, AGENTS.md | modified | docs |
 
 * Next Steps
-1. Watch PR #2 CI (29.1, 29.4, snapshot)
-2. User: review and merge PR #2; decide on a version bump
-3. Release procedure: run scripts/gen-template-history.sh before each bump
+1. Check tag v0.4.0 and the GitHub release created by the workflow
+2. Release procedure: run scripts/gen-template-history.sh before each bump
 
 * Open Questions
 - 9.11 table-format milestones in CRONOPROGRAMMA.org: declared "not handled

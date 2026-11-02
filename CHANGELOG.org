@@ -6,7 +6,11 @@
 Tutte le modifiche rilevanti di questo progetto sono documentate in questo
 file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 
-* Non rilasciato
+* 0.4.0 — 2026-11-02
+
+Revisione completa della 0.3.0 e retrocompatibilità con tutte le
+versioni precedenti, con migrazione facoltativa. Suite ERT da 501 a 554
+test.
 
 ** Versione del progetto e migrazioni opzionali
 - Blueprint legge di nuovo ogni formato scritto in passato: ADR in un
@@ -40,7 +44,8 @@ file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 - Agenda: il link =:ORIGIN:= si risolve dal file dell'agenda (era
   relativo alla root ma il file sta nella data directory); gli ID usano
   il percorso relativo alla root, così sopravvivono allo spostamento
-  del progetto (gli ID generati con la 0.3.0 cambiano una volta);
+  del progetto (gli ID della 0.3.0 vengono riconosciuti: al primo
+  refresh passano al formato nuovo conservando date e stato);
   =org-agenda-files= come stringa (file di elenco) non viene più
   trasformato in lista di caratteri.
 - Diff del componente: il default confronta con =HEAD=, incluse le

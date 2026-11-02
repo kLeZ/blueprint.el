@@ -2,7 +2,7 @@
 ;; SPDX-License-Identifier: MIT
 
 ;; Author: kLeZ
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "29.1") (transient "0.4"))
 ;; Keywords: tools, architecture, documentation
 ;; URL: https://github.com/kLeZ/blueprint.el
