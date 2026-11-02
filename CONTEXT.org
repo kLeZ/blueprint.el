@@ -1,10 +1,21 @@
 #+TITLE: Session Context
-#+VERSION: 2.0
+#+VERSION: 2.1
 #+CREATED: 2026-09-26T13:30:00+02:00
-#+UPDATED: 2026-11-02T02:45:00+00:00
+#+UPDATED: 2026-11-02T10:10:00+01:00
 #+STATUS: paused
 
 * Current Task
+Release 0.4.1 (2026-11-02, on main, not pushed): 0.4.0 defects found at
+first use on the pilot project. PLAN 9.32 (upgrade plan failed with
+version-file pending, nil :era column), 9.33 (long milestone title hid
+the version in the dashboard summary), 9.34 (version-file removed from
+the step registry, =v= in the plan; ADR-002 D7, user decision), 9.35
+(apostrophes instead of accents in generated text). Suite 561/561,
+byte-compile clean, checkdoc warnings only pre-existing, template
+history regenerated (no change). Pushing to main triggers the release
+workflow (tag v0.4.1). Open: 31 apostrophe accents in USAGE.org.
+
+Previous:
 PR #2 (https://github.com/kLeZ/blueprint.el/pull/2), branch
 =ccr-76866253-yxr98p=: 0.3.0 review plus project versioning and optional
 migrations (ADR-002, PLAN 10.9). User approved the PR (2026-11-02):
@@ -60,6 +71,8 @@ tag v0.4.0 and the GitHub release.
 | Hard require history in sync, graph in roam | No cycle; soft require left a free variable | |
 | Diff default HEAD, fallback index without commits | Staged changes were invisible | |
 | Agenda IDs root-relative (one-time ID change for 0.3.0 users) | Absolute paths broke preservation on move/clone | |
+| Release 0.4.1 (patch) | Bug fixes only, plus one defcustom for the fix; user asked for it | |
+| version-file is not a migration step | Metadata, not a format; it vanished from the plan and counted as pending in dashboard/CI | ADR-002 D7 |
 | Release 0.4.0 (minor, not 0.3.1) | New features (project version, migrations, options); user asked for the bump | |
 | Read every old format, migration optional | User rule 2026-11-02 (deadlines never depend on the tool) | [[file:docs/adr/ADR-002-project-version-and-migrations.org]] |
 | Version file .blueprint/blueprint-version.org | User: name must be unmistakable (not project.org) | ADR-002 D1 |

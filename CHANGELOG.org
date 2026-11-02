@@ -6,6 +6,36 @@
 Tutte le modifiche rilevanti di questo progetto sono documentate in questo
 file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 
+* 0.4.1 — 2026-11-02
+
+Correzioni della 0.4.0 trovate al primo uso su un progetto reale. Suite
+ERT da 554 a 561 test.
+
+** Versione del progetto
+- Scrivere =blueprint-version.org= non è più un passo di migrazione
+  (ADR-002, D7): il passo =version-file= spariva dal piano appena se ne
+  applicava un altro, senza finire in =#+BLUEPRINT_MIGRATIONS:=, e su un
+  progetto già nel formato attuale contava come "1 migrazione
+  disponibile" in dashboard e in CI. Il file lo scrivono
+  =blueprint-init= e ogni migrazione applicata; nel piano =v=
+  (=blueprint-upgrade-declare-version=) lo scrive a richiesta, con la
+  versione dedotta finché restano passi, altrimenti con quella del
+  pacchetto, e conserva le migrazioni registrate.
+
+** Correzioni
+- Piano di migrazione: =blueprint-project-upgrade= (=C-c b ^=, =u= in
+  dashboard) falliva con =Wrong type argument: stringp, nil= su ogni
+  progetto senza =blueprint-version.org=, perché la colonna del formato
+  di partenza restava vuota; ora un passo senza formato mostra "--".
+- Dashboard: la versione del progetto viene prima della milestone, e il
+  titolo della milestone è tagliato a
+  =blueprint-dashboard-milestone-width= (nuova opzione, 40; nil per non
+  tagliare) con il titolo intero nel tooltip. Con un titolo lungo e la
+  dashboard in una finestra affiancata la versione non si vedeva.
+- Accenti veri invece degli apostrofi nei testi scritti dal pacchetto
+  (=blueprint-version.org=, intestazione di =agenda.org=, titolo del
+  passo =project-files=), con un test che controlla sorgenti e template.
+
 * 0.4.0 — 2026-11-02
 
 Revisione completa della 0.3.0 e retrocompatibilità con tutte le
