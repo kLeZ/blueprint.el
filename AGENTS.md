@@ -10,6 +10,14 @@ Blueprint.el is an Emacs Lisp package for text-first architectural assessment
 using Org-mode and Arc42 methodology. It generates C4 diagrams (PlantUML) and
 dependency graphs (Graphviz), managed through a Transient menu at `C-c b`.
 
+## No data from real engagements
+
+The package is piloted on real client work, but nothing from that work belongs in this repository.
+
+- Never write client, project, product, system, repository or people names from a real engagement anywhere in the repository: code, docstrings, tests, examples, templates, images, `PLAN.org`, `CHANGELOG.org`, `CONTEXT.org`, ADRs, commit messages, tags and release notes.
+- Log defects and requests that come from real use as found on the "progetto pilota" (English: "pilot project"), with the date if useful, and without identifying details (names, internal paths, commit hashes, document titles).
+- Test fixtures and examples use invented names (`acme--portale`, `GestioneMagazzino`), never values copied from a real project.
+
 ## Commands
 
 ### Run tests
