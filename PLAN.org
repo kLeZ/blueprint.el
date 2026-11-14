@@ -1146,6 +1146,62 @@ generato con "e'" invece di "è". Stesso difetto nell'intestazione di
 template. Restano 31 occorrenze in =USAGE.org= (documentazione, non
 testo generato), da correggere a parte.
 
+** 9.36 Vista enterprise C4: progetti senza marker e diagrammi scritti a mano
+Segnalato dal progetto pilota (2026-11-02): =C-c b V=
+(=blueprint-generate-enterprise-c4=) si ferma con "enterprise/context.org
+has no ' @@blueprint-enterprise-start@@ marker; regenerate it from the
+enterprise-context.org template". I marker sono entrati nel template il
+2026-09-16 (777f87f, 10.4): un =enterprise/context.org= creato prima non
+li ha. Tre difetti:
+- l'inventario dei formati di ADR-002 non comprende questo caso, quindi
+  il piano di migrazione non lo propone e la versione dedotta non ne
+  tiene conto;
+- il messaggio suggerisce di rigenerare il file dal template, cosa che
+  cancellerebbe il contenuto scritto a mano (nel progetto pilota il
+  diagramma ha persone, sistemi esterni e 18 relazioni);
+- inserire i marker in un diagramma che dichiara già i componenti a mano
+  (=System(gestionale, ...)=) produrrebbe identificatori duplicati in
+  PlantUML: il generatore non controlla gli id già presenti fuori dai
+  marker.
+Da decidere: un passo di migrazione che inserisce i marker vuoti in
+fondo al blocco (solo se nessun componente è già dichiarato fuori),
+oppure un messaggio che spiega come aggiungerli a mano; in entrambi i
+casi un controllo degli id duplicati prima di scrivere.
+Decisione utente (2026-11-02): la correzione va fatta nel pacchetto,
+per tutti i progetti; rinviata. Fino ad allora la vista enterprise
+generata non si usa.
+
+** 9.37 Inglese nei testi italiani generati
+Segnalato dal progetto pilota (2026-11-02): l'intestazione di
+=.blueprint/metrics-history.org= dice "una quando i valori cambiano (see
+=blueprint-history-on-sync=)" (=blueprint-history.el:45=). Stessa
+famiglia di 9.35: il test sugli apostrofi non lo vede. Da correggere
+("vedi") e da cercare negli altri testi generati in italiano.
+
+** 9.38 Trattini doppi negli identificatori convertiti in trattino medio (FATTO)
+Segnalato dal progetto pilota (2026-11-02): Org converte ogni "--" in
+trattino medio, quindi i nomi dei repository ("acme--portale") uscivano
+come "acme–portale" (217 volte nel PDF). Il verbatim non basta: "=x--y=]"
+non è riconosciuto, e le fonti sono scritte "[FONTE: codice
+repo@sha]". *Fatto (2026-11-02)*: =blueprint-export-double-hyphen=
+(=except-words= di default, =always= come Org, =never= sempre due
+trattini: scelta opinabile, resa configurabile su richiesta
+dell'utente); con =except-words= la regola del trattino medio di
+=org-odt-special-string-regexps= e =org-html-special-string-regexps=
+vale solo quando "--" non sta fra due alfanumerici, e in LaTeX un filtro
+scrive "-{}-". Test ODT, HTML, LaTeX e dei tre valori.
+
+** 9.39 Figure con didascalia sovrapposte in ODT (FATTO)
+Segnalato dal progetto pilota (2026-11-02): una figura alta (20 cm più
+didascalia) che non entrava nello spazio rimasto copriva la figura
+precedente, perché ox-odt ancora al paragrafo il frame della
+didascalia e LibreOffice lo tiene dentro la pagina spostandolo in su.
+*Fatto (2026-11-02)*: =blueprint-export-odt-images-as-char= (default
+t), filtro di output finale: frame =OrgImageCaptionFrame= ancorati come
+carattere, paragrafo con stile =OrgCenter= per mantenerli centrati.
+Verificato sul documento del progetto pilota (167 pagine, figura 9 passa a pagina
+nuova, nessuna sovrapposizione nelle 27 figure). Test sull'export ODT.
+
 --------------
 
 * Fase 10 --- Allineamento metodologico (gap assessment-framework)

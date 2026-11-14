@@ -191,6 +191,84 @@ a value customized away from the stock 2 is left alone."
   (blueprint--with-plantuml-export
     (should (assq 'plantuml org-babel-load-languages))))
 
+;;; --- Double hyphens ---
+
+(defconst blueprint-test-export--hyphen-text
+  "Repository acme--portale [FONTE: codice acme--gestionale@0a1b2c3], Parte II -- Portale, a---b"
+  "Org text with \"--\" inside identifiers, before a bracket, as a dash, and \"---\".")
+
+(defun blueprint-test-export--hyphens (backend &optional text)
+  "Export TEXT (default the hyphen sample) to BACKEND, body only."
+  (blueprint--with-plantuml-export
+    (org-export-string-as (or text blueprint-test-export--hyphen-text) backend t)))
+
+(ert-deftest blueprint-test-export/double-hyphen-except-words-odt ()
+  "Default: in ODT \"--\" between alphanumerics stays two hyphens, also
+before a closing bracket; a spaced \"--\" becomes an en dash."
+  (let ((out (blueprint-test-export--hyphens 'odt)))
+    (should (string-match-p "acme--portale" out))
+    (should (string-match-p "acme--gestionale@0a1b2c3\\]" out))
+    (should (string-match-p "II &#x2013; Portale" out))
+    (should (string-match-p "a&#x2014;b" out))))
+
+(ert-deftest blueprint-test-export/double-hyphen-except-words-html ()
+  "Same default for the HTML exporter."
+  (let ((out (blueprint-test-export--hyphens 'html)))
+    (should (string-match-p "acme--portale" out))
+    (should (string-match-p "II &ndash; Portale" out))))
+
+(ert-deftest blueprint-test-export/double-hyphen-except-words-latex ()
+  "Default in LaTeX: \"--\" between alphanumerics is protected from the
+ligature, a spaced one is not."
+  (let ((out (blueprint-test-export--hyphens 'latex "a--b--c e x -- y")))
+    (should (string-match-p "a-{}-b-{}-c" out))
+    (should (string-match-p "x -- y" out))))
+
+(ert-deftest blueprint-test-export/double-hyphen-always ()
+  "`always': every \"--\" becomes an en dash, as in Org."
+  (let ((blueprint-export-double-hyphen 'always))
+    (should (string-match-p "acme&#x2013;portale"
+                            (blueprint-test-export--hyphens 'odt)))
+    (should (string-match-p "a--b"
+                            (blueprint-test-export--hyphens 'latex "a--b")))))
+
+(ert-deftest blueprint-test-export/double-hyphen-never ()
+  "`never': \"--\" stays two hyphens everywhere; \"---\" is still an em dash."
+  (let ((blueprint-export-double-hyphen 'never))
+    (let ((out (blueprint-test-export--hyphens 'odt)))
+      (should (string-match-p "acme--portale" out))
+      (should (string-match-p "II -- Portale" out))
+      (should (string-match-p "a&#x2014;b" out)))
+    (let ((out (blueprint-test-export--hyphens 'latex "x -- y e a---b")))
+      (should (string-match-p "x -{}- y" out))
+      (should (string-match-p "a---b" out)))))
+
+;;; --- Captioned images in ODT ---
+
+(ert-deftest blueprint-test-export/odt-captioned-image-as-char ()
+  "A captioned image frame is anchored as a character in a centered
+paragraph; an uncaptioned image and the option off are left alone."
+  (blueprint-test--with-project
+    (let* ((svg (blueprint-test--tiny-svg default-directory))
+           (org (format "#+CAPTION: Figura di prova\n[[file:%s]]\n\n[[file:%s]]\n" svg svg))
+           (out (blueprint--with-plantuml-export
+                  (org-export-string-as org 'odt t))))
+      (should (string-match-p
+               "<text:p text:style-name=\"OrgCenter\">\\s-*<draw:frame draw:style-name=\"OrgImageCaptionFrame\"[^>]*text:anchor-type=\"as-char\""
+               out))
+      (should-not (string-match-p
+                   "draw:style-name=\"OrgImageCaptionFrame\"[^>]*text:anchor-type=\"paragraph\""
+                   out))
+      (should (string-match-p
+               "draw:style-name=\"OrgDisplayImage\"[^>]*text:anchor-type=\"paragraph\""
+               out))
+      (let* ((blueprint-export-odt-images-as-char nil)
+             (off (blueprint--with-plantuml-export
+                    (org-export-string-as org 'odt t))))
+        (should (string-match-p
+                 "draw:style-name=\"OrgImageCaptionFrame\"[^>]*text:anchor-type=\"paragraph\""
+                 off))))))
+
 ;;; --- blueprint-check-odt-styles ---
 
 (defun blueprint-test--tiny-svg (dir)

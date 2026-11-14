@@ -9,7 +9,7 @@ file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
 * 0.4.1 — 2026-11-02
 
 Correzioni della 0.4.0 trovate al primo uso su un progetto reale. Suite
-ERT da 554 a 561 test.
+ERT da 554 a 567 test.
 
 ** Versione del progetto
 - Scrivere =blueprint-version.org= non è più un passo di migrazione
@@ -35,6 +35,15 @@ ERT da 554 a 561 test.
 - Accenti veri invece degli apostrofi nei testi scritti dal pacchetto
   (=blueprint-version.org=, intestazione di =agenda.org=, titolo del
   passo =project-files=), con un test che controlla sorgenti e template.
+- Export: "--" fra due lettere o cifre (per esempio un nome di
+  repository come =acme--portale=) resta di due trattini invece di
+  diventare un trattino medio, in ODT, HTML e LaTeX. Configurabile con
+  =blueprint-export-double-hyphen=: =except-words= (default), =always=
+  (trattino medio ovunque, come Org), =never= (sempre due trattini).
+- Export ODT: le figure con didascalia sono ancorate come carattere e
+  centrate, quindi una figura che non entra nella pagina passa alla
+  successiva invece di coprire quella precedente
+  (=blueprint-export-odt-images-as-char=, attiva di default).
 
 * 0.4.0 — 2026-11-02
 

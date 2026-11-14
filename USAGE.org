@@ -800,6 +800,16 @@ utente Blueprint); per farne =odt= il proprio default personale, impostare
 =blueprint-export-backend= nella propria configurazione (=:custom= nel
 =use-package blueprint=), non nel pacchetto.
 
+Due scelte dell'export sono configurabili. =blueprint-export-double-hyphen=
+decide che cosa diventa ="--"= in ODT, HTML e LaTeX: =except-words= (default)
+lo rende trattino medio tranne fra due lettere o cifre, così un nome come
+=acme--portale= resta intatto anche fuori dal verbatim; =always= lo rende
+sempre trattino medio, come Org; =never= lo lascia sempre di due trattini.
+="---"= resta in ogni caso un trattino lungo. =blueprint-export-odt-images-as-char=
+(attiva di default) ancora come carattere le figure con didascalia in ODT,
+centrate: una figura che non entra nella pagina passa alla successiva invece
+di coprire la precedente.
+
 ** Verificare un template =#+ODT_STYLES_FILE:= aziendale
 
 Un template =.ott= aziendale "grezzo" (scritto in LibreOffice Writer, non

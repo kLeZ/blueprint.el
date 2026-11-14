@@ -17,8 +17,10 @@
 
 (require 'blueprint-core)
 (require 'blueprint-c4)
+(require 'cl-lib)
 (require 'ox)
 (require 'ox-odt)
+(require 'ox-html)
 (require 'ob-plantuml)
 
 (declare-function org-pandoc-export-to-docx "ox-pandoc" (&optional async subtreep visible-only body-only ext-plist))
@@ -40,6 +42,13 @@ whose headings carry no outline numbering -- such as a corporate
 letterhead -- drops the chapter part, so every chapter restarts at
 \"Figura 1\".  Here it becomes 0: one counter for the whole document.
 
+`blueprint-export-double-hyphen' decides whether \"--\" becomes an
+en dash; by default it stays two hyphens between two alphanumeric
+characters, as in a repository name such as \"acme--portale\".  With
+`blueprint-export-odt-images-as-char', captioned images in ODT are
+anchored as characters, so a tall one moves to the next page instead
+of covering the previous figure.
+
 Bindings here apply only for the duration of BODY, and only for a
 variable still at its stock default, so a user's own customization
 -- interactive or in a batch wrapper -- is never overridden."
@@ -49,9 +58,118 @@ variable still at its stock default, so a user's own customization
          (org-plantuml-exec-mode
           (if (eq org-plantuml-exec-mode 'jar) 'plantuml org-plantuml-exec-mode))
          (org-odt-display-outline-level
-          (if (eql org-odt-display-outline-level 2) 0 org-odt-display-outline-level)))
+          (if (eql org-odt-display-outline-level 2) 0 org-odt-display-outline-level))
+         (org-odt-special-string-regexps
+          (blueprint--double-hyphen-regexps org-odt-special-string-regexps "&#x2013;"))
+         (org-html-special-string-regexps
+          (blueprint--double-hyphen-regexps org-html-special-string-regexps "&ndash;"))
+         (org-export-filter-plain-text-functions
+          (cons #'blueprint--latex-double-hyphen
+                org-export-filter-plain-text-functions))
+         (org-export-filter-final-output-functions
+          (cons #'blueprint--odt-captioned-images-as-char
+                org-export-filter-final-output-functions)))
      (org-babel-do-load-languages 'org-babel-load-languages '((plantuml . t)))
      ,@body))
+
+;;; --- Double hyphens ---
+
+(defcustom blueprint-export-double-hyphen 'except-words
+  "How the ODT, HTML and LaTeX exports run by Blueprint treat \"--\".
+Org turns every \"--\" into an en dash.  That suits a dash between
+words (\"Parte II -- Portale\"), but an identifier written in plain
+text, such as a repository name (\"acme--portale\"), loses a hyphen in
+the exported document; verbatim markup does not always help (\"[FONTE:
+codice =repo--name=]\" is not recognized as verbatim, because of the
+closing bracket).
+
+`except-words' (the default): an en dash, except where \"--\" sits
+between two letters or digits, which stays as two hyphens.
+`always': an en dash everywhere, as Org does.
+`never': \"--\" always stays as two hyphens.
+
+\"---\" becomes an em dash in every case."
+  :type '(choice (const :tag "En dash, except between letters or digits" except-words)
+                 (const :tag "En dash everywhere (Org default)" always)
+                 (const :tag "Never: keep two hyphens" never))
+  :group 'blueprint)
+
+(defconst blueprint--org-ndash-regexp "--\\([^-]\\)"
+  "The en dash rule of Org's ODT and HTML special string tables.")
+
+(defun blueprint--double-hyphen-regexps (regexps ndash)
+  "Return REGEXPS adapted to `blueprint-export-double-hyphen'.
+REGEXPS is a backend's list of (REGEXP . REPLACEMENT) special string
+rules, such as `org-odt-special-string-regexps'; NDASH is the string
+that backend uses for an en dash."
+  (let ((others (cl-remove-if
+                 (lambda (pair) (equal (car pair) blueprint--org-ndash-regexp))
+                 regexps)))
+    (pcase blueprint-export-double-hyphen
+      ('always regexps)
+      ('never others)
+      (_ (append others
+                 (list (cons "\\(^\\|[^[:alnum:]-]\\)--\\([^-]\\)"
+                             (concat "\\1" ndash "\\2"))
+                       (cons "\\([[:alnum:]]\\)--\\([^-[:alnum:]]\\)"
+                             (concat "\\1" ndash "\\2"))))))))
+
+(defun blueprint--latex-double-hyphen (text backend _info)
+  "Apply `blueprint-export-double-hyphen' to LaTeX TEXT.
+LaTeX itself turns \"--\" into an en dash; \"-{}-\" keeps two
+hyphens.  Plain-text export filter, active only for BACKEND derived
+from latex and only for the `except-words' and `never' settings."
+  (let ((re (pcase blueprint-export-double-hyphen
+              ('except-words "\\([[:alnum:]]\\)--\\([[:alnum:]]\\)")
+              ('never "\\(^\\|[^-]\\)--\\([^-]\\|$\\)"))))
+    (if (and re (org-export-derived-backend-p backend 'latex))
+        (let ((prev nil))
+          ;; Repeat: in \"a--b--c\" the middle character belongs to both
+          ;; matches, and one pass would leave the second \"--\".
+          (while (not (equal prev text))
+            (setq prev text
+                  text (replace-regexp-in-string re "\\1-{}-\\2" text)))
+          text)
+      text)))
+
+;;; --- Captioned images in ODT ---
+
+(defcustom blueprint-export-odt-images-as-char t
+  "When non-nil, captioned images in ODT flow with the text.
+Org anchors the frame of a captioned image (image plus caption) to its
+paragraph.  When the frame is taller than the space left on the page,
+LibreOffice does not move it to the next page: it keeps it inside the
+page and shifts it up, over the content before it (typically the
+previous figure).  With this option the frame is anchored as a
+character instead, so it moves to the next page like a line of text,
+and its paragraph gets the \"OrgCenter\" style so the figure stays
+centered."
+  :type 'boolean
+  :group 'blueprint)
+
+(defun blueprint--odt-captioned-images-as-char (output backend _info)
+  "Anchor captioned image frames as characters in ODT OUTPUT.
+Final-output export filter, active only for BACKEND derived from odt
+and while `blueprint-export-odt-images-as-char' is non-nil: the outer
+frame of every captioned image (style \"OrgImageCaptionFrame\") gets
+anchor type \"as-char\", and the paragraph that starts with it gets
+the centered \"OrgCenter\" style."
+  (if (and blueprint-export-odt-images-as-char
+           (org-export-derived-backend-p backend 'odt))
+      (let ((case-fold-search nil))
+        (setq output
+              (replace-regexp-in-string
+               "<draw:frame draw:style-name=\"OrgImageCaptionFrame\"[^>]*>"
+               (lambda (frame)
+                 (replace-regexp-in-string
+                  "text:anchor-type=\"paragraph\"" "text:anchor-type=\"as-char\""
+                  frame t t))
+               output t t))
+        (replace-regexp-in-string
+         "<text:p text:style-name=\"[^\"]+\">\\(\\s-*<draw:frame draw:style-name=\"OrgImageCaptionFrame\"\\)"
+         "<text:p text:style-name=\"OrgCenter\">\\1"
+         output t))
+    output))
 
 ;;; --- SVG size for the ODT exporter ---
 
