@@ -1,0 +1,6 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='300' height='160' viewBox='0 0 300 160'>
+<rect x='0' y='0' width='300' height='160' fill='white'/>
+<path d='M20 140 A130 130 0 0 1 280 140' stroke='black' fill='none'/>
+<line x1='150' y1='140' x2='116.521067' y2='24.764758' stroke='red'/>
+<text x='120' y='30' font-family='sans-serif' fill='black'>Health: 41</text>
+</svg>

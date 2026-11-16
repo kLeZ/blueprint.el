@@ -41,22 +41,31 @@ modello arc42 / ISO 25010.  Usare =blueprint-nfr-add-quality-scenario=
 
 Ogni scenario segue la struttura: contesto, stimolo, risposta attesa, misura.
 
-** [Nome scenario]
-- *Attributo di qualità*: [Performance / Sicurezza / Affidabilità / Manutenibilità / ...]
-- *Contesto*: [quando si verifica]
-- *Stimolo*: [cosa scatena lo scenario]
-- *Risposta attesa*: [comportamento del sistema]
-- *Misura*: [criterio quantificabile di successo o fallimento]
-- *Priorità*: [Alta / Media / Bassa]
-- *Fonte*: [da dove proviene questo requisito]
+** Evasione di un ordine nel picco del mattino
+- *Attributo di qualità*: Prestazioni
+- *Contesto*: tra le 8 e le 10, quando arrivano gli ordini della notte
+- *Stimolo*: tre operatori evadono ordini nello stesso momento
+- *Risposta attesa*: ogni evasione si chiude senza che l'operatore aspetti il corriere
+- *Misura*: evasione completa in meno di 5 secondi nel 95% dei casi
+- *Priorità*: Alta
+- *Fonte*: intervista I-01
+
+** FatturaPA non risponde durante l'evasione
+- *Attributo di qualità*: Affidabilità
+- *Contesto*: evasione normale, servizio FatturaPA lento o fermo
+- *Stimolo*: la chiamata SOAP va in timeout
+- *Risposta attesa*: l'ordine resta evaso e la fattura viene ritentata più tardi
+- *Misura*: nessun ordine evaso senza fattura dopo 24 ore
+- *Priorità*: Alta
+- *Fonte*: codice, modulo fatturazione [DA VALIDARE]
 
 * Service Level
 <<nfr-sla>>
 [DA VALIDARE]
 
-| Servizio / Componente | Metrica     | Valore rilevato | Valore atteso | Fonte |
-|-----------------------+-------------+-----------------+---------------+-------|
-|                       | Uptime      |                 |               |       |
-|                       | RTO         |                 |               |       |
-|                       | RPO         |                 |               |       |
-|                       | Latenza p95 |                 |               |       |
+| Servizio / Componente | Metrica     | Valore rilevato          | Valore atteso           | Fonte                     |
+|-----------------------+-------------+--------------------------+-------------------------+---------------------------|
+| GestioneMagazzino     | Uptime      | non misurato             | 99% in orario di lavoro | intervista I-01           |
+| Database              | RTO         | sconosciuto              | 4 ore                   | [DA VALIDARE]             |
+| Database              | RPO         | 24 ore (backup notturno) | 24 ore                  | configurazione di crontab |
+| Evasione              | Latenza p95 | circa 9 s nel picco      | 5 s                     | log di Apache             |

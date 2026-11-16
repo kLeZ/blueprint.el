@@ -27,9 +27,9 @@ Sistemi inclusi nel perimetro:
 Sistemi esclusi:
 - SAP Business One, di cui si documenta solo lo scambio di file
 
-Periodo di riferimento: [data inizio] -- 2026-11-16
-Versioni analizzate: [da specificare per componente]
-Limitazioni agli accessi: [nessuna / specificare se presenti]
+Periodo di riferimento: 2026-10-01 -- 2026-11-16
+Versioni analizzate: ramo principale del repository al 2026-11-10, database di produzione al 2026-11-12.
+Limitazioni agli accessi: nessun accesso al server di SAP Business One, di cui si sono visti solo i file esportati.
 
 ** Metodo di raccolta delle informazioni
 <<part0-method>>

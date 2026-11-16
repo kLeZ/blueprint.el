@@ -8,6 +8,49 @@ files. It follows a component-based approach inspired by the
 [[https://arc42.org/][Arc42]] documentation methodology and produces
 [[https://c4model.com/][C4 model]] diagrams via PlantUML.
 
+The method behind it is in [[file:docs/method/method.org][docs/method/]]: how to document an existing system that has no documentation, and how to keep the same structure from day one on a system you are designing. The story of why the package exists is on the author's blog: [[https://klez.me/en/2026/11/15/blueprint-el/][blueprint.el: documenting architecture, before and after the code]].
+
+Before you start:
+- the templates, the headings they create and the markers (=[DA VALIDARE]=, =[FINDING]=, ...) are in Italian for now; full English support and localized templates are planned ([[file:PLAN.org][PLAN.org]], phase 11, and [[file:docs/adr/ADR-003-localized-templates.org][ADR-003]]);
+- the package is not on MELPA yet: see [[*Installation][Installation]];
+- to try it on something real, open =examples/demo/master.org=: an invented warehouse management system, documented halfway, in Italian like the templates.
+
+* Screenshots
+
+The dashboard: one row per component and per file of the document, with the open markers, the penalty and the health score of each.
+
+[[file:docs/img/dashboard.png]]
+
+Everything goes through a Transient menu on =C-c b=, like Magit.
+
+[[file:docs/img/transient-menu.png]]
+
+A component is plain Org: Blueprint keywords in the header, arc42 sections, and the markers in the text.
+
+[[file:docs/img/arc42-with-findings.png]]
+
+=master.org= assembles the whole document with =#+INCLUDE:= and holds Part 0, written by hand.
+
+[[file:docs/img/master-document.png]]
+
+The dependency graph colored by health score (=C-c b h=), as it appears in Emacs and as the SVG it writes:
+
+[[file:docs/img/dependency-graph.png]]
+
+[[file:docs/img/dependency-graph.svg]]
+
+The health score gauge (=C-c b H=), in Emacs and as SVG:
+
+[[file:docs/img/health-score.png]]
+
+[[file:docs/img/health-gauge.svg]]
+
+The demo exported to ODT: the enterprise C4 context, the cross-system flow and the data lineage, all PlantUML inside the Org files.
+
+[[file:docs/img/exported-odt-document-1.png]]
+
+[[file:docs/img/exported-odt-document-2.png]]
+
 * Background and rationale
 Blueprint started life as a Python CLI tool (=scaffold.py=) for generating and
 managing Arc42-based assessment documents. The Python version handled project
@@ -711,6 +754,9 @@ blueprint.el/
 │   ├── nfr-constraints.org
 │   └── nfr-risks.org
 ├── docs/method/           # The method: method, rationale, kickoff
+├── docs/adr/              # Architecture decision records of the package
+├── docs/img/              # Screenshots used in this README
+├── examples/              # A finished sample document (ODT) and demo/, a project to try
 └── README.org
 #+end_example
 

@@ -44,13 +44,19 @@ per aggiungere vincoli in modo interattivo.
 Vincoli che impattano più componenti o l'intera architettura.
 
 ** Vincoli tecnici
-| Vincolo | Descrizione | Impatto | Componenti coinvolti | Fonte |
-|---------+-------------+---------+----------------------+-------|
+| Vincolo                | Descrizione                                             | Impatto                               | Componenti coinvolti     | Fonte                       |
+|------------------------+---------------------------------------------------------+---------------------------------------+--------------------------+-----------------------------|
+| Runtime fuori supporto | PHP 7.4 e MySQL 5.7 non ricevono più patch di sicurezza | Ogni vulnerabilità nuova resta aperta | ordini, scorte, database | codice e host di produzione |
+
 
 ** Vincoli organizzativi
-| Vincolo | Descrizione | Impatto | Fonte |
-|---------+-------------+---------+-------|
+| Vincolo                        | Descrizione                                                      | Impatto                                | Fonte           |
+|--------------------------------+------------------------------------------------------------------+----------------------------------------+-----------------|
+| Conoscenza in una persona sola | Un solo sviluppatore conosce il codice, e non c'è documentazione | Ferie e malattie fermano ogni modifica | intervista I-02 |
+
 
 ** Vincoli normativi e di compliance
-| Norma / Regolamento | Requisito | Componenti coinvolti | Stato conformità |
-|---------------------+-----------+----------------------+------------------|
+| Norma / Regolamento      | Requisito                                                            | Componenti coinvolti | Stato conformità       |
+|--------------------------+----------------------------------------------------------------------+----------------------+------------------------|
+| Fatturazione elettronica | Le fatture passano dal Sistema di Interscambio nel formato FatturaPA | fatturazione         | Conforme [DA VALIDARE] |
+

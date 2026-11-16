@@ -200,6 +200,24 @@ trimmed to the parts these tests care about."
       (let ((content (blueprint-test--read-file file)))
         (should (string-match-p "System(svc, \"svc\", \"\")" content))))))
 
+(ert-deftest blueprint-test-enterprise-c4/systems-before-relations ()
+  "Every System(...) precedes every Rel(...), even when a component
+depends on one that sorts after it: a Rel to an undeclared alias makes
+PlantUML fail on the later System with \"already defined\"."
+  (blueprint-test--with-project
+    (let ((file (blueprint-test--write-enterprise-context)))
+      (blueprint-test--write-component
+       "alpha"
+       "#+TITLE: alpha\n#+BLUEPRINT_DEPENDS: zeta\n\n* Introduction\n\nText.\n")
+      (blueprint-test--write-component "zeta")
+      (blueprint-generate-enterprise-c4)
+      (let* ((content (blueprint-test--read-file file))
+             (last-system (string-match "System(zeta" content))
+             (first-rel (string-match "Rel(alpha, zeta" content)))
+        (should last-system)
+        (should first-rel)
+        (should (< last-system first-rel))))))
+
 (ert-deftest blueprint-test-enterprise-c4/adds-rel-for-dependency ()
   "BLUEPRINT_DEPENDS becomes a Rel(...) entry between the markers."
   (blueprint-test--with-project

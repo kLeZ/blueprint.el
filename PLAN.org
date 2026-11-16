@@ -454,6 +454,14 @@ Found in real use (2026-11-02): Org turns every "--" into an en dash, so reposit
 ** 9.39 Captioned figures overlapping in ODT (DONE)
 Found in real use (2026-11-02): a tall figure (20 cm plus caption) that did not fit in the remaining space covered the previous figure, because ox-odt anchors the caption frame to the paragraph and LibreOffice keeps it inside the page by moving it up. *Done (2026-11-02)*: =blueprint-export-odt-images-as-char= (default t), a final output filter: =OrgImageCaptionFrame= frames anchored as characters, in a paragraph with the =OrgCenter= style to keep them centered. Verified on a long real document: the tall figure moves to a new page, no overlap among the figures. Test on the ODT export.
 
+
+** 9.40 Enterprise C4: relation before the system it points to (DONE)
+Found on the demo project (2026-11-16): =blueprint-generate-enterprise-c4= emitted each component's =Rel(...)= right after its =System(...)=, so =Rel(ordini, spedizioni)= came before =System(spedizioni)=; PlantUML turned the unknown alias into an implicit element and then refused the =System= as "already defined", rendering an error image instead of the diagram. *Done (2026-11-16)*: all the =System(...)= lines first, then the =Rel(...)= lines. Test =blueprint-test-enterprise-c4/systems-before-relations=, red without the fix.
+
+
+** 9.41 Enterprise C4: components drawn as systems (OPEN, decision needed)
+Found on the demo project (2026-11-16): =blueprint-generate-enterprise-c4= turns every component into a level-1 =System(...)=, so the context view shows parts of one system (=database=, =notifiche=) as systems of their own, next to the real external ones. In C4 they are containers of a single system in scope. Accepted for now by the user. To decide: whether the generated view should draw one =System= per system in scope (which needs a way to group components into systems, see also 9.9) or keep one per component and say so in the template's guide.
+
 --------------
 
 * Phase 10 --- Methodological alignment (assessment-framework gap)

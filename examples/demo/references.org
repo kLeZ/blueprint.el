@@ -42,23 +42,34 @@ le interviste o le sessioni di validazione mancanti.
 * Documenti
 <<references-documents>>
 
-| ID | Titolo | Autore / Owner | Data | Tipo | Note |
-|----+--------+----------------+------+------+------|
+| ID   | Titolo                          | Autore / Owner            |       Data | Tipo     | Note                                      |
+|------+---------------------------------+---------------------------+------------+----------+-------------------------------------------|
+| D-01 | Repository di GestioneMagazzino | team-magazzino            | 2026-11-16 | codebase | Ramo principale, ultimo commit analizzato |
+| D-02 | Manuale operativo del magazzino | Responsabile di magazzino | 2026-11-16 | document | Versione 2019, in parte superata          |
+
+
 
 * Interviste
 <<references-interviews>>
 
-| ID | Intervistato | Ruolo | Data | Argomenti trattati | Note |
-|----+--------------+-------+------+--------------------+------|
+| ID   | Intervistato                   | Ruolo                  |       Data | Argomenti trattati                 | Note |
+|------+--------------------------------+------------------------+------------+------------------------------------+------|
+| I-01 | Responsabile di magazzino      | Responsabile operativo | 2026-11-16 | Walkthrough di evasione e picking  |      |
+| I-02 | Sviluppatore dell'applicazione | Sviluppatore PHP       | 2026-11-16 | Architettura, deploy, job notturni |      |
+
+
 
 * Sistemi e strumenti
 <<references-systems>>
 
-| ID | Nome | Versione | Scopo nel progetto |
-|----+------+----------+--------------------|
+| ID   | Nome           | Versione | Scopo nel progetto                |
+|------+----------------+----------+-----------------------------------|
+| S-01 | Repository Git | --       | Lettura del codice e della storia |
+| S-02 | Log di Apache  | 2.4      | Tempi di risposta dell'evasione   |
 
 * Ambienti analizzati
 <<references-environments>>
 
-| ID | Ambiente | Data rilevazione | Componenti inclusi | Note |
-|----+----------+------------------+--------------------+------|
+| ID   | Ambiente   | Data rilevazione | Componenti inclusi | Note                    |
+|------+------------+------------------+--------------------+-------------------------|
+| A-01 | Produzione |       2026-11-12 | tutti              | Accesso in sola lettura |

@@ -10,33 +10,52 @@
 ** Matrice di dipendenze
 Legenda: IN = riceve da, OUT = invia a, BI = bidirezionale, -- = nessuna relazione
 
-| Sistema   | Sistema A | Sistema B | Sistema C | [Ext] |
-|-----------+-----------+-----------+-----------+-------|
-| Sistema A | --        | OUT       | --        | OUT   |
-| Sistema B | IN        | --        | BI        | --    |
-| Sistema C | --        | BI        | --        | --    |
+| Sistema           | GestioneMagazzino | SAP B1 | API BRT | FatturaPA | Relay SMTP |
+|-------------------+-------------------+--------+---------+-----------+------------|
+| GestioneMagazzino | --                | IN     | OUT     | OUT       | OUT        |
+| SAP B1            | OUT               | --     | --      | --        | --         |
+| API BRT           | IN                | --     | --      | --        | --         |
+| FatturaPA         | IN                | --     | --      | --        | --         |
+| Relay SMTP        | IN                | --     | --      | --        | --         |
 
 ** Flussi principali cross-sistema
-[Un DFD o sequence diagram per ogni flusso di business rilevante che
-attraversa più sistemi]
 
-*** Flusso: [nome]
-[DA VALIDARE]
+*** Flusso: dall'ordine SAP alla fattura
+
+L'ordine nasce in SAP Business One e ne esce come file. Tutto il resto succede in GestioneMagazzino, dentro una sola richiesta dell'operatore: se il corriere o FatturaPA rispondono lentamente, l'operatore aspetta.
 
 #+begin_src plantuml :file enterprise-flow-01.svg
-participant "Sistema A" as a
-participant "Sistema B" as b
-a -> b : [dati]
-b --> a : [risposta]
+actor "Operatore" as op
+participant "SAP B1" as sap
+participant "GestioneMagazzino" as gm
+participant "API BRT" as brt
+participant "FatturaPA" as fpa
+participant "Relay SMTP" as smtp
+sap -> gm : CSV degli ordini (share di rete)
+op -> gm : import manuale
+op -> gm : conferma picking
+activate gm
+gm -> gm : genera il DDT
+gm -> brt : POST /shipment
+brt --> gm : numero di tracking
+gm -> fpa : inviaFattura (SOAP)
+fpa --> gm : id fattura
+gm -> smtp : conferma al cliente
+deactivate gm
 @enduml
 #+end_src
 
 ** Data lineage
-[Da compilare quando il focus è sulla trasformazione e il flusso dei dati]
+
+Gli ordini cambiano forma tre volte: righe CSV, righe di una tabella di appoggio, ordini veri. Le righe scartate dalla validazione finiscono solo in un file di log. [FINDING]
 
 #+begin_src plantuml :file enterprise-dfd.svg
-[Fonte Dati A] --> (Trasformazione T1) : dati grezzi
-(Trasformazione T1) --> [Sistema B] : dati normalizzati
-(Trasformazione T1) --> [Archivio C] : copia storica
+[SAP Business One] --> (Import CSV) : righe d'ordine
+(Import CSV) --> [Tabella di appoggio] : righe grezze
+[Tabella di appoggio] --> (Validazione) : righe da controllare
+(Validazione) --> [Ordini] : righe valide
+(Validazione) --> [Log degli scarti] : righe scartate
+[Ordini] --> (Evasione) : ordine confermato
+(Evasione) --> [DDT e fatture] : documenti
 @enduml
 #+end_src

@@ -48,21 +48,30 @@ persistito per 24 h.
 * Termini di dominio
 <<glossary-domain>>
 
-** [Termine]
-<<glossary-esempio>>
-[Definizione operativa in linguaggio non tecnico.  Una o due frasi.]
-/Fonte: [intervista / codice / documento preesistente]/
+** DDT
+Documento di trasporto: accompagna la merce dalla spedizione alla consegna e numera le spedizioni dell'anno.
+/Fonte: codice, modulo ordini/
+
+** Picking
+Prelievo degli articoli dagli scaffali per comporre un ordine.
+/Fonte: intervista con il responsabile di magazzino/
+
+** Scorta minima
+Giacenza sotto la quale un articolo va riordinato; la soglia è per articolo.
+/Fonte: codice, modulo scorte/
 
 * Termini tecnici con uso specifico
 <<glossary-technical>>
 
-** [Termine tecnico]
-<<glossary-tecnico-esempio>>
-[Definizione di come il termine è usato in questo documento,
-se diversa dall'uso comune.]
+** Job notturno
+Script PHP lanciato da crontab fuori dall'orario di lavoro, senza un utente collegato.
+/Fonte: crontab di produzione/
 
 * Acronimi e abbreviazioni
 <<glossary-acronyms>>
 
-| Acronimo | Espansione | Note |
-|----------+------------+------|
+| Acronimo | Espansione              | Note                             |
+|----------+-------------------------+----------------------------------|
+| BRT      | Bartolini               | Corriere usato per le spedizioni |
+| DDT      | Documento di trasporto  | Vedi il termine di dominio       |
+| SdI      | Sistema di Interscambio | Riceve le fatture elettroniche   |

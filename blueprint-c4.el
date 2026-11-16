@@ -109,19 +109,26 @@ it from the current enterprise-context.org template)."
           (user-error
            "enterprise/context.org has no %s marker; regenerate it from the enterprise-context.org template"
            blueprint-enterprise-c4-start-marker)))
+      ;; Every System(...) goes before any Rel(...): PlantUML turns a
+      ;; Rel to an alias not yet declared into an implicit element, and
+      ;; the later System(...) with the same alias is then a duplicate
+      ;; ("This element is already defined") and the diagram fails.
       (let ((names (sort (hash-table-keys (blueprint--components)) #'string<))
-            (lines '()))
+            (systems '())
+            (relations '()))
         (dolist (id names)
-          (push (format "System(%s, \"%s\", \"\")" id id) lines)
+          (push (format "System(%s, \"%s\", \"\")" id id) systems)
           (let ((deps (blueprint--org-keyword
                        (blueprint--component-file id) "BLUEPRINT_DEPENDS")))
             (when (and deps (not (string-blank-p deps)))
               (dolist (d (split-string deps))
-                (push (format "Rel(%s, %s, \"uses\")" id d) lines)))))
+                (push (format "Rel(%s, %s, \"uses\")" id d) relations)))))
         (blueprint--sync-section
          blueprint-enterprise-c4-start-marker
          blueprint-enterprise-c4-end-marker
-         (mapconcat #'identity (nreverse lines) "\n")))
+         (mapconcat #'identity
+                    (append (nreverse systems) (nreverse relations))
+                    "\n")))
       (save-buffer))
     (message "Enterprise C4 context updated in enterprise/context.org")))
 

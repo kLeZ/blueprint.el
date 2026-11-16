@@ -24,8 +24,14 @@ di =arc42.org=; questo registro raccoglie i rischi trasversali.
 <<nfr-risks>>
 [DA VALIDARE]
 
-| ID | Rischio | Componente/i | Probabilità | Impatto | Livello | Mitigazione | Owner | Note |
-|----+---------+--------------+-------------+---------+---------+-------------+-------+------|
+| ID    | Rischio                                                                                                                     | Componente/i | Probabilità | Impatto | Livello | Mitigazione                                                     | Owner          | Note |
+|-------+-----------------------------------------------------------------------------------------------------------------------------+--------------+-------------+---------+---------+-----------------------------------------------------------------+----------------+------|
+| R-001 | Evasione degli ordini bloccata dai timeout del corriere: le chiamate a BRT sono sincrone dentro la richiesta dell'operatore | ordini       | Alta        | Alto    | Critico | Spostare le chiamate esterne fuori dalla richiesta, in una coda | team-magazzino |      |
+| R-002 | Nessun ripristino del database mai provato: il backup notturno potrebbe non essere utilizzabile                             | database     | Media       | Alto    | Alto    | Provare un ripristino su una copia, poi ogni trimestre          | sistemi        |      |
+| R-003 | Token di BRT in chiaro in un file versionato                                                                                | spedizioni   | Alta        | Medio   | Alto    | Token in una variabile d'ambiente e rotazione                   | team-magazzino |      |
+
+
+
 
 Livello = combinazione Probabilità x Impatto:
 - *Critico*: Alta prob. x Alto impatto

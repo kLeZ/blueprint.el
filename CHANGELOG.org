@@ -7,8 +7,10 @@ All notable changes to this project are documented in this file. Versions follow
 
 * Unreleased
 
+- Fix: =blueprint-generate-enterprise-c4= wrote each component's =Rel(...)= right after its =System(...)=, so a dependency on a component that sorts later made PlantUML fail with "This element is already defined" and the diagram came out as an error image. Every =System(...)= now comes first.
 - The methodology moved from =assessment-framework/= (Italian, with the old Python scaffolder) to =docs/method/= in English: =method.org=, =rationale.org=, =kickoff.org=.
 - USAGE.org and CHANGELOG.org translated into English; PLAN.org translated into English.
+- README: screenshots of the dashboard, the menu, a component, the master document, the graph, the gauge and the ODT export; a short note on languages and MELPA.
 - =examples/demo/=: an invented project (a warehouse management system) to try the package on, in Italian like the templates.
 - PLAN.org phase 11 and ADR-003 (proposed): localized templates.
 
