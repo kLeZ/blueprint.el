@@ -618,8 +618,7 @@ All customization options are in the =blueprint= customize group
 | =blueprint-ai-max-context=        | =4000=                            | Max chars sent to LLM            |
 
 * Assessment methodology
-Blueprint implements the methodology documented in
-=assessment-framework/methodology/METHOD.org=. The assessment is organized
+Blueprint implements the method documented in [[file:docs/method/method.org][docs/method/method.org]], with the reasons behind it in [[file:docs/method/rationale.org][rationale.org]] and a guide to the first sessions with the client in [[file:docs/method/kickoff.org][kickoff.org]]. The assessment is organized
 around a strict information-source hierarchy:
 
 1. *Source code* --- the ground truth; behavior that deviates from other sources
@@ -711,7 +710,7 @@ blueprint.el/
 │   ├── nfr-quality.org
 │   ├── nfr-constraints.org
 │   └── nfr-risks.org
-├── assessment-framework/    # Original methodology and Python scaffolder
+├── docs/method/           # The method: method, rationale, kickoff
 └── README.org
 #+end_example
 

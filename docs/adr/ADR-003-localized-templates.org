@@ -1,0 +1,57 @@
+#+TITLE: ADR-003: Localized templates and generated text
+#+DATE: 2026-11-16
+#+STATUS: proposed
+
+* Context
+
+Blueprint is Italian throughout, and the language is not only in the templates:
+
+- *Templates*: every file under =templates/= (headings, the =:noexport:= guides, the examples, =master.org= with its parts) is written in Italian.
+- *Headings the code looks up by name*: =blueprint-functional.el= finds "Aree funzionali", "Entità di dominio" and "Punti di integrazione"; =blueprint-runtime.el= finds "Processi di business"; =blueprint-lint.el= lists the arc42 sections it expects. A project whose headings are translated breaks the commands that add functional areas, features, entities, integration points and business processes.
+- *Generated text*: the commands insert Italian prose (for example the overview line of a runtime flow in =blueprint-runtime.el=), and some messages and file headers too (PLAN 9.37).
+- *Markers*: =[DA VALIDARE]=, =[DA REVISIONARE]=, =[APPROVATO YYYY-MM-DD]= are Italian words that the health score and the linter recognize.
+
+The documentation is moving to English (README, USAGE, the method in =docs/method/=) so the package can be used outside Italy. Today an English-speaking user can read about Blueprint but cannot produce an English document with it, and the demo in =examples/demo/= has to stay Italian for its own commands to work on it.
+
+* Decision
+
+Not taken yet. What is decided (user, 2026-11-16) is that the feature has to be built: Blueprint must be able to produce a document in a language other than Italian, with templates organized in one folder per language. When and how is still open; the alternatives below are the starting point.
+
+Constraints any solution must respect:
+- existing Italian projects keep working with no migration (ADR-002: read the old format, offer the migration, never force it);
+- the three-tier template lookup (project, user, system) stays, per language;
+- Italian stays the default until a project or the user chooses otherwise.
+
+* Alternatives considered
+
+** A: one template folder per language, headings matched through a per-language table
+
+=templates/it/=, =templates/en/=, a defcustom such as =blueprint-template-language= (default ="it"=), and in the code a table that maps each logical section (functional areas, entities, ...) to its heading in each language.
+
+- Pro: small change to the code that searches headings.
+- Pro: the user's and the project's template folders follow the same layout.
+- Con: every new language means editing the code, not only adding templates.
+- Con: a user who renames a heading in a custom template breaks the commands, as today.
+
+** B: one template folder per language, sections found by anchor instead of heading
+
+The templates already carry a target for most sections (=<<component-entities>>=, =<<component-business-processes>>= and similar; "Aree funzionali" has none yet). The code would find sections through those anchors, or through a property, and ignore the heading text.
+
+- Pro: headings become free text, in any language and renamable by the user.
+- Pro: a new language is only a new template folder plus the generated strings.
+- Con: projects created before the anchors existed need the old heading lookup as a fallback (ADR-002).
+- Con: larger change, touching every module that searches headings.
+
+** C: English as the only canonical language, Italian as a translation
+
+Move the canonical templates to English and treat Italian as the first translation.
+
+- Pro: aligns the code, the documentation and the templates.
+- Con: the Italian projects in use today need a migration, or the old lookup forever.
+- Con: it does not by itself solve the coupling between code and heading text.
+
+Markers and generated strings need a solution in every alternative: either language-specific marker names recognized alongside the Italian ones, or one canonical set documented as such.
+
+* Consequences
+
+To be written when the decision is taken.

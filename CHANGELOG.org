@@ -1,215 +1,92 @@
 ;;; -*- coding: utf-8; -*-
 #+TITLE: CHANGELOG
 #+AUTHOR: kLeZ
-#+LANGUAGE: it
+#+LANGUAGE: en
 
-Tutte le modifiche rilevanti di questo progetto sono documentate in questo
-file. Le versioni seguono lo [[https://semver.org][Semantic Versioning]].
+All notable changes to this project are documented in this file. Versions follow [[https://semver.org][Semantic Versioning]].
+
+* Unreleased
+
+- The methodology moved from =assessment-framework/= (Italian, with the old Python scaffolder) to =docs/method/= in English: =method.org=, =rationale.org=, =kickoff.org=.
+- USAGE.org and CHANGELOG.org translated into English; PLAN.org translated into English.
+- =examples/demo/=: an invented project (a warehouse management system) to try the package on, in Italian like the templates.
+- PLAN.org phase 11 and ADR-003 (proposed): localized templates.
 
 * 0.4.1 — 2026-11-02
 
-Correzioni della 0.4.0 trovate al primo uso su un progetto reale. Suite
-ERT da 554 a 567 test.
+Fixes to 0.4.0 found in its first real use. ERT suite from 554 to 567 tests.
 
-** Versione del progetto
-- Scrivere =blueprint-version.org= non è più un passo di migrazione
-  (ADR-002, D7): il passo =version-file= spariva dal piano appena se ne
-  applicava un altro, senza finire in =#+BLUEPRINT_MIGRATIONS:=, e su un
-  progetto già nel formato attuale contava come "1 migrazione
-  disponibile" in dashboard e in CI. Il file lo scrivono
-  =blueprint-init= e ogni migrazione applicata; nel piano =v=
-  (=blueprint-upgrade-declare-version=) lo scrive a richiesta, con la
-  versione dedotta finché restano passi, altrimenti con quella del
-  pacchetto, e conserva le migrazioni registrate.
+** Project version
+- Writing =blueprint-version.org= is no longer a migration step (ADR-002, D7): the =version-file= step disappeared from the plan as soon as another one was applied, without ending up in =#+BLUEPRINT_MIGRATIONS:=, and on a project already in the current format it counted as "1 migration available" in the dashboard and in CI. The file is written by =blueprint-init= and by every applied migration; in the plan, =v= (=blueprint-upgrade-declare-version=) writes it on request, with the inferred version while steps remain and the package's otherwise, and keeps the recorded migrations.
 
-** Correzioni
-- Piano di migrazione: =blueprint-project-upgrade= (=C-c b ^=, =u= in
-  dashboard) falliva con =Wrong type argument: stringp, nil= su ogni
-  progetto senza =blueprint-version.org=, perché la colonna del formato
-  di partenza restava vuota; ora un passo senza formato mostra "--".
-- Dashboard: la versione del progetto viene prima della milestone, e il
-  titolo della milestone è tagliato a
-  =blueprint-dashboard-milestone-width= (nuova opzione, 40; nil per non
-  tagliare) con il titolo intero nel tooltip. Con un titolo lungo e la
-  dashboard in una finestra affiancata la versione non si vedeva.
-- Accenti veri invece degli apostrofi nei testi scritti dal pacchetto
-  (=blueprint-version.org=, intestazione di =agenda.org=, titolo del
-  passo =project-files=), con un test che controlla sorgenti e template.
-- Export: "--" fra due lettere o cifre (per esempio un nome di
-  repository come =acme--portale=) resta di due trattini invece di
-  diventare un trattino medio, in ODT, HTML e LaTeX. Configurabile con
-  =blueprint-export-double-hyphen=: =except-words= (default), =always=
-  (trattino medio ovunque, come Org), =never= (sempre due trattini).
-- Export ODT: le figure con didascalia sono ancorate come carattere e
-  centrate, quindi una figura che non entra nella pagina passa alla
-  successiva invece di coprire quella precedente
-  (=blueprint-export-odt-images-as-char=, attiva di default).
+** Fixes
+- Migration plan: =blueprint-project-upgrade= (=C-c b ^=, =u= in the dashboard) failed with =Wrong type argument: stringp, nil= on every project without =blueprint-version.org=, because the starting-format column stayed empty; a step without a format now shows "--".
+- Dashboard: the project version comes before the milestone, and the milestone title is cut at =blueprint-dashboard-milestone-width= (new option, 40; nil not to cut it) with the full title in the tooltip. With a long title and the dashboard in a side window, the version was not visible.
+- Real accented letters instead of apostrophes in the text the package writes (=blueprint-version.org=, the header of =agenda.org=, the title of the =project-files= step), with a test that checks sources and templates.
+- Export: "--" between two letters or digits (for example a repository name like =acme--portal=) stays two hyphens instead of becoming an en dash, in ODT, HTML and LaTeX. Configurable with =blueprint-export-double-hyphen=: =except-words= (default), =always= (en dash everywhere, like Org), =never= (always two hyphens).
+- ODT export: captioned figures are anchored as characters and centered, so a figure that does not fit on the page moves to the next one instead of covering the previous one (=blueprint-export-odt-images-as-char=, on by default).
 
 * 0.4.0 — 2026-11-02
 
-Revisione completa della 0.3.0 e retrocompatibilità con tutte le
-versioni precedenti, con migrazione facoltativa. Suite ERT da 501 a 554
-test.
+A full review of 0.3.0, and compatibility with every earlier version, with optional migration. ERT suite from 501 to 554 tests.
 
-** Versione del progetto e migrazioni opzionali
-- Blueprint legge di nuovo ogni formato scritto in passato: ADR in un
-  file ciascuno (fino a 2026-03), glossario e riferimenti scritti nella
-  data directory (fino a 2026-09), agenda della 0.3.0.
-- =.blueprint/blueprint-version.org= registra la versione Blueprint del
-  progetto e le migrazioni applicate; senza, la versione viene dedotta.
-- =blueprint-project-upgrade= (=C-c b ^=, =u= in dashboard): piano delle
-  migrazioni disponibili (14 formati dalle versioni precedenti la 0.1.0)
-  e dei template di progetto e utente vecchi o personalizzati; applica
-  solo su richiesta, con backup in =_archive/= e avviso git.
-- Dashboard, report JSON e =blueprint-ci-validate= mostrano versione e
-  migrazioni (effetto sul codice d'uscita: =blueprint-ci-pending-migrations=).
-- Nuove opzioni: =blueprint-upgrade-backup=,
-  =blueprint-upgrade-backup-directory=, =blueprint-upgrade-git-check=,
-  =blueprint-template-status-scopes=, =blueprint-dashboard-show-version=,
-  =blueprint-ci-pending-migrations=, =blueprint-diff-default-base=,
-  =blueprint-agenda-view=, =blueprint-glossary-source-position=.
+** Project version and optional migrations
+- Blueprint reads every format it has ever written again: one file per ADR (until 2026-03), glossary and references written in the data directory (until 2026-09), the 0.3.0 agenda.
+- =.blueprint/blueprint-version.org= records the project's Blueprint version and the migrations applied; without it, the version is inferred.
+- =blueprint-project-upgrade= (=C-c b ^=, =u= in the dashboard): a plan of the available migrations (14 formats from versions before 0.1.0 onwards) and of the outdated or customized project and user templates; it applies only on request, with a backup in =_archive/= and a git warning.
+- The dashboard, the JSON report and =blueprint-ci-validate= show the version and the migrations (effect on the exit code: =blueprint-ci-pending-migrations=).
+- New options: =blueprint-upgrade-backup=, =blueprint-upgrade-backup-directory=, =blueprint-upgrade-git-check=, =blueprint-template-status-scopes=, =blueprint-dashboard-show-version=, =blueprint-ci-pending-migrations=, =blueprint-diff-default-base=, =blueprint-agenda-view=, =blueprint-glossary-source-position=.
 
-** Correzioni
-- CI: =blueprint-sync.el= richiede =blueprint-history= e
-  =blueprint-roam.el= richiede =blueprint-graph= (byte-compile rosso su
-  29.1 e snapshot); il workflow di test installa Graphviz e il test del
-  preview si salta senza =dot=; matrice di byte-compile con
-  =fail-fast: false=.
-- =blueprint-add-component= di nuovo autoload (il cookie era finito sul
-  =defconst= dei template).
-- Changelog: le ADR fuori dall'export (=:noexport:=, =COMMENT=) non
-  entrano più; l'esempio "ADR 0000" del template finiva in ogni
-  =CHANGELOG.org=.
-- Agenda: il link =:ORIGIN:= si risolve dal file dell'agenda (era
-  relativo alla root ma il file sta nella data directory); gli ID usano
-  il percorso relativo alla root, così sopravvivono allo spostamento
-  del progetto (gli ID della 0.3.0 vengono riconosciuti: al primo
-  refresh passano al formato nuovo conservando date e stato);
-  =org-agenda-files= come stringa (file di elenco) non viene più
-  trasformato in lista di caratteri.
-- Diff del componente: il default confronta con =HEAD=, incluse le
-  modifiche già in stage; una revisione vuota al prompt non viene più
-  passata a git.
-- Report JSON: owner e tech assenti sono =null= e =included= falso è
-  =false= (=json-serialize= scriveva ={}=); le dipendenze vengono
-  calcolate anche quando =blueprint-graph= non è ancora caricato.
-- Preview: il timer usa la root del file salvato, non il buffer
-  corrente al momento dello scatto; =blueprint--dashboard-svg-generate=
-  rispetta l'argomento =ROOT=; un errore di rendering diventa un
-  messaggio invece di uscire dal timer.
-- Cluster roam: i link si leggono attraverso i nodi del file (in
-  org-roam =links.source= è un ID di nodo) e le destinazioni =id:= si
-  riportano al file del nodo; una seconda chiamata non fallisce più su
-  buffer in sola lettura.
-- Lint del ciclo di vita: i FIXME contati sono quelli dei documenti
-  del componente inclusi in master.org, come nella dashboard.
-- Domande: lo stato di una voce è il marker trovato (un ANSWERED in
-  prosa non è più "open"); =blueprint-answer-question= propone solo le
-  righe di elenco, anche rientrate, e non scrive =[FONTE: ]= vuoto.
-- Glossario: aggiunta in una sezione vuota senza errore; le voci
-  seguono il formato del template (definizione, poi =/Fonte: .../=),
-  anche quelle catturate con org-capture (=bg=), che ora finiscono come
-  heading di livello 2 nella prima sezione invece che in coda al file.
-- Grafo SVG (dashboard, preview, backend Graphviz di
-  =blueprint-dependency-graph=): gli id con trattino (=order-service=)
-  erano un errore di sintassi DOT e il grafo non veniva generato; ora
-  sono quotati e un errore di =dot= viene segnalato.
-- Agenda: =blueprint-agenda= apre una vista con le scadenze e tutte le
-  voci aperte (con =org-agenda-list= le voci senza data non
-  comparivano); DEADLINE, SCHEDULED e CLOSED su un'unica riga di
-  planning (la seconda riga non era planning e la data si perdeva al
-  refresh successivo).
-- Roam: similarità con lo schema reale di org-roam (tag per
-  =node-id=, nodo di file di livello 0); la colonna "In comune" mostra
-  solo ciò che è condiviso.
-- Diff: solo le righe dentro gli hunk sono contenuto; "domande
-  risolte" è il netto delle righe ANSWERED; i file non ancora aggiunti
-  a git compaiono come file nuovi.
-- Cancellazione del primo componente di una sezione: nessuna
-  interruzione di pagina residua in testa alla sezione.
-- =blueprint-adr-list= non elenca l'ADR d'esempio del template.
-- Template =arc42-enterprise.org= con la guida completa di
-  =component.org= (esempi, cosa scrivere, modelli di diagramma) più le
-  parti enterprise; la guida di entrambi spiega
-  =#+BLUEPRINT_LIFECYCLE:=.
-- Report JSON: chiave =lifecycle= per componente.
-- Autoload su =blueprint-dashboard-svg=, =blueprint-component-diff=,
-  =blueprint-preview-mode=, =blueprint-roam-similar= e
-  =blueprint-roam-clusters=.
-- Documentazione: AGENTS.md allineato al codice (struttura di
-  =blueprint-init=, percorso degli ADR, template, calcolo dello score);
-  USAGE senza il gap del glossario già chiuso.
+** Fixes
+- CI: =blueprint-sync.el= requires =blueprint-history= and =blueprint-roam.el= requires =blueprint-graph= (byte-compile was red on 29.1 and on snapshot); the test workflow installs Graphviz and the preview test is skipped without =dot=; the byte-compile matrix has =fail-fast: false=.
+- =blueprint-add-component= is autoloaded again (the cookie had ended up on the templates' =defconst=).
+- Changelog: ADRs outside the export (=:noexport:=, =COMMENT=) are no longer included; the template's sample "ADR 0000" ended up in every =CHANGELOG.org=.
+- Agenda: the =:ORIGIN:= link resolves from the agenda file (it was relative to the root, but the file lives in the data directory); IDs use the path relative to the root, so they survive moving the project (0.3.0 IDs are recognized and move to the new format at the first refresh, keeping dates and state); =org-agenda-files= as a string (a list file) is no longer turned into a list of characters.
+- Component diff: the default compares with =HEAD=, staged changes included; an empty revision at the prompt is no longer passed to git.
+- JSON report: missing owner and tech are =null=, and =included= false is =false= (=json-serialize= wrote ={}=); dependencies are computed even when =blueprint-graph= is not loaded yet.
+- Preview: the timer uses the root of the saved file, not the buffer current when it fires; =blueprint--dashboard-svg-generate= honors its =ROOT= argument; a rendering error becomes a message instead of escaping the timer.
+- Roam clusters: links are read through the file's nodes (in org-roam =links.source= is a node ID), and =id:= destinations map back to the node's file; a second call no longer fails on a read-only buffer.
+- Lifecycle lint: the FIXMEs counted are those of the component documents included in master.org, as in the dashboard.
+- Questions: the state of an entry is the marker found (an ANSWERED in prose is no longer "open"); =blueprint-answer-question= offers only list lines, indented ones too, and does not write an empty =[FONTE: ]=.
+- Glossary: adding to an empty section no longer fails; entries follow the template's format (definition, then =/Fonte: .../=), including those captured with org-capture (=bg=), which now land as level-2 headings in the first section instead of at the end of the file.
+- SVG graph (dashboard, preview, Graphviz backend of =blueprint-dependency-graph=): hyphenated ids (=order-service=) were a DOT syntax error and the graph was not generated; they are now quoted, and a =dot= error is reported.
+- Agenda: =blueprint-agenda= opens a view with the deadlines and every open entry (with =org-agenda-list= the undated entries did not appear); DEADLINE, SCHEDULED and CLOSED on a single planning line (the second line was not planning, and the date was lost at the next refresh).
+- Roam: similarity with org-roam's real schema (tags per =node-id=, level-0 file node); the "In comune" column shows only what is shared.
+- Diff: only lines inside hunks are content; "questions resolved" is the net of the ANSWERED lines; files not yet added to git appear as new files.
+- Deleting the first component of a section: no leftover page break at the top of the section.
+- =blueprint-adr-list= no longer lists the template's sample ADR.
+- =arc42-enterprise.org= template with the full guide of =component.org= (examples, what to write, diagram templates) plus the enterprise parts; the guide of both explains =#+BLUEPRINT_LIFECYCLE:=.
+- JSON report: a =lifecycle= key per component.
+- Autoloads on =blueprint-dashboard-svg=, =blueprint-component-diff=, =blueprint-preview-mode=, =blueprint-roam-similar= and =blueprint-roam-clusters=.
+- Documentation: AGENTS.md aligned with the code (structure of =blueprint-init=, ADR path, templates, score computation); USAGE without the glossary gap already closed.
 
 * 0.3.0 — 2026-11-01
 
-Chiusura della roadmap di sviluppo (PLAN.org, fase 9 e 10.8). Suite ERT
-da 425 a 501 test.
+Completion of the development roadmap (PLAN.org, phase 9 and 10.8). ERT suite from 425 to 501 tests.
 
-** Nuovi moduli
-- *blueprint-history.el*: =blueprint-sync= registra score, penalità,
-  parole e conteggi dei marker in =.blueprint/metrics-history.org=
-  (=blueprint-history-on-sync=, riga saltata se i valori non cambiano);
-  =blueprint-metrics-history= (=C-c b x=) disegna lo score nel tempo in
-  SVG (9.3).
-- *blueprint-agenda.el*: i marker QUESTION e FIXME del documento
-  (=blueprint-agenda-marker-types=) diventano voci TODO di
-  =.blueprint/agenda.org=; DEADLINE, SCHEDULED e stato sopravvivono al
-  refresh; =blueprint-agenda= (=C-c b U=) apre =org-agenda-list= su quel
-  file (9.6).
-- *blueprint-changelog.el*: =blueprint-changelog-generate= (=C-c b J=)
-  scrive =CHANGELOG.org= da =git log= e dalle ADR accettate (9.1).
-- *blueprint-diff.el*: =blueprint-component-diff= mostra il =git diff=
-  della directory del componente con una sintesi (file, heading,
-  marker aggiunti e rimossi, domande risolte); sempre =--no-ext-diff=,
-  perché un =diff.external= nella gitconfig produrrebbe un formato non
-  leggibile; tasto =d= nella lista componenti (9.7).
-- *blueprint-preview.el*: =blueprint-preview= apre il grafo colorato
-  per health in una finestra laterale e attiva =blueprint-preview-mode=,
-  che lo rigenera a ogni salvataggio con debounce di
-  =blueprint-preview-delay= (1 s) (9.10).
+** New modules
+- *blueprint-history.el*: =blueprint-sync= records score, penalty, words and marker counts in =.blueprint/metrics-history.org= (=blueprint-history-on-sync=, line skipped when the values do not change); =blueprint-metrics-history= (=C-c b x=) draws the score over time as SVG (9.3).
+- *blueprint-agenda.el*: the document's QUESTION and FIXME markers (=blueprint-agenda-marker-types=) become TODO entries of =.blueprint/agenda.org=; DEADLINE, SCHEDULED and state survive the refresh; =blueprint-agenda= (=C-c b U=) opens =org-agenda-list= on that file (9.6).
+- *blueprint-changelog.el*: =blueprint-changelog-generate= (=C-c b J=) writes =CHANGELOG.org= from =git log= and from the accepted ADRs (9.1).
+- *blueprint-diff.el*: =blueprint-component-diff= shows the =git diff= of the component's directory with a summary (files, headings, markers added and removed, questions resolved); always =--no-ext-diff=, because a =diff.external= in the gitconfig would produce an unreadable format; key =d= in the component list (9.7).
+- *blueprint-preview.el*: =blueprint-preview= opens the graph colored by health in a side window and turns on =blueprint-preview-mode=, which regenerates it at every save with a debounce of =blueprint-preview-delay= (1 s) (9.10).
 
-** Funzioni estese
-- *Ciclo di vita*: =#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived=
-  (default =active=), asse separato dal perimetro =#+BLUEPRINT_STATUS:=;
-  colonna =Life= nella dashboard; il lint avvisa per un componente
-  =active= con FIXME o che dipende da uno =deprecated=
-  (=blueprint-lint-lifecycle-checks=) (9.2).
-- *Domande*: tag opzionale =[TAG: ...]= sulla riga;
-  =blueprint-answer-question= riscrive la riga in
-  =- ANSWERED [data] testo [FONTE: ...]=, che non conta più in health,
-  dashboard e lint; la lista mostra Tag e State e filtra per tag (=t=) e
-  stato (=s=); le voci aperte coincidono con la colonna QUESTION (9.12,
-  residui 9.31).
-- *Dashboard*: con =CRONOPROGRAMMA.org= o =TODO.org= alla root
-  (=blueprint-milestone-files=) la riga di stato mostra il primo heading
-  TODO in ordine di file, con la sua DEADLINE, e il numero di TODO
-  aperti (9.11); il giallo/verde dei grafi segue
-  =blueprint-delivery-score-threshold=.
-- *Glossario*: =blueprint-glossary-add= chiede la sezione e inserisce un
-  heading di livello 2 con riga =/Fonte: .../=; =blueprint-glossary-lookup=
-  trova anche le voci nel formato precedente (10.8).
-- *Cancellazione componenti*: =blueprint-delete-component= rimuove le
-  righe =#+INCLUDE= e le headline del componente dalle sezioni
-  sincronizzate di master.org e chiede conferma aggiuntiva quando altri
-  componenti ne dipendono (9.13).
-- *Template enterprise*: =templates/arc42-enterprise.org= con Contesto
-  enterprise, Stakeholder e Conformità; =C-u C-c b A= lo propone (9.5).
-- *org-roam*: =blueprint-roam-similar= (similarità per tag, link e
-  titolo) e =blueprint-roam-clusters= (componenti connessi da
-  dipendenze e link) (9.8).
+** Extended features
+- *Lifecycle*: =#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (default =active=), an axis separate from the =#+BLUEPRINT_STATUS:= scope; =Life= column in the dashboard; the lint warns about an =active= component with FIXMEs or depending on a =deprecated= one (=blueprint-lint-lifecycle-checks=) (9.2).
+- *Questions*: optional =[TAG: ...]= tag on the line; =blueprint-answer-question= rewrites the line as =- ANSWERED [date] text [FONTE: ...]=, which no longer counts in health, dashboard and lint; the list shows Tag and State and filters by tag (=t=) and state (=s=); open entries match the QUESTION column (9.12, leftovers of 9.31).
+- *Dashboard*: with =CRONOPROGRAMMA.org= or =TODO.org= at the root (=blueprint-milestone-files=) the status line shows the first TODO heading in file order, with its DEADLINE, and the number of open TODOs (9.11); the yellow/green of the graphs follows =blueprint-delivery-score-threshold=.
+- *Glossary*: =blueprint-glossary-add= asks for the section and inserts a level-2 heading with a =/Fonte: .../= line; =blueprint-glossary-lookup= also finds entries in the previous format (10.8).
+- *Deleting components*: =blueprint-delete-component= removes the component's =#+INCLUDE= lines and headings from the synchronized sections of master.org, and asks for an extra confirmation when other components depend on it (9.13).
+- *Enterprise template*: =templates/arc42-enterprise.org= with enterprise context, stakeholders and compliance; =C-u C-c b A= offers it (9.5).
+- *org-roam*: =blueprint-roam-similar= (similarity by tags, links and title) and =blueprint-roam-clusters= (components connected by dependencies and links) (9.8).
 
-** Integrazione CI
-- =blueprint-ci-export-json= scrive =blueprint-report.json= con health,
-  marker, componenti, dipendenze e warning del lint (9.4).
-- Workflow di test aggiornato con i nuovi file ERT.
+** CI integration
+- =blueprint-ci-export-json= writes =blueprint-report.json= with health, markers, components, dependencies and lint warnings (9.4).
+- Test workflow updated with the new ERT files.
 
-** Documentazione
-- README, USAGE e AGENTS.md aggiornati; nuovo Flusso 13 in USAGE;
-  sezione "Funzioni native di Org supportate" (9.16).
+** Documentation
+- README, USAGE and AGENTS.md updated; new workflow 13 in USAGE; section "Native Org features supported" (9.16).
 
-* 0.2.0 — versione precedente
+* 0.2.0 — earlier version
 
-Vedi la storia dei commit su origin/main (fino a 3e39fd9e53) per
-i dettagli della release precedente: conteggi sul documento intero,
-tre documenti per componente, health score riponderato, numerazione
-continua delle didascalie ODT.
+See the commit history on origin/main (up to 3e39fd9e53) for the details of the earlier release: counts on the whole document, three documents per component, reweighted health score, continuous numbering of ODT captions.

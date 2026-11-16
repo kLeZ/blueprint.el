@@ -1,0 +1,56 @@
+#+TITLE: Vincoli architetturali
+#+VERSION: 0.1
+#+STATUS: [DA VALIDARE]
+#+UPDATED: 2026-11-16
+
+* Guida alla compilazione — Vincoli architetturali                 :noexport:
+
+I vincoli limitano lo spazio delle soluzioni architetturali.  Documentarli
+esplicitamente permette di giustificare le scelte e di riconoscere quando
+un vincolo decade o cambia.  Usare =blueprint-nfr-add-constraint= (=C-c b c=)
+per aggiungere vincoli in modo interattivo.
+
+** Esempio: vincoli tecnici
+
+| Vincolo            | Descrizione                            | Impatto                          | Componenti coinvolti      | Fonte           |
+|--------------------+----------------------------------------+----------------------------------+---------------------------+-----------------|
+| Java 17 LTS minimo | Il runtime di tutti i servizi JVM deve | Esclude librerie solo-Java11;    | payment-service,          | decisione       |
+|                    | essere Java 17 o superiore             | abilita records e sealed classes | order-service             | architetturale  |
+| Nessun ORM         | Accesso al DB tramite SQL esplicito    | Più verboso ma tracciabile e     | tutti i componenti con DB | scelta del team |
+|                    | (JOOQ o JDBC diretto, no Hibernate)    | controllabile in produzione      |                           |                 |
+
+** Esempio: vincoli organizzativi
+
+| Vincolo              | Descrizione                                       | Impatto                                    | Fonte               |
+|----------------------+---------------------------------------------------+--------------------------------------------+---------------------|
+| Team di 3 devs       | Il team di sviluppo è composto da 3 persone       | Limitare il numero di tecnologie distinte; | struttura aziendale |
+|                      | a tempo pieno                                     | automazione CI/CD prioritaria              |                     |
+| Deploy bisettimanale | Release in produzione al massimo ogni 2 settimane | Impedisce continuous delivery; richiede    | accordo con ops     |
+|                      | (finestra di manutenzione concordata)             | feature flag per rilasci parziali          |                     |
+
+** Esempio: vincoli normativi e di compliance
+
+| Norma / Regolamento | Requisito                                       | Componenti coinvolti             | Stato conformità          |
+|---------------------+-------------------------------------------------+----------------------------------+---------------------------|
+| PCI-DSS v4.0        | I dati di carta di pagamento non transitano     | payment-service, api-gateway     | [FINDING] non conforme:   |
+|                     | né vengono memorizzati sui nostri server        |                                  | tokenizzazione incompleta |
+| GDPR Art. 25        | Privacy by design: raccogliere solo i dati      | tutti i componenti con DB utenti | [DA VALIDARE]             |
+|                     | strettamente necessari alla finalità dichiarata |                                  |                           |
+
+* Vincoli trasversali
+<<nfr-constraints>>
+[DA VALIDARE]
+
+Vincoli che impattano più componenti o l'intera architettura.
+
+** Vincoli tecnici
+| Vincolo | Descrizione | Impatto | Componenti coinvolti | Fonte |
+|---------+-------------+---------+----------------------+-------|
+
+** Vincoli organizzativi
+| Vincolo | Descrizione | Impatto | Fonte |
+|---------+-------------+---------+-------|
+
+** Vincoli normativi e di compliance
+| Norma / Regolamento | Requisito | Componenti coinvolti | Stato conformità |
+|---------------------+-----------+----------------------+------------------|

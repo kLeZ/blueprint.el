@@ -78,7 +78,7 @@ Also every M-x blueprint-... command mentioned exists."
       (insert text)
       (goto-char (point-min))
       (while (re-search-forward
-              "M-x \\(blueprint-[[:alnum:]-]+\\)=?[ \t]+(\\(?:oppure: \\)?=?C-c b \\([^ =)]+\\)"
+              "M-x \\(blueprint-[[:alnum:]-]+\\)=?[ \t]+(\\(?:\\(?:oppure\\|or\\): \\)?=?C-c b \\([^ =)]+\\)"
               nil t)
         (let ((cmd (intern (match-string 1)))
               (key (match-string 2)))

@@ -1,78 +1,71 @@
-#+TITLE: Blueprint --- Piano di implementazione
+#+TITLE: Blueprint --- Implementation plan
 
-* Panoramica
-Questo file traccia lo stato di implementazione delle feature e raccoglie idee
-per lo sviluppo futuro. Le sezioni con +testo barrato+ sono completate.
+* Overview
+This file tracks the implementation state of the features and collects ideas for future development. Sections in +strikethrough+ are done.
+
+Entries marked as found "in real use" come from using the package on real documentation work; by rule (AGENTS.md) they carry no identifying details.
 
 --------------
 
-* +Fase 1 --- Fondamenta e infrastruttura core+ ✅
+* +Phase 1 --- Foundations and core infrastructure+ ✅
 ** +1.1 Metrics caching (=blueprint-core.el=)+ ✅
-- +Hash-table cache con invalidazione MD5+
-- +=blueprint--invalidate-cache= e =blueprint--cached-metrics=+
+- +Hash-table cache with MD5 invalidation+
+- +=blueprint--invalidate-cache= and =blueprint--cached-metrics=+
 
-** +1.2 Component CRUD completo (=blueprint-core.el=)+ ✅
+** +1.2 Full component CRUD (=blueprint-core.el=)+ ✅
 - +=blueprint-list-components=+
 - +=blueprint-rename-component=+
 - +=blueprint-delete-component=+
 
 ** +1.3 ADR management (=blueprint-adr.el=)+ ✅
-- +=blueprint-adr-new= con numerazione automatica+
+- +=blueprint-adr-new= with automatic numbering+
 - +=blueprint-adr-list=+
 - +Template =templates/adr.org=+
 
 ** +1.4 Linter (=blueprint-lint.el=)+ ✅
-- +=blueprint-lint= e =blueprint-lint-component=+
+- +=blueprint-lint= and =blueprint-lint-component=+
 - +Heading check, marker threshold, dangling deps, empty content+
-- +*BUGFIX*: =blueprint--lint-component= restituiva lista vuota se il file
-  mancava+
+- +*BUGFIX*: =blueprint--lint-component= returned an empty list when the file was missing+
 
 --------------
 
-* +Fase 2 --- Dashboard e navigazione+ ✅
+* +Phase 2 --- Dashboard and navigation+ ✅
 ** +2.1 Dashboard buffer (=blueprint-dashboard.el=)+ ✅
-- +=blueprint-dashboard= con =tabulated-list-mode=+
-- +Header con health score e numero componenti+
+- +=blueprint-dashboard= with =tabulated-list-mode=+
+- +Header with health score and number of components+
 
 ** +2.2 Focus mode+ ✅
-- +=blueprint-focus= --- filtra componenti con marker aperti+
+- +=blueprint-focus= --- filters components with open markers+
 
 ** +2.3 SVG dashboard+ ✅
-- +=blueprint-dashboard-svg= --- Graphviz con colorazione risk-based+
+- +=blueprint-dashboard-svg= --- Graphviz with risk-based coloring+
 
 --------------
 
-* +Fase 3 --- Gestione contenuti e sync+ ✅
+* +Phase 3 --- Content management and sync+ ✅
 ** +3.1 Open questions --- AST-based (=blueprint-questions.el=)+ ✅
 - +=blueprint-add-question= via =org-element=+
 - +=blueprint-list-questions=+
 
 ** +3.2 Glossary management (=blueprint-glossary.el=)+ ✅
-- +=blueprint-glossary-add=, =blueprint-glossary-list=,
-  =blueprint-glossary-lookup=+
+- +=blueprint-glossary-add=, =blueprint-glossary-list=, =blueprint-glossary-lookup=+
 
 ** +3.3 Reference tracking (=blueprint-references.el=)+ ✅
 - +=blueprint-reference-add=, =blueprint-reference-list=+
 
 ** +3.4 Master file sync (=blueprint-sync.el=)+ ✅
-- +=blueprint-sync= con marker =@@blueprint-sync-start@@= /
-  =@@blueprint-sync-end@@=+
+- +=blueprint-sync= with markers =@@blueprint-sync-start@@= / =@@blueprint-sync-end@@=+
 
 ** +3.5 Ripgrep search (=blueprint-search.el=)+ ✅
-- +=blueprint-search=, preset per QUESTION/TBD/FIXME+
+- +=blueprint-search=, presets for QUESTION/TBD/FIXME+
 
 --------------
 
-* +Fase 4 --- Export e automazione+ ✅
+* +Phase 4 --- Export and automation+ ✅
 ** +4.1 Org-native export (=blueprint-export.el=)+ ✅
-- +PDF, ODT, HTML, DOCX (con ox-pandoc)+
-- +=blueprint-export-dispatch=: hand-off al menu standard =org-export-dispatch=
-  su master.org, per scegliere backend/template a runtime invece che via
-  =blueprint-export-backend= fisso+
-- +Default backend resta =pdf= (valore di pacchetto); un utente che preferisce
-  =odt= (es. per un template aziendale via =#+ODT_STYLES_FILE:=, che il PDF
-  via LaTeX non applica) lo imposta nella propria config (=:custom= nel
-  =use-package blueprint=), non nel pacchetto+
+- +PDF, ODT, HTML, DOCX (with ox-pandoc)+
+- +=blueprint-export-dispatch=: hand-off to the standard =org-export-dispatch= menu on master.org, to choose backend and template at export time instead of through a fixed =blueprint-export-backend=+
+- +The default backend stays =pdf= (a package value); a user who prefers =odt= (for example for a company template through =#+ODT_STYLES_FILE:=, which PDF via LaTeX does not apply) sets it in their own configuration (=:custom= in =use-package blueprint=), not in the package+
 
 ** +4.2 Async tangle/export (=blueprint-async.el=)+ ✅
 - +=blueprint-async-export=, =blueprint-async-tangle= via =make-thread=+
@@ -81,1337 +74,474 @@ per lo sviluppo futuro. Le sezioni con +testo barrato+ sono completate.
 - +=blueprint-auto-tangle-mode= minor mode+
 
 ** +4.4 Watch mode+ ✅
-- +=blueprint-watch-mode= con auto-sync e auto-C4+
+- +=blueprint-watch-mode= with auto-sync and auto-C4+
 
 --------------
 
-* +Fase 5 --- Dependency graph avanzato+ ✅
+* +Phase 5 --- Advanced dependency graph+ ✅
 ** +5.1 Dependency graph (=blueprint-graph.el=)+ ✅
-- +PlantUML e Graphviz, colorazione health-based+
+- +PlantUML and Graphviz, health-based coloring+
 
 --------------
 
-* +Fase 6 --- UX e onboarding+ ✅
+* +Phase 6 --- UX and onboarding+ ✅
 ** +6.1 Component skeleton wizard (=blueprint-wizard.el=)+ ✅
-- +=blueprint-wizard-component= con pre-compilazione+
+- +=blueprint-wizard-component= with pre-filled fields+
 
-** +6.2 Wizard onboarding+ ✅
+** +6.2 Onboarding wizard+ ✅
 - +=blueprint-wizard-init=+
 
 ** +6.3 Quick capture (=blueprint-capture.el=)+ ✅
-- +Template org-capture per note, domande, glossario+
+- +org-capture templates for notes, questions, glossary+
 
 ** +6.4 Daily workflow command (=blueprint-daily.el=)+ ✅
-- +=blueprint-daily= --- sequenza triage giornaliero+
+- +=blueprint-daily= --- daily triage sequence+
 
 --------------
 
-* +Fase 7 --- Intelligence e integrazione esterna+ ✅
+* +Phase 7 --- Intelligence and external integration+ ✅
 ** +7.1 Rule-based risk suggestions (=blueprint-risks.el=)+ ✅
-- +Pattern matching deterministico + check strutturali+
+- +Deterministic pattern matching plus structural checks+
 
 ** +7.2 AI-assisted snippets --- Ollama (=blueprint-ai.el=)+ ✅
-- +=blueprint-ai-expand=, =blueprint-ai-suggest-risks=,
-  =blueprint-ai-boilerplate=+
+- +=blueprint-ai-expand=, =blueprint-ai-suggest-risks=, =blueprint-ai-boilerplate=+
 
 ** +7.3 Prompt guardrails+ ✅
-- +Context clamping + sanitizzazione email/IP/password+
+- +Context clamping plus sanitization of emails, IPs and passwords+
 
 ** +7.4 Org-roam integration (=blueprint-roam.el=)+ ✅
-- +Soft dependency con =require ... nil t=+
+- +Soft dependency with =require ... nil t=+
 
 ** +7.5 CI/headless mode (=blueprint-ci.el=)+ ✅
 - +=blueprint-ci-lint=, =blueprint-ci-export=, =blueprint-ci-validate=+
 
 --------------
 
-* +Infrastruttura test e licenza+ ✅
-- +Suite ERT in =test/= a più livelli (unit, integration, end-to-end)+
-- +CI GitHub Actions (=test.yml=) che esegue tutti i test+
-- +Licenza MIT (=LICENSE=)+
-- +=AGENTS.md= per agenti AI+
-- +Fix bug =blueprint--lint-component= (file mancante silenzioso)+
+* +Test infrastructure and license+ ✅
+- +ERT suite in =test/= at several levels (unit, integration, end-to-end)+
+- +GitHub Actions CI (=test.yml=) running every test+
+- +MIT license (=LICENSE=)+
+- +=AGENTS.md= for AI agents+
+- +Bug fix in =blueprint--lint-component= (silent missing file)+
 
 --------------
 
-* +Fase 8 --- Qualità e robustezza+ ✅
-** 8.1 Fix noti e tech debt
-- [X] =blueprint-questions.el=: investigato il presunto bug di
-  =blueprint--find-heading= con heading a TODO keyword/tag --- verificato
-  via probe diretto su =org-element-parse-buffer= che =:raw-value= esclude
-  correttamente sia il TODO keyword sia i tag, quindi il matching
-  dell'heading funziona già bene in quel caso. Trovato invece un bug reale
-  e indipendente dal TODO/tag in =blueprint-add-question=: quando esiste
-  già un heading successivo, l'inserimento della nuova QUESTION consuma la
-  riga vuota che separava la sezione "Open Questions" dall'heading
-  successivo, incollandoli. *fix*: dopo l'insert, se il carattere
-  immediatamente successivo è =*= (heading senza riga vuota), viene
-  reinserita la riga vuota. Test di regressione:
-  =blueprint-test-questions/preserves-blank-line-before-next-heading=.
-- [X] =blueprint-sync.el=: =blueprint--sync-section= inseriva =\n= prima del
-  content anche se =(1+ start)= è già posizionato a inizio riga subito
-  dopo lo start-marker, producendo una riga vuota extra a ogni sync
-  (cosmetic, non funzionale). *fix*: rimosso il =\n= iniziale ridondante
-  da =(insert "\n" content "\n")= → =(insert content "\n")=. Test di
-  regressione: =blueprint-test-sync/sync-section-no-spurious-blank-line=.
-- [X] =blueprint-wizard.el=: =blueprint-wizard-component= popola
-  =#+BLUEPRINT_OWNER:= e =#+BLUEPRINT_TECH:= (presenti nel template
-  =component.org=) ma nessun altro modulo li leggeva --- *fix*: aggiunte
-  colonne Owner e Tech alla dashboard (=blueprint-dashboard.el= ora richiede
-  =blueprint-c4= e legge i keyword via =blueprint--org-keyword=).
-- [X] =blueprint-export.el=: il docstring di =blueprint--master-or-error= diceva
-  "creating it if needed" ma la funzione segnala =user-error= senza creare
-  nulla. *fix*: docstring corretto; messaggio di errore aggiornato a "run
-  blueprint-init or blueprint-sync first".
-- [X] =blueprint-export.el=: =#+TITLE= è una keyword "cumulativa" per
-  org-export (=parse= behaviour in =org-export-options-alist=, concatena
-  valori multipli). Ogni file satellite incluso in =master.org= via
-  =#+INCLUDE= porta il proprio =#+TITLE= (utile per editing standalone), e
-  org lo mantiene nel buffer espanso: il titolo del documento esportato
-  (ODT/PDF/HTML/DOCX) diventava la concatenazione di tutti i titoli inclusi
-  invece del solo titolo del master. Rilevato su un progetto reale
-  (progetto pilota, 17 file satellite inclusi). *fix*: nuova
-  =blueprint--strip-duplicate-titles=, agganciata a
-  =org-export-before-parsing-functions= al caricamento del pacchetto ---
-  gira dopo l'espansione degli =#+INCLUDE= e prima che org raccolga le
-  keyword del documento, rimuove ogni =#+TITLE= tranne il primo. Vale per
-  qualunque backend e per l'export ODT nativo di org (non gestito da
-  =blueprint-export.el=), perché agisce su una variabile hook globale.
-  Implementata con =org-element= (non regex): individua solo i nodi
-  keyword reali, così un =#+TITLE:= mostrato come testo di esempio dentro
-  un blocco =example=/=src= (pattern comune nei file org tutorial-style)
-  resta intatto. Test di regressione: =test/blueprint-test-export.el=.
-- [X] =#+ODT_STYLES_FILE= con un template aziendale "grezzo" (un =.ott=
-  scritto in Writer, non derivato dall'export di org) produceva un
-  export ODT rotto *senza alcun errore o warning*: quel file sostituiva
-  integralmente =styles.xml=, che di norma contiene anche gli stili
-  interni di cui org ha bisogno (=OrgDisplayImage=, =OrgTable*=,
-  =OrgCode=, =OrgBulletedList=/=OrgNumberedList=, ecc. --- verificati 13+
-  nomi diversi in un caso reale). Un template aziendale normale non li
-  conosce: il documento risultava "quasi giusto" (gli stili standard come
-  Heading/Text body hanno un fallback implicito in LibreOffice) ma le
-  immagini a paragrafo (ogni diagramma PlantUML incluso via
-  =#+begin_src plantuml :file x.svg=) si sovrapponevano al contenuto
-  successivo invece di riservare lo spazio verticale, perché
-  =OrgDisplayImage= --- che imposta =wrap="none"= --- non esisteva da nessuna
-  parte. Rilevato su un progetto reale (progetto pilota,
-  =template-aziendale.ott=), segnalato dall'utente come "problema col
-  documento finale" senza altro contesto: diagnosticato confrontando
-  ogni =style-name= referenziato in =content.xml= con quelli definiti in
-  =content.xml=+=styles.xml= esportati. Fix applicato manualmente in
-  quel progetto (unione degli stili mancanti, presi da
-  =OrgOdtStyles.xml=, dentro lo =styles.xml= del template aziendale).
-  *fix*: =blueprint-check-odt-styles= (=blueprint-export.el=, tasto
-  "k") esporta master.org in ODT e confronta ogni style-name che
-  content.xml referenzia con quelli definiti in styles.xml (il file
-  custom) e nell'automatic-styles di content.xml. Per evitare falsi
-  positivi (alcuni riferimenti, es. =Sect1= dello scaffolding TOC di
-  org, non hanno una definizione esplicita nemmeno in un export
-  standard non modificato) sono segnalati solo gli stili che
-  compaiono ANCHE nel file bundled =OrgOdtStyles.xml=
-  (=org-odt-styles-dir=) --- cioè quelli che Org normalmente fornisce
-  lui stesso e che il template custom ha sostituito senza saperlo.
-  Logica pura estratta in =blueprint--check-odt-styles-missing=
-  (nessun =message=/buffer/=kill-emacs=), usata sia dal comando
-  interattivo sia dal nuovo entry point CI =blueprint-ci-check-odt-styles=
-  in =blueprint-ci.el= --- non incluso in =blueprint-ci-validate= perché
-  richiede un =#+ODT_STYLES_FILE= opt-in e un export reale, non
-  qualcosa da eseguire di default su ogni push. Test:
-  =blueprint-test-export/odt-styles-check-*= in
-  =test/blueprint-test-export.el=, con fixture basate sul vero
-  =OrgOdtStyles.xml= bundled (una copia integra come caso "sano", una
-  con =OrgDisplayImage= rimosso come caso "rotto") e un'immagine SVG
-  statica invece di un diagramma PlantUML reale, per non dipendere
-  dall'eseguibile =plantuml= nell'ambiente di test/CI.
-- [X] L'export via =emacs -Q --batch= (necessario per riproducibilità/CI,
-  fuori dalla sessione Emacs interattiva dell'utente) *perdeva in
-  silenzio tutti i diagrammi PlantUML* senza impostare esplicitamente
-  =org-confirm-babel-evaluate= (nil), =org-plantuml-exec-mode=
-  (='plantuml=, eseguibile invece del jar) e =org-babel-do-load-languages=
-  con =(plantuml . t)=: senza questi, ogni blocco =#+begin_src plantuml=
-  veniva esportato come listato di codice sorgente al posto
-  dell'immagine, senza errori né warning. Il problema non è specifico di
-  ODT: riguarda ogni backend che passa dal meccanismo Babel-in-export di
-  Org (PDF, HTML, DOCX inclusi). *fix*: nuova macro
-  =blueprint--with-plantuml-export= in =blueprint-export.el=, usata da
-  tutte e quattro le funzioni di export (=blueprint-export-pdf/-odt/-html/ -docx=). Imposta i tre valori solo per la durata della chiamata di
-  export (=let=, non =setq=) e solo se la variabile è ancora al suo
-  default di libreria (=org-confirm-babel-evaluate= = =t=,
-  =org-plantuml-exec-mode= = ='jar=): una configurazione già presente
-  nell'=init.el= dell'utente non viene mai toccata. =ob-plantuml= è ora
-  richiesto a livello di file (non dentro la macro) perché altrimenti
-  =org-plantuml-exec-mode= non è ancora dichiarata "special" quando un
-  =let= prova a bindarla, con conseguente =void-variable= o
-  ="Defining as dynamic an already lexical var"= a runtime (lexical
-  binding). Test di regressione: =blueprint-test-export/plantuml-export-*=
-  in =test/blueprint-test-export.el=.
-- [X] *[trovato durante 10.6]* =blueprint--glossary-file=/
-  =blueprint--references-file= puntavano a =.blueprint/glossary.org= e
-  =.blueprint/references.org=, ma =blueprint-init= crea (e =master.org=
-  include via =#+INCLUDE:=) =glossary.org=/=references.org= alla *root
-  del progetto*. Ogni riferimento/termine aggiunto con
-  =blueprint-glossary-add=/=blueprint-reference-add= finiva quindi in un
-  file orfano, mai incluso nel documento finale --- bug silenzioso, nessun
-  errore, nessun warning. Stesso bug anche nel template org-capture "bg"
-  (=blueprint-capture.el=), con lo stesso path hardcoded. *fix*: le tre
-  funzioni ora puntano al path corretto; =blueprint--ensure-glossary=/
-  =blueprint--ensure-references= creano il file lazy dal template reale
-  (=blueprint--init-file=, la stessa funzione usata da =blueprint-init=)
-  invece che da uno stub =#+TITLE: ...= vuoto, così un file creato al
-  primo =add= ha comunque la struttura e la guida di un progetto
-  inizializzato normalmente. I test esistenti asserivano il path
-  /sbagliato/ come comportamento atteso --- un bug "confermato" dai suoi
-  stessi test. Test aggiornati/aggiunti:
-  =blueprint-test-glossary/*=, =blueprint-test-references/*= in
-  =test/blueprint-test-content.el=; nuovo
-  =test/blueprint-test-capture.el= (prima assente).
-- [X] *[trovato durante 10.6]* =blueprint--nfr-next-risk-id= (e la sua
-  controparte appena scritta per 10.6, =blueprint--references-next-id=)
-  scansionavano l'intero file per l'ID massimo esistente, senza limitarsi
-  alla sezione reale: il template mostra ID di esempio (=R-001=/=R-002=
-  in =nfr-risks.org=; =D-01=/=D-02=/=I-01=/=I-02= in =references.org=)
-  dentro la sezione =* Guida alla compilazione ... :noexport:=, che lo
-  scan whole-file confondeva con voci reali --- un progetto appena
-  inizializzato assegnava =R-003= al primo rischio reale invece di
-  =R-001=. Il fix precedente (vedi voce "template nfr-risks.org --- riga
-  placeholder" più sotto) aveva spostato l'esempio in una sezione
-  separata ma *non aveva risolto il problema*, perché lo scan non ha
-  mai avuto un confine di sezione: era mascherato dai propri test, che
-  verificavano solo =(string-match-p "R-001" content)= --- vero comunque,
-  perché "R-001" compare anche nell'esempio, a prescindere dall'ID
-  realmente assegnato alla nuova riga. *fix*: entrambe le funzioni ora
-  cercano prima l'heading di sezione reale (=* Registro dei rischi=, =* Documenti=, =* Interviste=) e limitano lo scan degli ID a quella
-  sezione. La ricerca dell'heading stesso deve essere ancorata a inizio
-  riga (=^=): in =references.org= la guida contiene una sotto-sezione
-  =** Interviste (esempio)=, la cui seconda =*= seguita da uno spazio fa
-  match con una ricerca non ancorata di ="* Interviste"=, trovando la
-  sezione di esempio invece di quella reale --- bug scoperto proprio
-  scrivendo il fix, prima di essere corretto con l'ancoraggio. Stesso
-  ancoraggio applicato per difesa anche a
-  =blueprint--nfr-insert-row-in-section=, anche se lì non c'è (ancora)
-  una sotto-sezione che collida. Test aggiornati per verificare l'ID
-  abbinato alla propria riga (="| R-001 | Primo rischio"=), non solo la
-  sua presenza nel file, più test di regressione dedicati
-  (=*-ignores-guide-examples= / =*-ids-ignore-guide-examples=).
-- [X] *[trovato durante 10.6]* Il comando Lint documentato in questo stesso
-  file (=emacs --batch ... -f batch-byte-compile *.el=) falliva già sul
-  branch =main=: =blueprint-core.el=, =blueprint-nfr.el=,
-  =blueprint-delivery.el= avevano docstring oltre 80 caratteri
-  (=byte-compile-error-on-warn t= li tratta come errori, non warning);
-  =orgfmt.el= (script di sviluppo per =fmt-docs.sh=, non parte del
-  pacchetto ma comunque incluso dal glob =*.el= del job di lint)
-  mancava del cookie =lexical-binding= e usava la funzione deprecata
-  =org-align-all-tags= invece di =org-align-tags=. La CI di lint era
-  quindi rossa su tutti e tre i leg della matrice Emacs. *fix*:
-  docstring riformattate su più righe; =orgfmt.el= aggiornato.
+* +Phase 8 --- Quality and robustness+ ✅
+** 8.1 Known fixes and tech debt
+- [X] =blueprint-questions.el=: investigated the supposed bug of =blueprint--find-heading= with headings carrying a TODO keyword or tags --- a direct probe on =org-element-parse-buffer= showed that =:raw-value= correctly excludes both the TODO keyword and the tags, so heading matching already works in that case. Found instead a real bug, independent of TODO/tags, in =blueprint-add-question=: when a following heading already exists, inserting the new QUESTION consumed the blank line separating the "Open Questions" section from the next heading, gluing them together. *fix*: after the insert, if the next character is =*= (a heading with no blank line), the blank line is reinserted. Regression test: =blueprint-test-questions/preserves-blank-line-before-next-heading=.
+- [X] =blueprint-sync.el=: =blueprint--sync-section= inserted =\n= before the content even though =(1+ start)= is already at the start of the line right after the start marker, adding an extra blank line at every sync (cosmetic, not functional). *fix*: removed the redundant leading =\n= from =(insert "\n" content "\n")=, now =(insert content "\n")=. Regression test: =blueprint-test-sync/sync-section-no-spurious-blank-line=.
+- [X] =blueprint-wizard.el=: =blueprint-wizard-component= fills =#+BLUEPRINT_OWNER:= and =#+BLUEPRINT_TECH:= (present in the =component.org= template) but no other module read them --- *fix*: added Owner and Tech columns to the dashboard (=blueprint-dashboard.el= now requires =blueprint-c4= and reads the keywords through =blueprint--org-keyword=).
+- [X] =blueprint-export.el=: the docstring of =blueprint--master-or-error= said "creating it if needed", but the function signals =user-error= without creating anything. *fix*: docstring corrected; error message updated to "run blueprint-init or blueprint-sync first".
+- [X] =blueprint-export.el=: =#+TITLE= is a "cumulative" keyword for org-export (=parse= behavior in =org-export-options-alist=, it concatenates multiple values). Every satellite file included in =master.org= through =#+INCLUDE= carries its own =#+TITLE= (useful for standalone editing), and Org keeps it in the expanded buffer: the title of the exported document (ODT/PDF/HTML/DOCX) became the concatenation of every included title instead of the master's title alone. Found in real use (17 satellite files included). *fix*: new =blueprint--strip-duplicate-titles=, hooked into =org-export-before-parsing-functions= when the package loads --- it runs after the =#+INCLUDE= expansion and before Org collects the document keywords, and removes every =#+TITLE= but the first. It applies to every backend and to Org's native ODT export (not handled by =blueprint-export.el=), because it acts on a global hook variable. Implemented with =org-element= (not regexps): it only targets real keyword nodes, so a =#+TITLE:= shown as sample text inside an =example=/=src= block (a common pattern in tutorial-style Org files) stays intact. Regression test: =test/blueprint-test-export.el=.
+- [X] =#+ODT_STYLES_FILE= with a "raw" company template (an =.ott= written in Writer, not derived from Org's export) produced a broken ODT export *with no error or warning*: that file replaced =styles.xml= entirely, and =styles.xml= normally also holds the internal styles Org needs (=OrgDisplayImage=, =OrgTable*=, =OrgCode=, =OrgBulletedList=/=OrgNumberedList= and so on --- 13+ distinct names checked in a real case). A normal company template does not know them: the document came out "almost right" (standard styles like Heading/Text body have an implicit fallback in LibreOffice), but paragraph images (every PlantUML diagram included through =#+begin_src plantuml :file x.svg=) overlapped the following content instead of reserving their vertical space, because =OrgDisplayImage= --- which sets =wrap="none"= --- existed nowhere. Found in real use, reported by the user as "a problem with the final document" without further context: diagnosed by comparing every =style-name= referenced in =content.xml= with those defined in the exported =content.xml= and =styles.xml=. Fixed by hand in that project (merging the missing styles, taken from =OrgOdtStyles.xml=, into the company template's =styles.xml=). *fix*: =blueprint-check-odt-styles= (=blueprint-export.el=, key "k") exports master.org to ODT and compares every style-name that content.xml references with those defined in styles.xml (the custom file) and in the automatic styles of content.xml. To avoid false positives (some references, such as =Sect1= of Org's TOC scaffolding, have no explicit definition even in an unmodified standard export), only the styles that ALSO appear in the bundled =OrgOdtStyles.xml= (=org-odt-styles-dir=) are reported --- that is, those Org normally provides itself and that the custom template replaced without knowing. Pure logic extracted into =blueprint--check-odt-styles-missing= (no =message=, buffers or =kill-emacs=), used both by the interactive command and by the new CI entry point =blueprint-ci-check-odt-styles= in =blueprint-ci.el= --- not part of =blueprint-ci-validate=, because it needs an opt-in =#+ODT_STYLES_FILE= and a real export, not something to run by default on every push. Tests: =blueprint-test-export/odt-styles-check-*= in =test/blueprint-test-export.el=, with fixtures based on the real bundled =OrgOdtStyles.xml= (an intact copy as the "healthy" case, one with =OrgDisplayImage= removed as the "broken" case) and a static SVG image instead of a real PlantUML diagram, so as not to depend on the =plantuml= executable in the test and CI environment.
+- [X] Exporting through =emacs -Q --batch= (needed for reproducibility and CI, outside the user's interactive Emacs session) *silently lost every PlantUML diagram* unless =org-confirm-babel-evaluate= (nil), =org-plantuml-exec-mode= (='plantuml=, the executable instead of the jar) and =org-babel-do-load-languages= with =(plantuml . t)= were set explicitly: without them, every =#+begin_src plantuml= block was exported as a source listing instead of an image, with no error or warning. The problem is not specific to ODT: it affects every backend that goes through Org's Babel-in-export mechanism (PDF, HTML, DOCX included). *fix*: new macro =blueprint--with-plantuml-export= in =blueprint-export.el=, used by all four export functions (=blueprint-export-pdf/-odt/-html/-docx=). It sets the three values only for the duration of the export call (=let=, not =setq=) and only if the variable is still at its library default (=org-confirm-babel-evaluate= = =t=, =org-plantuml-exec-mode= = ='jar=): a configuration already in the user's =init.el= is never touched. =ob-plantuml= is now required at file level (not inside the macro), because otherwise =org-plantuml-exec-mode= is not yet declared "special" when a =let= tries to bind it, with a =void-variable= or "Defining as dynamic an already lexical var" at run time (lexical binding). Regression tests: =blueprint-test-export/plantuml-export-*= in =test/blueprint-test-export.el=.
+- [X] *[found during 10.6]* =blueprint--glossary-file= / =blueprint--references-file= pointed to =.blueprint/glossary.org= and =.blueprint/references.org=, but =blueprint-init= creates (and =master.org= includes through =#+INCLUDE:=) =glossary.org= / =references.org= at the *project root*. Every reference or term added with =blueprint-glossary-add= / =blueprint-reference-add= therefore ended up in an orphan file, never included in the final document --- a silent bug, no error, no warning. The same bug was in the org-capture template "bg" (=blueprint-capture.el=), with the same hardcoded path. *fix*: the three functions now point to the right path; =blueprint--ensure-glossary= / =blueprint--ensure-references= create the file lazily from the real template (=blueprint--init-file=, the same function =blueprint-init= uses) instead of an empty =#+TITLE: ...= stub, so a file created at the first =add= still has the structure and guide of a normally initialized project. The existing tests asserted the /wrong/ path as expected behavior --- a bug "confirmed" by its own tests. Tests updated and added: =blueprint-test-glossary/*=, =blueprint-test-references/*= in =test/blueprint-test-content.el=; new =test/blueprint-test-capture.el= (previously missing).
+- [X] *[found during 10.6]* =blueprint--nfr-next-risk-id= (and its counterpart just written for 10.6, =blueprint--references-next-id=) scanned the whole file for the highest existing ID, without limiting itself to the real section: the template shows sample IDs (=R-001=/=R-002= in =nfr-risks.org=; =D-01=/=D-02=/=I-01=/=I-02= in =references.org=) inside the =* Guida alla compilazione ... :noexport:= section, which the whole-file scan mistook for real entries --- a freshly initialized project assigned =R-003= to the first real risk instead of =R-001=. The previous fix (see the entry "nfr-risks.org template --- placeholder row" further down) had moved the example into a separate section but *had not solved the problem*, because the scan never had a section boundary: it was masked by its own tests, which only checked =(string-match-p "R-001" content)= --- true anyway, because "R-001" also appears in the example, whatever ID was actually assigned to the new row. *fix*: both functions now look first for the real section heading (=* Registro dei rischi=, =* Documenti=, =* Interviste=) and limit the ID scan to that section. The heading search itself must be anchored at the start of the line (=^=): in =references.org= the guide contains a subsection =** Interviste (esempio)=, whose second =*= followed by a space matches an unanchored search for ="* Interviste"=, finding the sample section instead of the real one --- a bug discovered while writing the fix, before it was corrected with the anchor. The same anchor is applied defensively to =blueprint--nfr-insert-row-in-section=, even though no colliding subsection exists there (yet). Tests updated to check the ID paired with its own row (="| R-001 | Primo rischio"=), not just its presence in the file, plus dedicated regression tests (=*-ignores-guide-examples= / =*-ids-ignore-guide-examples=).
+- [X] *[found during 10.6]* The Lint command documented in this very file (=emacs --batch ... -f batch-byte-compile *.el=) already failed on the =main= branch: =blueprint-core.el=, =blueprint-nfr.el= and =blueprint-delivery.el= had docstrings over 80 characters (=byte-compile-error-on-warn t= treats them as errors, not warnings); =orgfmt.el= (a development script for =fmt-docs.sh=, not part of the package but still picked up by the =*.el= glob of the lint job) lacked the =lexical-binding= cookie and used the deprecated =org-align-all-tags= instead of =org-align-tags=. The lint CI was therefore red on all three legs of the Emacs matrix. *fix*: docstrings reflowed over several lines; =orgfmt.el= updated.
 
-** 8.2 Miglioramenti ai test
-- [X] Aggiungere test per =blueprint-dashboard.el= (buffer entries, focus
-  mode, colonne Owner/Tech, status classification) ---
-  =test/blueprint-test-dashboard.el=
-- [X] Aggiungere test per =blueprint-migrate.el= (diff e migrazione
-  non-distruttiva) --- =test/blueprint-test-migrate.el=. Nota: il test del
-  diff deve neutralizzare =kill-buffer-query-functions= prima di ripulire
-  il buffer =*diff*=, perché =blueprint-template-diff= lancia =diff= come
-  sottoprocesso asincrono via =compilation-start= e altrimenti
-  =kill-buffer= chiede conferma leggendo da stdin, che in =--batch=
-  fallisce con =end-of-file=.
-- [X] Aggiungere test per =blueprint-watch.el= (hook install/remove,
-  =blueprint--in-project-p=, invalidazione cache) ---
-  =test/blueprint-test-watch.el=
-- [X] Test negativi più sistematici (input invalido, file corrotti). Nel
-  processo, trovato e corretto un bug reale in
-  =blueprint-add-component=: =make-directory= con =PARENTS=t= non
-  segnala errore se la directory esiste già, quindi aggiungere un
-  componente il cui id slugificato collide con uno esistente (stesso
-  nome digitato due volte, o due nomi che slugificano allo stesso id,
-  es. "Order Service" e "order-service") sovrascriveva silenziosamente
-  arc42.org/functional.org/infrastructure.org tornando al template
-  vuoto --- nessun errore, nessuna conferma. *fix*: =user-error= se
-  l'id esiste già in =blueprint--components=. Verificato invece che
-  =blueprint-rename-component= fallisce già in modo sicuro su una
-  collisione (=rename-file= senza =OK-IF-ALREADY-EXISTS= segnala
-  =file-already-exists=), solo con un test di regressione, nessun fix
-  necessario. Test aggiunti anche per contenuto binario/UTF-8 non
-  valido (=blueprint--component-metrics=, =blueprint--lint-component=)
-  e per un componente registrato la cui directory esiste ma il cui
-  arc42.org è stato cancellato a mano (documenta il comportamento
-  reale di =blueprint-health-score=: zero penalità, perché rilevare un
-  arc42.org mancante è compito di =blueprint-lint=, non di
-  =blueprint-health-score=). Test in =test/blueprint-test-core.el=,
-  =test/blueprint-test-health.el=, =test/blueprint-test-lint.el=.
+** 8.2 Test improvements
+- [X] Add tests for =blueprint-dashboard.el= (buffer entries, focus mode, Owner/Tech columns, status classification) --- =test/blueprint-test-dashboard.el=
+- [X] Add tests for =blueprint-migrate.el= (diff and non-destructive migration) --- =test/blueprint-test-migrate.el=. Note: the diff test must neutralize =kill-buffer-query-functions= before cleaning up the =*diff*= buffer, because =blueprint-template-diff= runs =diff= as an asynchronous subprocess through =compilation-start=, and otherwise =kill-buffer= asks for confirmation reading from stdin, which fails with =end-of-file= in =--batch=.
+- [X] Add tests for =blueprint-watch.el= (hook install/remove, =blueprint--in-project-p=, cache invalidation) --- =test/blueprint-test-watch.el=
+- [X] More systematic negative tests (invalid input, corrupted files). In the process, found and fixed a real bug in =blueprint-add-component=: =make-directory= with =PARENTS=t= signals no error if the directory already exists, so adding a component whose slugified id collided with an existing one (the same name typed twice, or two names that slugify to the same id, such as "Order Service" and "order-service") silently overwrote arc42.org/functional.org/infrastructure.org with the empty template --- no error, no confirmation. *fix*: =user-error= if the id already exists in =blueprint--components=. Verified instead that =blueprint-rename-component= already fails safely on a collision (=rename-file= without =OK-IF-ALREADY-EXISTS= signals =file-already-exists=), with only a regression test, no fix needed. Tests also added for binary or invalid UTF-8 content (=blueprint--component-metrics=, =blueprint--lint-component=) and for a registered component whose directory exists but whose arc42.org was deleted by hand (documenting the real behavior of =blueprint-health-score=: zero penalty, because detecting a missing arc42.org is the job of =blueprint-lint=, not of =blueprint-health-score=). Tests in =test/blueprint-test-core.el=, =test/blueprint-test-health.el=, =test/blueprint-test-lint.el=.
 
-Con questa voce *tutto il debito tecnico approvato per questa sessione
-(8.1 + 8.2) e tutte le voci 10.4-10.7 sono completate.*
+With this entry *all the technical debt approved for this session (8.1 + 8.2) and all the entries 10.4-10.7 are done.*
 
 --------------
 
-* +Fase 9.0 --- Analisi funzionale incrementale+ ✅
-** +9.0 Comandi per costruire functional.org pezzo per pezzo (=blueprint-functional.el=)+ ✅
-Per componenti grandi (monoliti, servizi complessi) il template =functional.org=
-vuoto è sovradimensionato: l'utente deve riempire decine di sezioni in una volta
-sola. Il nuovo modulo =blueprint-functional.el= offre tre comandi per aggiungere
-i singoli blocchi atomici uno alla volta:
+* +Phase 9.0 --- Incremental functional analysis+ ✅
+** +9.0 Commands to build functional.org piece by piece (=blueprint-functional.el=)+ ✅
+For large components (monoliths, complex services) the empty =functional.org= template is oversized: the user has to fill dozens of sections at once. The new module =blueprint-functional.el= offers three commands to add the single atomic blocks one at a time:
 
-- +=blueprint-functional-add-area=+ --- heading livello 2 sotto
-  =* Aree funzionali= con ancora org =<<comp-area-slug>>= e placeholder
-  =[DA VALIDARE]=
-- +=blueprint-functional-add-feature=+ --- heading livello 3 sotto un'area
-  esistente con skeleton completo: Scopo, Input, Output, Regole di business,
-  Regole di validazione, Casi limite e eccezioni
-- +=blueprint-functional-add-entity=+ --- heading livello 2 sotto
-  =* Entità di dominio= con tabella attributi e =*** Rappresentazione logica=
-- +=blueprint-functional-add-integration=+ --- heading livello 2 sotto
-  =* Punti di integrazione= con tabella metadati (direzione, controparte,
-  protocollo, autenticazione, frequenza, SLA) e =*** Formato scambio= con blocco
-  codice per payload/file di scambio
+- +=blueprint-functional-add-area=+ --- a level-2 heading under =* Aree funzionali= with an Org anchor =<<comp-area-slug>>= and a =[DA VALIDARE]= placeholder
+- +=blueprint-functional-add-feature=+ --- a level-3 heading under an existing area with a full skeleton: purpose, inputs, outputs, business rules, validation rules, edge cases and exceptions
+- +=blueprint-functional-add-entity=+ --- a level-2 heading under =* Entità di dominio= with an attribute table and =*** Rappresentazione logica=
+- +=blueprint-functional-add-integration=+ --- a level-2 heading under =* Punti di integrazione= with a metadata table (direction, counterpart, protocol, authentication, frequency, SLA) and =*** Formato scambio= with a code block for the exchanged payload or file
 
-I tre comandi sono esposti nel menu Transient come terza riga *Functional* con
-i tasti =a=, =f=, =e=. Il =blueprint-command-map= è aggiornato di conseguenza.
+The three commands are in the Transient menu as a third row, *Functional*, on the keys =a=, =f=, =e=. =blueprint-command-map= is updated accordingly.
 
-*Tecnica di inserimento*: stessa strategia ibrida di =blueprint-questions.el=
---- =org-element= per trovare il heading (=:contents-begin=), poi
-=re-search-forward "^\\*{1,N} "= per localizzare il prossimo heading fratello o
-superiore, inserimento prima di esso (o a EOF). Le sezioni mancanti
-(=* Aree funzionali=, =* Entità di dominio=) vengono create automaticamente se
-assenti.
+*Insertion technique*: the same hybrid strategy as =blueprint-questions.el= --- =org-element= to find the heading (=:contents-begin=), then =re-search-forward "^\\*{1,N} "= to locate the next sibling or higher heading, and insertion before it (or at EOF). Missing sections (=* Aree funzionali=, =* Entità di dominio=) are created automatically.
 
 --------------
 
-* Fase 9 --- Nuove feature (idee)
-** +9.1 Changelog automatico+ ✅
-Generare un file =CHANGELOG.org= a partire dai messaggi dei commit git e dagli
-ADR. Comando: =blueprint-changelog-generate=.
-
-*Fatto (2026-11-01)*: nuovo =blueprint-changelog.el=. Il comando (tasto =J=,
-prefix =C-u= per il range =SINCE..HEAD=) rigenera integralmente
-=CHANGELOG.org=: cronologia dei commit (=%h|%ad|%s=, raggruppata per data,
-più recente prima) e sezione "Decisioni architetturali" con le ADR con
-=:STATUS: accepted= di =.blueprint/adr.org=. Il file è derivato: se esiste
-già, chiede conferma prima di sovrascrivere (le modifiche manuali andrebbero
-perse). Parsing e assemblaggio sono funzioni pure
-(=blueprint--changelog-parse-log=, =blueprint--changelog-assembly=, testate
-senza git); =git log= fallisce con =user-error= chiaro fuori da un
-repository. Test: =test/blueprint-test-changelog.el=, incluso un e2e con
-repository temporaneo reale.
-
-** +9.2 Status tracking per componenti+ ✅
-Aggiungere keyword =#+BLUEPRINT_STATUS: draft|active|deprecated|archived=
-interpretata dalla dashboard con icone colorate. Il linter potrebbe avvisare se
-un componente =active= ha FIXMEs o dipende da uno =deprecated=.
-
-*Fatto (2026-11-01)*: *decisione dell'utente*: keyword separata
-=#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (default =active=
-quando assente o non riconosciuta), perché =#+BLUEPRINT_STATUS:= è già il
-perimetro (10.7) e i due assi non vanno mescolati. Dashboard: colonna =Life=
-dopo =Scope= (draft attenuato, deprecated rosso, archived giallo, via
-proprietà di testo). Lint: con =blueprint-lint-lifecycle-checks= (default
-t, *cambiamento di exit code accettato dall'utente*: un componente =active=
-con FIXME o che dipende da uno =deprecated= porta =blueprint-ci-lint= e
-=blueprint-ci-validate= da 0 a 1 sui progetti esistenti). Il template
-=component.org= dichiara la keyword per i componenti nuovi (i file esistenti
-restano tali). Test: =blueprint-test-lifecycle/*= in
-=test/blueprint-test-c4.el=, =blueprint-test-lint/lifecycle-*=,
-=blueprint-test-dashboard/entries-carry-lifecycle-column=.
-
-** +9.3 Metriche trend nel tempo+ ✅
-Registrare lo stato delle metriche (score, conteggi) in
-=.blueprint/metrics-history.org= ad ogni sync, in modo da mostrare un grafico
-dell'evoluzione del progetto.
-
-*Fatto (2026-11-01)*: nuovo =blueprint-history.el=. =blueprint-sync= registra
-una riga nel file di storico (nella data directory, non incluso in
-master.org: nessun conteggio cambia) quando =blueprint-history-on-sync= è
-attivo (default t), saltando la riga se i valori non sono cambiati;
-=blueprint-history-record= è chiamata dentro =condition-case=, il sync non si
-rompe mai per lo storico. =blueprint-metrics-history= (tasto =x=) disegna lo
-score nel tempo in un SVG con namespace e sfondo bianco (pura
-=blueprint--history-chart-svg=), mostrato come =blueprint-health-svg=. Test:
-=test/blueprint-test-history.el=.
-
-** +9.4 Esportazione JSON/YAML per CI+ ✅
-Aggiungere =blueprint-ci-export-json= che produce un file
-=blueprint-report.json= con health score, componenti, dipendenze e warning ---
-utile per integrazione con tool di CI che non supportano Emacs.
-
-*Fatto (2026-11-01)*: in =blueprint-ci.el=, =blueprint-ci-export-json=
-(messaggio e exit 0/2 in batch) scrive =blueprint-report.json=
-(=blueprint-ci-report-file=). Il report è costruito da
-=blueprint--ci-report-object= come albero di hash table con chiavi stringa e
-vettori: =json-serialize= lo prende così com'è, mentre un alist con valori
-lista non è serializzabile senza ambiguità (=(a . ("x"))= si legge =("a" "x")=
-come lista piatta). Conteggi sul perimetro del documento, come la dashboard;
-chiavi dei marker derivate dalle regexp di =blueprint--health-weights=
-(=question=, =da-validare=, ...), così i nomi seguono i pesi. Test:
-=test/blueprint-test-ci.el=; smoke test in batch su progetto temporaneo.
-
-** +9.5 Template "enterprise" con multi-livello+ ✅
-Supporto per template =arc42-enterprise.org= con sezioni aggiuntive (enterprise
-context, stakeholder map, compliance) per engagement più grandi. L'assessment
-framework in =assessment-framework/= contiene già la base.
-
-*Fatto (2026-11-01)*: nuovo =templates/arc42-enterprise.org= basato sul
-template =arc42.org= dello scaffolder: le sezioni arc42 standard (quelle che
-il lint si aspetta, quindi un componente enterprise è lintato come gli altri)
-più /Contesto enterprise/, /Stakeholder e punti di contatto/ e /Conformità e
-compliance/; stesse convenzioni (guida =:noexport:=, ancore, keyword
-Blueprint). =blueprint-add-component= accetta un argomento template:
-interattivamente con =C-u= chiede fra i template che si risolvono nei tre
-livelli; senza prefisso o argomento il comportamento è identico a prima.
-Test: =blueprint-test-add-component/enterprise-*= in
-=test/blueprint-test-core.el=.
-
-** +9.6 Integrazione con org-agenda+ ✅
-Convertire le QUESTION e FIXME aperte in task org-agenda con scadenza, in modo
-da poter fare triage dal buffer agenda standard di Emacs.
-
-*Fatto (2026-11-01)*: nuovo =blueprint-agenda.el=. =blueprint-agenda-refresh=
-trasforma i marker di =blueprint-agenda-marker-types= (default QUESTION e
-FIXME) in voci TODO di =.blueprint/agenda.org=, con componente, link
-all'origine e ID stabile (hash di file+testo+occorrenza): DEADLINE,
-SCHEDULED e stato TODO/DONE impostati a mano sopravvivono al refresh.
-=blueprint-agenda= (tasto =U=) rigenera e apre una vista agenda ristretta al
-file (scadenze, poi tutte le voci aperte: =org-agenda-list= da sola, come
-nella prima versione, non mostrava le voci senza data); =blueprint-agenda-add-to-org-agenda= (default nil) lo aggiunge anche a
-=org-agenda-files=. Le righe ANSWERED sono storia e non diventano voci. Il
-file vive nella data directory e non è incluso in master.org. Test:
-=test/blueprint-test-agenda.el=.
-
-** +9.7 Diff tra versioni di componente+ ✅
-Usare git per mostrare la diff delle modifiche ai file arc42.org con contesto
-semantico (quale heading è cambiato, quante domande sono state risolte).
-Comando: =blueprint-component-diff=.
-
-*Fatto (2026-11-01)*: nuovo =blueprint-diff.el=, comando di sola lettura.
-Il buffer (=diff-mode=) apre con la sintesi semantica: file toccati, heading
-org cambiati con livello, delta dei marker (QUESTION/ANSWERED/TBD/FIXME
-aggiunti-rimossi) e domande risolte (righe ANSWERED aggiunte); sotto, la diff
-in formato unified. *Sempre* richiesta con =--no-ext-diff=: un =diff.external=
-nella gitconfig dell'utente (difftastic e simili) produrrebbe un formato che
-la sintesi non può leggere. Tasto =d= nella lista componenti
-(=blueprint-component-diff-at-point=; il binding vive in blueprint-diff,
-perché core non può richiederlo). Test: =test/blueprint-test-diff.el= con
-repository temporaneo reale.
-
-** +9.8 Ricerca semantica con org-roam-db+ ✅
-Se org-roam è disponibile, sfruttare il suo database SQLite per ricerche
-semantiche tra componenti (componenti simili, cluster di dipendenze, ecc.).
-
-*Fatto (2026-11-01)*: in =blueprint-roam.el=, =blueprint-roam-similar=
-ordina i componenti per similarità con uno dato: tag condivisi e link in
-uscita condivisi dal database pesano 2, token del titolo in comune 1
-(=blueprint--roam-similarity=); =blueprint-roam-clusters= mostra i cluster di
-componenti connessi da =#+BLUEPRINT_DEPENDS:= e link roam (senza org-roam,
-solo dipendenze). La logica pura è in =blueprint-graph.el=
-(=blueprint--dependency-clusters=: union-find che ignora le dipendenze
-sconnesse e ordina con un ordine totale, così il risultato non dipende
-dall'ordine di iterazione della hash). I comandi con database sono skip nei
-test quando org-roam non è installato (come in CI). Test:
-=test/blueprint-test-roam.el=.
-
-** 9.9 Blueprint per monorepo
-Supporto per progetti con più sotto-sistemi: =.blueprint/systems/= con una
-directory per sistema, ciascuna con la propria struttura components/adr. Il
-dashboard mostrerebbe una vista aggregata multi-sistema.
-
-*Rinviata dall'utente (2026-11-01)*: resta idea aperta, da fare in una
-sessione dedicata — è la modifica più invasiva del lotto (tocca la
-risoluzione della root usata da tutti i moduli).
-
-** +9.10 Live preview nella sidebar+ ✅
-Minor mode che apre un buffer laterale con l'anteprima SVG del grafico delle
-dipendenze, aggiornata in tempo reale al salvataggio dei file.
-
-*Fatto (2026-11-01)*: nuovo =blueprint-preview.el=.
-=blueprint--dashboard-svg-generate= (refactor di =blueprint-dashboard-svg=,
-che per l'utente resta identico) genera l'SVG; =blueprint-preview-mode=
-(minor mode globale, spenta di default) rigenera a ogni salvataggio di un
-file Org del progetto con debounce di =blueprint-preview-delay= (1s) e
-aggiorna il buffer =*Blueprint Preview*= solo se esiste — mai pop di
-finestre da sola; =blueprint-preview= apre il preview in side window e
-abilita la modalità, con l'SVG via =create-image= tipo =svg= (librsvg). Senza
-dot: un solo messaggio per sessione. Test: =test/blueprint-test-preview.el=.
-
-** +9.11 Milestone/cronoprogramma nella dashboard+ ✅
-Trovato pilotando il pacchetto sul progetto pilota: la dashboard
-(=blueprint-dashboard.el=) ha solo metriche per componente (Questions/TBD/
-FIXME/Status); non esiste alcun concetto di scadenza o milestone a livello
-di progetto. Un progetto reale ha quasi sempre un cronoprogramma con
-consegne parziali, e sapere "quanto manca alla prossima" è informazione
-che vale la pena avere a colpo d'occhio quanto l'health score.
-
-Proposta minimale: per convenzione, se esistono =CRONOPROGRAMMA.org= e/o
-=TODO.org= nella root del progetto, =blueprint-dashboard-refresh= aggiunge
-alla header-line la prossima milestone aperta (prima riga con keyword
-=TODO=/non completata sotto un heading o tabella riconosciuta come
-milestone) e il conteggio degli item =TODO= aperti nel progetto. Nessun
-nuovo formato da imporre: si riusa Org standard (keyword TODO/DONE,
-tabelle) già presente nei progetti pilota. Non implementato: da valutare
-se vale la generalizzazione o resta specifico del progetto pilota.
-
-*Fatto (2026-11-01)*: =blueprint-milestone-files= (default
-=CRONOPROGRAMMA.org=, =TODO.org=): se uno esiste alla root, la summary
-line aggiunge "Milestone: <titolo> (<data>) | TODO aperti: N" — prossima
-milestone = primo heading TODO in ordine di file, con la =:DEADLINE:= come
-data; il conteggio somma gli heading TODO di tutti i file della lista.
-Lettura con org-element e difensiva: qualunque problema di parsing degrada
-a nil senza rompere la dashboard. Il formato a tabella del cronoprogramma
-non è gestito in questa passata. Test:
-=blueprint-test-dashboard/milestone-*=.
-
-** +9.12 Evoluzione del meccanismo Open Questions (=blueprint-questions.el=)+ ✅
-Trovato progettando una skill di tracking domande sul progetto
-pilota. =blueprint-add-question=/=blueprint-list-questions= gestiscono
-solo una lista piatta (=- QUESTION <testo>=) per componente: nessun
-tag/area, nessuna cronologia di risoluzione (chi ha risposto, quando,
-con quale fonte), nessun modo di marcare una domanda come chiusa senza
-cancellarla (perderebbe la storia). Il progetto pilota ha dovuto
-costruire una sovrastruttura esterna (=DOMANDE.org=, con tag di area e
-proiezione selettiva verso =QUESTION= per le domande con un componente
-di casa) perché il meccanismo nativo non basta a un assessment con
-molte domande cross-componente e con interviste diluite nel tempo.
-
-Proposta (non specificata in dettaglio, da validare se generalizzabile):
-
-- Estendere la riga =QUESTION= con proprietà opzionali (tag/area,
-  stato =OPEN=/=ANSWERED=, riferimento alla fonte della risposta),
-  mantenendo la sintassi retrocompatibile per chi usa solo il flusso
-  attuale.
-- =blueprint-list-questions= con filtro per tag/stato, non solo elenco
-  piatto.
-- Valutare se ha senso un concetto di domanda "senza componente" (oggi
-  =blueprint-add-question= richiede sempre un componente).
-
-*Fatto (2026-11-01)*: *decisione dell'utente*: metadati estesi
-retrocompatibili, le domande restano sempre di un componente. Formato:
-=- QUESTION testo [TAG: tag]= aperta; =- ANSWERED [YYYY-MM-DD] testo
-[TAG: tag] [FONTE: fonte]= chiusa — rispondere (nuovo
-=blueprint-answer-question=) riscrive il token, così la domanda esce da
-health, dashboard e lint ma la storia resta nel file; le righe vecchie
-restano valide e aperte. La lista mostra Tag e State e filtra per tag
-(=t=) e stato (=s=). Test: =blueprint-test-questions/answer-*=,
-=blueprint-test-questions/list-filters-*= e di compatibilità in
-=test/blueprint-test-content.el=.
-
-** +9.13 =blueprint-delete-component= non ripulisce i riferimenti esterni+ ✅
-Trovato rimodulando il perimetro del progetto pilota (un
-componente contrattuale è stato ridimensionato ad area
-funzionale di un altro componente e va rimosso come componente
-blueprint). =blueprint-delete-component= (=blueprint-core.el=) cancella
-solo la directory del componente: non tocca le righe =#+INCLUDE= che lo
-referenziano in =master.org= (tre, una per arc42/functional/
-infrastructure), non aggiorna =BLUEPRINT_DEPENDS= negli altri componenti
-che lo citassero, e non rimuove i mirror =QUESTION= residui altrove.
-Usarla oggi lascerebbe =master.org= con =#+INCLUDE= verso file
-inesistenti (errore di export silenzioso o rumoroso a seconda del
-backend). Nel progetto pilota si è scelto di non usarla e di lasciare il
-componente fisicamente presente finché il contenuto non viene fuso a
-mano nel componente di destinazione (vedi ADR 0005 del progetto).
-
-Proposta (non specificata in dettaglio): =blueprint-delete-component=
-dovrebbe, prima di cancellare la directory, cercare e rimuovere le righe
-=#+INCLUDE= che puntano al componente in =master.org= (dentro le sezioni
-=@@blueprint-sync-*-start/end@@=, coerentemente con come =blueprint-sync=
-le gestisce) e segnalare (non rimuovere automaticamente, serve giudizio
-umano) le occorrenze del nome componente in =BLUEPRINT_DEPENDS= altrove
-nel progetto.
-
-*Fatto (2026-11-01)*: =blueprint--master-remove-component=
-(=blueprint-sync.el=) rimuove, solo dentro le sezioni sync-marker, le
-righe =#+INCLUDE= del componente con l'headline generato e le righe di
-page-break che lo precedono; i marker di sync sono spostati in
-blueprint-core.el (stesso nome) perché la cancellazione parta da lì
-senza require circolare. Prima della cancellazione il comando chiede
-conferma aggiuntiva quando altri componenti dichiarano il nome in
-=BLUEPRINT_DEPENDS=: le dipendenze restano (giudizio umano) e il lint le
-segnala come pendenti. Test: =blueprint-test-delete-component/removes-synced-includes=,
-=.../page-break-removed-with-headline=, =.../dependents-confirmed-and-reported=,
-=.../legacy-master-without-headlines=.
-
-** +9.14 Le sezioni sync-managed di =master.org= non separano i componenti con un titolo+ ✅
-Trovato rileggendo l'export finale del progetto pilota: le
-tre sezioni gestite da =blueprint-sync= (Parte II arc42, Parte III
-functional, Parte IV infrastructure) generavano solo una lista piatta
-di =#+INCLUDE= (=blueprint--generate-includes-for=), senza alcun
-headline che nominasse il componente prima di ciascun file incluso. Nel
-documento esportato, ogni componente iniziava con =* Introduction= (o
-un altro headline generico riusato da tutti i componenti): non c'era
-modo per il lettore di sapere da un headline che si era passati da un
-componente al successivo -- l'unico segnale era la riga =#+TITLE:= del
-file incluso, che però org non renderizza mai come separatore a metà
-documento (le concatena tutte in un titolo unico, comportamento
-/diverso/ ma altrettanto inutile a questo scopo). Non era un problema
-di export: era strutturale, presente probabilmente fin dalla prima
-generazione di =master.org= per qualunque progetto blueprint.el con più
-di un componente. Un primo workaround manuale nel progetto pilota
-(headline scritti a mano tra i marker sync) si è rivelato fragile: un
-resync dopo l'aggiunta/rimozione di un componente cancellava gli
-headline aggiunti a mano.
-
-Risolto in =blueprint-sync.el=: =blueprint--generate-includes-for= ora
-genera, per ciascun componente, un headline di livello 2 (=** <NomeComponente>=) subito prima del relativo =#+INCLUDE=, con
-=:minlevel 3= invece di 2 perché l'include si annidi correttamente
-sotto quel headline. Il nome mostrato viene da una nuova funzione,
-=blueprint--component-display-name=, che legge il =#+TITLE:= del file
-incluso e ne prende il testo prima del primo =" -- "= (la convenzione
-già usata dai template dei componenti, es. "Portale -- Architettura
-(arc42)"); se il file non è leggibile o il titolo non segue quella
-convenzione, usa il titolo per intero o, in ultima istanza, il nome del
-componente capitalizzato. Tre nuovi test in =blueprint-test-sync.el=
-coprono l'headline generato, l'estrazione dal =#+TITLE:= e il fallback;
-aggiornati i due test esistenti che assumevano =:minlevel 2= e un solo
-match di riga per componente. Nessuna migrazione richiesta per i
-progetti pilota esistenti: il prossimo =blueprint-sync= rigenera la
-sezione con gli headline corretti automaticamente.
-
-** +9.15 Interruzioni di pagina tra i componenti+ ✅
-Richiesta dal progetto pilota: nel documento esportato in
-ODT le sezioni dei componenti (Parti II, III, IV) si susseguono senza
-cambio pagina. Implementato come opzione dichiarata in =master.org=
-(=#+BLUEPRINT_PAGE_BREAK: components=), letta da =blueprint-sync=:
-prima di ogni titolo di componente tranne il primo di ciascuna Parte il
-sync scrive =#+ODT: <text:p text:style-name="PageBreak"/>= e
-=#+LATEX: \clearpage=. Scartata una macro Org: si espande dentro un
-paragrafo e in ODT produrrebbe un =<text:p>= annidato. Aggiunti il
-comando =blueprint-insert-page-break= per interruzioni manuali e
-=PageBreak= fra gli stili che =blueprint-check-odt-styles= verifica
-(=blueprint--odt-extra-required-styles=, non essendo nel baseline di
-OrgOdtStyles.xml). Test in =blueprint-test-sync.el= e
-=blueprint-test-export.el=.
-
-** 9.19 Nome della directory dati configurabile (FATTO)
-Richiesta dell'utente (2026-09-26), in previsione di convenzioni di
-struttura imposte da generatori di siti (Hugo/Jekyll-like per Org) o
-build tool rigidi sulle directory (Maven-like). Nuovo defcustom
-=blueprint-directory-name= (default =.blueprint=, ammesso un percorso
-relativo annidato come =content/blueprint=; rifiutati assoluti, =..=,
-=.= e segmenti vuoti). Tutte le occorrenze cablate passano da
-=blueprint--data-dir=/=blueprint--data-path= in =blueprint-core.el=;
-=blueprint--generate-includes-for= scrive il percorso relativo a
-=master.org= invece del letterale =.blueprint/components/...=.
-
-Retrocompatibilità (opzione A, scelta dell'utente): =blueprint--root=
-riconosce sia il nome configurato sia =.blueprint=, a ogni livello
-risalendo (vince il progetto più vicino); se trova solo il vecchio lo
-usa e avvisa una volta per sessione, se li trova entrambi usa il nuovo
-e avvisa che i dati sono divisi. =blueprint-init= in un progetto legacy
-riusa =.blueprint= invece di creare una seconda directory vuota.
-
-=blueprint-migrate-directory= (=C-c b m=, =blueprint-migrate.el=):
-calcola il piano prima di toccare qualunque cosa, chiede conferma,
-rinomina (=git mv= se git traccia la directory, altrimenti
-=rename-file=), riscrive link =file:= e percorsi di
-=#+INCLUDE:=/=#+SETUPFILE:= via =org-element= (risolvendo ogni percorso
-rispetto alla vecchia posizione del file e rirelativizzandolo rispetto
-alla nuova, quindi anche i link in uscita dall'albero spostato quando
-cambia la profondità), riaggancia i buffer aperti e il loro
-=default-directory=, invalida la cache e riporta in un buffer le
-menzioni in testo libero non riscritte. Rifiuta: target esistente,
-sorgente = target, uno dentro l'altro, buffer modificati coinvolti.
-
-Bug trovato durante i test e corretto: i lock file di Emacs
-(=.#file.org=, symlink pendenti mentre =file.org= ha modifiche non
-salvate) passavano il filtro ="\\.org\\'"= di
-=directory-files-recursively=; =blueprint-list-findings= e
-=blueprint-list-unvalidated= fallivano con =file-missing= appena un
-file del progetto era modificato in un buffer. Nuova costante
-=blueprint--org-file-regexp= usata da health, async e migrate.
-
-Limite noto: un valore in =.dir-locals.el= arriva solo ai buffer che
-visitano file del progetto; dashboard e buffer di risultato vedono il
-valore globale. Documentato in README e USAGE; non supportato per
-scelta dell'utente (2026-09-26).
-
-Test in =blueprint-test-core.el=, =blueprint-test-sync.el=,
-=blueprint-test-migrate.el=, =blueprint-test-health.el=.
-
-** 9.20 Posizione configurabile di master.org, enterprise/, nfr/, _archive/ (RINVIATA)
-Conseguenza di 9.19: con un layout imposto da un generatore di siti è
-probabile che anche i file e le directory alla radice del progetto
-(=master.org=, =glossary.org=, =references.org=, =enterprise/=, =nfr/=,
-=_archive/=) debbano stare in posizioni diverse. Da decidere con
-l'utente se serve e con quale granularità (una sola "content root"
-oppure un percorso per ciascuno) prima di implementare.
-
-Rinviata dall'utente (2026-09-26): nessun requisito per ora, si fa
-quando arriva.
-
-** 9.21 Lettura di #+BLUEPRINT_DEPENDS e rename di componenti (FATTO)
-Trovati (2026-09-26) facendo uno smoke test di 9.19 su un progetto
-appena creato con =blueprint-init= + =blueprint-add-component=:
-
-- =blueprint-ci-validate= falliva su ogni progetto nuovo: lint, ci,
-  dashboard e risks leggevano =#+BLUEPRINT_DEPENDS:= con una regex sul
-  testo grezzo, che salta la riga vuota del template e cattura
-  l'esempio =order-service notification-service= nel =#+BEGIN_SRC org=
-  della guida =:noexport:=. =blueprint--org-keyword= (c4) aveva ancora
-  =\\s-*= e per una keyword vuota restituiva la riga successiva
-  (="#+BLUEPRINT_OWNER:"= come dipendenza nel C4, ="#+BLUEPRINT_TECH:"=
-  come Owner in dashboard). Ora =blueprint--org-keyword= è in core, usa
-  =org-element=, e tutti i punti passano da lì.
-- =blueprint-rename-component= usava =\\b= attorno al vecchio nome:
-  rinominare =auth= trasformava la dipendenza =auth-db= in =identity-db=.
-  Ora confronta token interi.
-
-Comportamento accettato dall'utente (2026-09-26), non da correggere:
-=blueprint-rename-component= non slugifica il nuovo nome (a differenza
-di =blueprint-add-component=) e non aggiorna gli =#+INCLUDE= di
-=master.org= finché non si rilancia =blueprint-sync= (vedi anche 9.13).
-
-** 9.18 Le didascalie dei diagrammi non arrivano nell'export ODT (FATTO)
-Trovato dal progetto pilota (2026-09-24): nessun
-=#+CAPTION:= messo sopra un blocco =#+begin_src plantuml :file ...=
-compare nel =content.xml= esportato (zero occorrenze di "Figura"),
-mentre le immagini ci sono tutte.
-
-Causa verificata (2026-09-26) facendo il dump del buffer di export nei
-due hook: Babel sostituisce il blocco esportato con =:exports results=
-(default di ob-plantuml) con il paragrafo =#+RESULTS:= e cancella le
-keyword affiliate del blocco insieme al blocco. In
-=org-export-before-parsing-functions= la didascalia è già sparita; in
-=org-export-before-processing-functions= gli =#+INCLUDE:= non sono
-ancora espansi, quindi i componenti inclusi da =master.org= non sono
-nel buffer. Nessun hook cade fra espansione degli include e Babel.
-
-Fatto: =blueprint--move-result-captions= (=blueprint-export.el=),
-advice =:before= su =org-babel-exp-process-buffer=. Copia =#+CAPTION:=
-e =#+ATTR_*:= del blocco subito prima della riga =#+RESULTS:= (non
-=#+NAME:= né =#+HEADER:=, che servono a Babel). Babel trova ancora i
-risultati, nominati e anonimi, e li riscrive senza toccare le righe
-sopra =#+RESULTS:= quando rivaluta; verificato anche con PlantUML
-eseguito davvero e il componente incluso via =#+INCLUDE:=. Lavora solo
-sulla copia di export. Non toccati: blocchi =:exports both= (la
-didascalia resta sul listato) e risultati che hanno già una didascalia
-propria. Limiti poi corretti in 9.23: un blocco mai valutato (nessun =#+RESULTS:=) resta
-senza didascalia; un link =[[fig-ctx]]= al nome del blocco non punta
-alla figura, perché =#+NAME:= non viene spostato. Il meccanismo è
-indipendente dal backend, ma è stato verificato solo in ODT (non in
-PDF/LaTeX). Test in =test/blueprint-test-export.el=, fra cui uno
-end-to-end che cerca la didascalia in =content.xml= (=skip-unless unzip=).
-
-** 9.22 Marker nelle guide =:noexport:= dei template contati come reali (FATTO)
-Trovato (2026-09-26) su un progetto appena creato con un solo
-componente: =blueprint-list-findings= riportava 10 =[FINDING]=, tutti
-falsi (prosa delle guide con il marker in verbatim, tabelle d'esempio
-fittizie "PiattaformaPagamenti" nelle guide =:noexport:=), e l'health
-score del componente perdeva 4 punti.
-
-Decisione dell'utente: ciò che non viene esportato non entra nel
-conteggio. Fatto: =blueprint--uncounted-regions= in
-=blueprint-core.el= esclude i sottoalberi con tag di esclusione
-(=org-export-exclude-tags= e =#+EXCLUDE_TAGS:=) o COMMENT, i blocchi
-src/example/export/comment, fixed-width, commenti e oggetti
-verbatim/code. Usata da health (metriche tecniche e metodologiche),
-lint (soglia marker), =blueprint-list-findings=,
-=blueprint-list-unvalidated=, pre-delivery check e
-=blueprint-list-questions=. Il confronto è ora case-sensitive (prima
-=count-matches= ereditava =case-fold-search= e contava anche
-"question" e "tbd" nella prosa). Le keyword di file
-(=#+STATUS: [DA VALIDARE]=) restano contate: marcano il file intero
-come non validato.
-
-Effetto su un componente nuovo: =[FINDING]= da 10 a 0 nel progetto,
-=[DA VALIDARE]= da 67 a 43, health da 78 a 87. Gli health score dei
-progetti esistenti cambiano di conseguenza. Test in
-=test/blueprint-test-health.el= e =test/blueprint-test-content.el=.
-
-Esteso (2026-09-27, decisione dell'utente) al controllo "file has no
-content" del lint: le righe nei sottoalberi non esportati
-(=blueprint--non-exported-subtrees=) non contano come contenuto.
-Blocchi src e verbatim invece contano: un diagramma scritto
-dall'autore è contenuto. Test in =test/blueprint-test-lint.el=.
-Da solo non bastava: un componente appena creato non risultava vuoto,
-perché i template contenevano testo segnaposto esportato fuori dalle
-guide. Risolto in 9.24.
-
-** 9.24 Contenuto segnaposto dei template contato come contenuto (FATTO)
-
-Il controllo "file has no content" del lint considerava contenuto il
-testo segnaposto che i template mettevano fuori dalle guide =:noexport:=
-(descrizioni delle sezioni, tabelle con sole intestazioni, diagrammi
-d'esempio, un =[DA VALIDARE]= per sezione), quindi non segnalava mai un
-componente appena creato e mai compilato.
-
-Decisione dell'utente (2026-09-27): invece di confrontare le righe con
-il template (fragile), togliere i segnaposto dal template, visto che la
-guida =:noexport:= contiene già tutto ciò che serve. Fatto in
-=component.org=, =functional.org=, =infrastructure.org=: il corpo ha solo
-heading e ancore; descrizioni e modelli (tabelle, diagrammi PlantUML con
-=:eval never=, perché Babel valuta anche i blocchi dei sottoalberi
-=:noexport:=) sono nella guida. Tolto anche il =[DA VALIDARE]= di
-sezione (scelta dell'utente): la guida chiede di aggiungerlo quando si
-scrive la sezione. Il lint ignora le righe con sola ancora =<<...>>=.
-Effetto: un componente nuovo viene segnalato come vuoto e ha health 99
-(resta =#+STATUS: [DA VALIDARE]=); i progetti esistenti non cambiano,
-perché i template si applicano solo ai file nuovi.
-
-Non si applica, per decisione dell'utente (2026-09-27): agli altri
-template (master, enterprise, nfr, glossary, references, adr), che
-restano pieni per il compromesso di poter modificare singole sezioni
-dei file; e allo scheletro inserito dai comandi
-=blueprint-functional-add-*= / =blueprint-runtime-add-*=, che l'utente
-lancia proprio per riempire subito la sezione.
-
-** 9.25 Gauge SVG dell'health score mai visibile in Emacs (FATTO)
-
-Segnalato dall'utente (2026-09-27): =blueprint-health-svg= non ha mai
-mostrato il gauge. Riprodotto sotto Xvfb: riquadro vuoto 30x30, con
-=ImageMagick error: attempt to perform an operation not authorized by
-the security policy `SVG'= in =*Messages*=. Causa: il comando apriva il
-file con =find-file=; =image-mode=, in un Emacs compilato con
-ImageMagick, sceglie il tipo =imagemagick= per ogni file
-(=image--imagemagick-wanted-p=), e la policy di ImageMagick del sistema
-vieta SVG. Vale per qualunque =.svg= visitato; i diagrammi inline di Org
-non sono toccati perché usano il tipo =svg= (librsvg).
-
-Fatto: il file =health.svg= si scrive come prima, ma si mostra nel
-buffer =*Blueprint Health*= con =create-image= di tipo =svg=. Corretti
-anche il namespace SVG mancante, lo sfondo trasparente (tratti neri
-invisibili con un tema scuro) e il raggio dell'arco. Test in
-=test/blueprint-test-health.el=.
-
-Lato utente, per vedere gli SVG anche visitandoli con =find-file=:
-=(add-to-list 'imagemagick-types-inhibit 'SVG)= nella configurazione.
-
-** 9.28 Health score: finding a peso 0, tutti i file del componente, normalizzazione sulle dimensioni (FATTO)
-
-Segnalato dal progetto pilota (2026-10-15): health 37/100 su un documento ormai ampio. Il punteggio partiva da 100 e sottraeva penalità assolute, contava solo =arc42.org= di ogni componente e pesava =[FINDING]= -2. Così scendeva a ogni pagina scritta anche a parità di punti aperti per pagina, ignorava Parte III e Parte IV, e penalizzava i risultati dell'assessment come se fossero lavoro mancante.
-
-Decisione dell'utente (2026-10-15), fatto in =blueprint-health.el=:
-- =[FINDING]= pesa 0 (=blueprint--health-weights=): un finding è un risultato consegnato, non un punto aperto. Le metriche e =blueprint-list-findings= continuano a contarlo.
-- Contano tutti i file di un componente che =blueprint-sync= include in =master.org=: =arc42.org=, =functional.org=, =infrastructure.org=; i file assenti si ignorano. Nel codice non esisteva un elenco condiviso (sync passa i nomi come letterali): aggiunti =blueprint--component-document-files= e =blueprint--component-document-paths= in =blueprint-core.el=.
-- Normalizzazione: score = round(100 * U / (U + P)), con P la somma pesata dei marker su tutti i componenti, U = W / N, W le parole del testo esportato (stesse esclusioni di =blueprint--uncounted-regions=, via =blueprint--count-words-outside=, che fonde le regioni annidate) e N la defcustom =blueprint-health-words-per-point= (100). P = 0 dà 100, P > 0 senza parole dà 0. Calcolo intero esatto, quindi un documento raddoppiato con la stessa proporzione ha lo stesso punteggio.
-
-=blueprint--health-component-stats= restituisce P e W per componente; con =M-x blueprint-health-score= il comando mostra P e W. Il punteggio non passa più per =blueprint--cached-metrics= (la cache è indicizzata solo per file e altri moduli vi tengono le metriche tecniche di =arc42.org=): un parse per file a ogni chiamata. Test in =test/blueprint-test-health.el= e =test/blueprint-test-e2e.el=.
-
-Le soglie restano 50 (=blueprint-ci-validate=) e 80 (=blueprint-delivery-score-threshold=): decisione dell'utente (2026-10-15), il documento del pilota a 81 è di fatto consegnabile. Restano aperti, in voci proprie: il conteggio delle parole (9.29); il pre-delivery check che segnalava ancora i =[FINDING]= e dashboard, grafo, daily e navigazione limitati ad =arc42.org= sono stati sistemati in 9.30.
-
-** 9.29 Conteggio delle parole dell'health score: solo testo di contenuto (RINVIATA)
-
-Segnalato dal progetto pilota (2026-10-15). W in =blueprint-health-score= conta il testo esportato in senso letterale: entrano anche keyword (=#+TITLE:=, =#+BLUEPRINT_DEPENDS:=), drawer di proprietà, intestazioni, ancore =<<...>>= e URL dei link, che gonfiano il denominatore. Da restringere al testo di contenuto (paragrafi, voci di elenco, celle di tabella). Rinviata su decisione dell'utente: problema reale ma complesso, non da affrontare ora.
-
-** 9.30 Finding non bloccanti nel pre-delivery check, tutti i documenti del componente in navigazione, dashboard, grafo e daily (FATTO)
-
-Seguito di 9.28, segnalato dal progetto pilota (2026-10-15). Dopo 9.28 l'health score contava i tre documenti di ogni componente con =[FINDING]= a peso 0, ma il resto del pacchetto era rimasto indietro: il pre-delivery check dava =[ATTENZIONE]= per ogni =[FINDING]= e lo contava fra le verifiche da risolvere; la lista componenti, la dashboard e il daily aprivano solo =arc42.org=; dashboard, grafo e daily mostravano i soli =QUESTION=/=TBD=/=FIXME= di =arc42.org=, senza pesi.
-
-Decisioni dell'utente (2026-10-15), fatte così:
-- Pre-delivery check (=blueprint-delivery.el=): la riga dei =[FINDING]= resta, con etichetta =[INFO]= ("[FINDING] (solo informativo)"), e non entra né nell'esito né nel conteggio delle verifiche da risolvere. Sul pilota: 185 finding in =[INFO]=, esito determinato solo da =[DA VALIDARE]= e =[DA REVISIONARE]=.
-- Navigazione ai tre documenti (=blueprint-core.el=): nuovo =blueprint--read-component-document= (sceglie fra i documenti esistenti, =arc42.org= preselezionato, nessuna domanda se c'è solo quello) e nuovo comando =blueprint-visit-component= (=j= nel transient e in =blueprint-command-map=, dove è stato aggiunto anche =l=). La lista componenti ha un major mode proprio, =blueprint-components-mode=, con colonna Documents: ~RET~ chiede il documento, =a=, =f=, =i= aprono direttamente =arc42.org=, =functional.org=, =infrastructure.org=. ~RET~ della dashboard e =blueprint-roam-find= usano lo stesso selettore.
-- Dashboard, grafo e daily: nuovo =blueprint--component-health-summary= in =blueprint-health.el= somma i marker di tutti i documenti (=blueprint--component-document-paths=) con i pesi di =blueprint--health-weights= e restituisce conteggi, punti di penalità, marker aperti (peso > 0), parole e punteggio del componente (=blueprint--health-score-from=). Il conteggio per file è =blueprint--document-stats=, da cui ora deriva anche =blueprint--health-file-stats=, quindi i numeri coincidono con =blueprint-health-score=. La dashboard aggiunge le colonne DaVal, DaRev, Findings, Penalty e Health (indici 0-6 invariati, ordinamento numerico); il focus mode tiene i componenti con penalità > 0; lo Status non è più "OK" con marker metodologici aperti (=blueprint--component-status= accetta un quarto argomento facoltativo). Grafo Graphviz e =blueprint-dashboard-svg= colorano per punteggio del componente con =blueprint--health-score-color=: rosso sotto 50, giallo sotto 80, verde (=blueprint--health-color-thresholds=); la vecchia regola "più di 3 marker = giallo" avrebbe reso gialli tutti i componenti del pilota una volta contati i marker metodologici. Il daily propone i componenti con penalità, dal più carico (=blueprint--daily-candidates=), poi chiede il documento preselezionando quello con più penalità.
-- Cache: =blueprint--cached-metrics= accetta un argomento facoltativo KIND; con KIND la chiave è (FILE . KIND), senza resta FILE. I conteggi per documento stanno sotto =document-stats=, quindi non collidono con le metriche tecniche che =blueprint--detect-risks= legge per =arc42.org= (test di regressione =blueprint-test-dashboard/cache-shared-with-risks=). =blueprint--invalidate-cache= su un file toglie anche le chiavi con KIND.
-- =blueprint-list-questions= legge i =- QUESTION= di tutti e tre i documenti, con colonna Document in coda e ~RET~ che apre il file alla riga della domanda.
-
-Bug trovato e corretto: =blueprint-list-components=, =blueprint-list-questions= e =blueprint-adr-list= legavano ~RET~ con =local-set-key= in un buffer =tabulated-list-mode=, cioè dentro =tabulated-list-mode-map= condivisa: l'ultima lista aperta vinceva anche nelle altre (~RET~ nella lista componenti dopo aver aperto le domande dava =wrong-type-argument=) e in ogni altro buffer tabulated-list di Emacs. Lista componenti e lista domande hanno ora un major mode derivato con keymap propria; la lista ADR una keymap locale composta su =tabulated-list-mode-map=. Nel pacchetto non restano altri =local-set-key=.
-
-Chiamate a =blueprint--component-file= lasciate su =arc42.org=, perché serve il file principale: keyword =#+BLUEPRINT_DEPENDS=/=OWNER=/=TECH=/=STATUS= (c4, ci, grafo, dashboard, risks, lint); scritture (=blueprint-add-question=, che alimenta anche il mirror =QUESTION=, e flussi e processi di =blueprint-runtime.el=); =blueprint--lint-component= (intestazioni arc42 attese, soglia dei marker, contenuto vuoto) e =blueprint--detect-risks= (pattern di rischio e controllo "Immature documentation"), vedi sotto.
-
-Restano aperti:
-- Lint e risks guardano ancora solo =arc42.org=: soglia dei marker, ricerca dei pattern di rischio di =blueprint-suggest-risks= e controllo "documentazione immatura" ignorano =functional.org= e =infrastructure.org=. Estenderli cambierebbe l'esito di =blueprint-pre-delivery-check= (gli avvisi del lint contano) e i codici d'uscita di =blueprint-ci-lint=/=blueprint-ci-validate=: da decidere.
-- Il pre-delivery check conta =[DA VALIDARE]= e =[DA REVISIONARE]= su tutti i file =.org= sotto la radice, non solo su quelli che finiscono nel documento: sul pilota 345 =[DA VALIDARE]= contro 38 nei documenti dei componenti, perché entrano KB, =DOMANDE.org=, interviste e catalogo della documentazione ufficiale. Da decidere se restringere ai file inclusi in =master.org=.
-- La colonna Questions della dashboard conta ogni =QUESTION= in testo esportato (come l'health score), =blueprint-list-questions= solo le voci =- QUESTION=: i due numeri possono differire.
-- Le soglie dei colori sono una costante allineata per convenzione a 50 e 80, non legata a =blueprint-delivery-score-threshold=: se l'utente cambia la soglia di consegna, i colori non la seguono.
-- Le parti 0, I e V (=enterprise/=, =nfr/=) restano fuori da health, dashboard e navigazione per componente.
-
-Il primo, il secondo e l'ultimo punto sono stati sistemati in 9.31.
-
-Test in =test/blueprint-test-core.el= (chiavi KIND della cache, selettore e visita dei tre documenti, keymap della lista componenti), =test/blueprint-test-dashboard.el= (colonne sommate sui tre documenti, focus e finding, ~RET~ della dashboard, cache condivisa con risks, colori del grafo, candidati e documento preselezionato del daily) =test/blueprint-test-delivery.el= (finding senza avviso, esito PRONTO, conteggio delle verifiche), =test/blueprint-test-content.el= (domande da =functional.org= e =infrastructure.org=, ~RET~ alla riga) e =test/blueprint-test-adr.el= (~RET~ della lista ADR fuori dalla keymap condivisa).
-
-** 9.31 Conteggi solo sul documento incluso da master.org, intestazioni della dashboard, grafo nel menu, tasti documentati (FATTO)
-
-Segnalato dal progetto pilota (2026-10-15), dopo aver provato 9.30: la dashboard non mostrava le intestazioni delle colonne, quindi i numeri non si capivano; il comando del grafo colorato non si trovava nel menu; il pre-delivery check contava marcatori in file che non entrano nel documento, mentre health score, lint e rischi ignoravano Parte 0, I e V. Principio deciso dall'utente: ogni conteggio del pacchetto si calcola esattamente e solo su ciò che il documento contiene, cioè =master.org= e i file che include con =#+INCLUDE:=, anche annidati, con le esclusioni di testo non esportato già usate (=blueprint--uncounted-regions=). Altrimenti l'health score "sembra buono un documento che non lo è".
-
-Fatto così:
-- Elenco unico dei file del documento (=blueprint-core.el=): =blueprint--document-files= restituisce =master.org= e i file inclusi, in ordine di documento, ciascuno una volta. Il percorso di ogni =#+INCLUDE:= si risolve rispetto alla directory del file che lo contiene, come fa l'esportatore di Org; gli include si seguono ricorsivamente con protezione dai cicli (=blueprint--document-walk=, che riporta anche i file mancanti). Gli =#+INCLUDE:= si trovano con =org-element=, quindi quelli commentati o dentro un blocco non contano; quelli dentro un sottoalbero non esportato si saltano. Un file incluso come blocco (=src=, =example=, =export= o altro nome di blocco) non entra, perché nel documento è codice. Il valore dell'include si analizza con un parser proprio (=blueprint--parse-include-value=): =org-export-parse-include-value= non esiste nell'Org di Emacs 29. La lista degli include di ogni file è in cache sotto il KIND =includes= di =blueprint--cached-metrics=. =blueprint--master-file= passa da =blueprint-sync.el= al core.
-- Limiti documentati: un file incluso in parte (=:lines=, =file.org::ricerca=) conta per intero; un file incluso due volte conta una volta; =:minlevel= non cambia il testo e non serve gestirlo; =#+EXCLUDE_TAGS:= vale solo nel file che lo dichiara, mentre l'esportatore applica quello di =master.org= (e dei file inclusi) a tutto il documento espanso, e =#+SELECT_TAGS:= non è gestito. Nessuno dei 17 file del pilota usa =EXCLUDE_TAGS= o =SELECT_TAGS=. Senza =master.org= il documento non è assemblato e i file sono i documenti di tutti i componenti (quelli che =blueprint-sync= includerebbe), come prima: è il caso di quasi tutti i test esistenti.
-- Righe del documento (=blueprint--document-units=): una per componente, con i suoi documenti inclusi, poi una per ogni altro file del documento (=master.org= stesso, glossario, =enterprise/*=, =nfr/*=, riferimenti), identificata dal percorso relativo alla radice. Ogni file sta in una sola riga, quindi le righe sommate danno l'health score del documento (test di invarianza). Ho scelto una riga per file e non un raggruppamento per Parte: ~RET~ apre direttamente il file, senza un'altra domanda, e il percorso dice già a quale Parte appartiene.
-- Health score (=blueprint-health.el=): =blueprint--files-health-summary= somma i marcatori di una lista di file; =blueprint-health-score= la applica a =blueprint--document-files=, =blueprint--component-health-summary= ai documenti inclusi del componente. Sul pilota l'health passa da 78 (solo documenti dei componenti: P 69, W 24.827) a 82 (P 87, W 39.654): gli 8 file non di componente aggiungono 18 punti di penalità e 14.827 parole, di cui 3.001 del glossario, 3.681 di =nfr/risks.org=, 1.599 di =master.org= e 682 dei riferimenti con penalità 0 o quasi. Il numero sale invece di scendere; quanto di quelle parole sia testo vero e quanto keyword, URL e struttura di tabella è la questione di 9.29.
-- Pre-delivery check (=blueprint-delivery.el=): =[DA VALIDARE]=, =[DA REVISIONARE]= e =[FINDING]= si contano con la stessa somma del health score, quindi coincidono con le colonne della dashboard. Sul pilota: 67 =[DA VALIDARE]= (prima 363, con KB, =DOMANDE.org= e interviste), 5 =[DA REVISIONARE]= (prima 28), 58 =[FINDING]= (prima 184).
-- Lint (=blueprint-lint.el=): nuovo =blueprint--lint-project=, l'unico usato da =blueprint-lint=, =blueprint-ci-lint=, =blueprint-ci-validate= e pre-delivery check (prima erano quattro cicli uguali). Su ogni componente restano le verifiche di =arc42.org= (intestazioni arc42, dipendenze); soglia dei marcatori e file vuoto (=blueprint--lint-content=) girano su ogni file del documento, di componente e no, con etichetta =componente/functional.org= o percorso relativo; le intestazioni arc42 restano solo su =arc42.org=. Un =#+INCLUDE:= verso un file inesistente è un avviso. I codici d'uscita della CI cambiano di conseguenza; sul pilota restano 0.
-- Rischi (=blueprint-risks.el=): i pattern si cercano in tutti i documenti inclusi del componente, e solo nel testo esportato (prima anche nelle guide =:noexport:= dei template); il controllo "documentazione immatura" somma i marcatori tecnici di quei documenti. =blueprint-suggest-risks-all= analizza anche gli altri file del documento (=blueprint--detect-part-risks=, senza il controllo sui componenti isolati).
-- Liste =blueprint-list-findings= e =blueprint-list-unvalidated=: ora leggono solo i file del documento, per coerenza con i totali del pre-delivery check. Non erano nominate nella segnalazione: scelta mia, da confermare.
-- Dashboard (=blueprint-dashboard.el=): le intestazioni non si vedevano perché =blueprint-dashboard-refresh= sovrascriveva =header-line-format=, dove =tabulated-list-init-header= aveva messo i titoli delle colonne, con la riga di riepilogo. I titoli stanno nella header line, con =header-line-indent-mode= dove esiste, e il riepilogo (health del documento, numero di componenti e di altri file, filtri) va nella mode line (=mode-line-process=). Un primo tentativo con i titoli come prima riga del buffer (=tabulated-list-use-header-line= a nil) li disallineava dalle righe quando sono visibili i numeri di riga: la riga di intestazione stampata nel buffer usa posizioni =:align-to= che non tengono conto della colonna dei numeri. Colonne: Name, Owner, Tech, Scope, QUESTION, TBD, FIXME, DA VAL, DA REV, FINDING, Penalty, Health, Status, larghezze ridotte e mai più strette del titolo, numeri allineati a destra; la docstring del modo (=C-h m=) spiega ogni colonna. Le righe degli altri file seguono quelle dei componenti; un componente senza documenti in =master.org= ha stato =NOT-INCLUDED= e Health =-= (resta nel focus mode, perché va sincronizzato). ~RET~ su una riga di file la apre; =G= nella dashboard genera il grafo colorato.
-- Navigazione: =blueprint-visit-component= (=j=) offre anche gli altri file del documento, per percorso relativo; =blueprint-daily= propone anche loro fra i candidati.
-- Grafo: =G= (=blueprint-dependency-graph=) era già nel menu, ma con il backend di default =plantuml= produce un =.puml= senza colori; il grafo colorato di 9.30 era =blueprint-dashboard-svg=, che non aveva tasto. Ora è =h= nel gruppo Architecture del transient e in =blueprint-command-map=, con etichetta "health-colored graph (SVG)"; =G= ha etichetta "dependency graph (puml/dot)". Entrambi i comandi mostrano l'SVG con =blueprint--show-svg-file= (tipo =svg= esplicito, come =blueprint-health-svg=, per non passare da ImageMagick) invece di =find-file=. Un componente fuori dal documento è grigio (=blueprint--component-health-color=).
-- =blueprint-command-map= ora ha esattamente i tasti del transient: prima mancavano =W=, =w=, =R=, =X=, =s=, =q=, =y=, =z=, =P=, =T=, =n=, quindi la stessa tabella dei tasti non poteva valere per entrambi.
-- USAGE.org e README.org: corretti i tasti sbagliati (=C-c b i=, =a=, =D= per delete, =q= per add question, =F a/f/e/i=, =g a=, =A n=, =A l=, =h= per l'health score, =k= e il comando inesistente =blueprint-detect-risks= per i rischi, =s= per sync); descritti perimetro dei conteggi, limiti, nuove colonne e righe della dashboard, lint su tutti i file, grafo. Il test =test/blueprint-test-keys.el= confronta transient e command map e verifica che ogni coppia "M-x comando ... C-c b tasto" di USAGE.org, ogni "C-c b tasto" di USAGE e README e la tabella dei tasti del README corrispondano ai binding reali, e che ogni =M-x blueprint-...= citato esista.
-
-Test: =test/blueprint-test-core.el= (include annidati risolti rispetto al file che include, file mancanti, cicli, include non esportati/commentati/in blocco/come blocco, parser del valore, fallback senza master, righe del documento, visita di una parte, cache =includes=), =test/blueprint-test-health.el= (solo il documento conta, somma delle righe uguale al documento, liste solo sul documento), =test/blueprint-test-delivery.el= (KB e =DOMANDE.org= esclusi, totale uguale alla colonna DA VAL; il test dei finding ora include i file in =master.org=), =test/blueprint-test-lint.el= (verifiche su file inclusi, file non inclusi ignorati, include mancante, codice d'uscita di =blueprint-ci-lint=), =test/blueprint-test-risks.el= (pattern nei documenti inclusi e non nelle guide =:noexport:=, documentazione immatura su più documenti, rischi delle parti), =test/blueprint-test-dashboard.el= (titoli visibili dopo refresh e focus, larghezze, righe delle parti, =NOT-INCLUDED=, ~RET~ su una parte, daily con le parti, grigio nel grafo), =test/blueprint-test-keys.el= (nuovo).
-
-Restano aperti:
-- [RISOLTO 2026-11-01, vedi 9.12 e il residuo sotto] =blueprint-list-questions= e la colonna QUESTION contano ancora in modo diverso (voci =- QUESTION= contro ogni =QUESTION= esportato), e la lista domande legge i tre documenti di ogni componente anche se non inclusi.
-- Gli include parziali (=:lines=, =::ricerca=) contano per intero; un file incluso più volte conta una volta.
-- [RISOLTO 2026-11-01] Le soglie dei colori restano una costante (50/80), non legata a =blueprint-delivery-score-threshold=.
-
-Aggiornamento 2026-11-01 sui due risolti: la lista domande conta ora
-esattamente le occorrenze QUESTION della dashboard (ogni marker nel
-testo esportato dei documenti inclusi, voci di elenco e prosa) e il suo
-perimetro è =blueprint--component-included-paths=, come l'health; il
-giallo/verde dei grafi scatta su =blueprint-delivery-score-threshold=
-(spostata in =blueprint-health.el=, stesso nome: i valori personalizzati
-salvati restano validi), il rosso resta a 50 come =blueprint-ci-validate=.
-Con le risposte (9.12) la lista mostra anche le ANSWERED, che non
-contano in nessun totale.
-
-** 9.27 Didascalie numerate per capitolo nell'export ODT (FATTO)
-
-Trovato dal progetto pilota (2026-10-08), dopo aver tolto
-dalle didascalie il prefisso manuale ("Figura DS-2 -- "): nel PDF più
-figure risultavano "Figura 1". Causa: =org-odt-display-outline-level=
-vale 2 di serie, Org numera per capitolo (=2.1.1=) e dichiara le
-sequenze con =text:display-outline-level="2"=; il template aziendale
-non ha numerazione di struttura sui titoli, quindi LibreOffice mostra
-solo il contatore, che riparte a ogni capitolo.
-
-Fatto: =blueprint--with-plantuml-export= porta la variabile a 0 (un
-contatore per tutto il documento) se è ancora al valore di serie, come
-già fa per Babel e PlantUML; anche =blueprint-export-dispatch= ora usa
-la macro. Verificato sul pilota: figure da 1 a 23 senza ripetizioni.
-Test in =test/blueprint-test-export.el=.
-
-** 9.26 Diagrammi SVG ridotti a 5x5 cm nell'export ODT (FATTO)
-
-Segnalato dal progetto pilota (2026-10-08): nel PDF
-ottenuto dall'ODT tutti i diagrammi erano piccoli, al centro, deformati
-e illeggibili, soprattutto quelli larghi. Nell'ODT le 23 cornici delle
-immagini misuravano tutte 5,00 x 5,00 cm. Causa: =org-odt--image-size=
-misura l'immagine con =identify= di ImageMagick, poi con
-=image-size= di Emacs, e altrimenti usa i 5x5 cm fissi di
-=org-odt-default-image-sizes-alist=. Su SVG falliscono entrambe: la
-policy di ImageMagick del sistema vieta SVG (stessa causa di 9.25) ed
-Emacs in batch non misura immagini.
-
-Fatto: advice =:around= =blueprint--odt-image-size-svg= su
-=org-odt--image-size= in =blueprint-export.el=. Per un file =.svg= legge
-=width=/=height= (px, senza unità o pt) o il =viewBox= dell'elemento
-radice e li passa come larghezza e altezza in cm, così Org applica
-comunque =org-odt-max-image-size= (17x20 cm) e mantiene le proporzioni.
-=:scale= o =:width= più =:height= espliciti restano invariati; con solo
-=:width= o solo =:height= l'altra misura segue il rapporto dell'SVG.
-Verificato sull'export reale del pilota: 23 immagini da 5x5 cm a
-larghezza piena con proporzioni corrette. Test in
-=test/blueprint-test-export.el=.
-
-Resta aperto: i diagrammi molto larghi (C4 container, ER) a 17 cm hanno
-testo piccolo. Possibili strade, da decidere: pagine orizzontali per le
-figure larghe, o layout verticale nei sorgenti PlantUML. *Chiuso lato
-documentazione (2026-11-01, vedi 9.16)*: la dimensione esplicita
-(=#+ATTR_ODT: :width=) è già rispettata dall'advice di questa voce ed è
-documentata in USAGE con le alternative (pagina orizzontale nel
-template aziendale, layout verticale nei sorgenti PlantUML).
-
-** 9.23 Limiti della correzione delle didascalie (FATTO)
-
-Residui di 9.18, corretti il 2026-09-27:
-
-- Un blocco mai valutato (nessun =#+RESULTS:=) usciva senza didascalia,
-  perché Babel crea i risultati durante l'export. Ora
-  =blueprint--move-result-captions= è un advice =:around= su
-  =org-babel-exp-process-buffer= a due fasi: prima di Babel
-  =blueprint--mark-result-keywords= mette una riga-sentinella (un
-  commento) dopo i risultati esistenti o, se non ce ne sono, subito dopo
-  il blocco, dove Babel inserirà i nuovi risultati prima di lei; mai fra
-  blocco e risultati, dove Babel non troverebbe più quelli anonimi.
-  Dopo Babel =blueprint--apply-result-keywords= mette =#+CAPTION:=,
-  =#+NAME:= e =#+ATTR_*:= sul paragrafo =#+RESULTS:= che precede ogni
-  sentinella e toglie le sentinelle.
-- =#+NAME:= ora passa ai risultati: dopo Babel non serve più alla
-  ricerca dei risultati nominati. Verificato che, quando i risultati
-  portano già il nome del blocco (=#+RESULTS: fig-ctx=), Org risolveva
-  il link anche prima: il limite annotato in 9.18 era più stretto di
-  quanto descritto.
-- Verificato in ODT, LaTeX e PDF, con PlantUML eseguito davvero da
-  un componente incluso via =#+INCLUDE:=: didascalia presente
-  ("Figure 1: ..." nel PDF) e =[[fig-ctx]]= risolto in riferimento alla
-  figura (=\ref= in LaTeX, =text:sequence-ref= in ODT).
-
-Test in =test/blueprint-test-export.el=, ora eseguiti con Babel vero
-(=org-babel-exp-process-buffer=); i blocchi valutati usano emacs-lisp
-con =:results file :file=, così la CI non richiede PlantUML.
-
-** 9.17 Parola chiave QUESTION stampata nel documento esportato (FATTO)
-Trovato dal progetto pilota (2026-09-24): le voci
-=- QUESTION ...= inserite da =blueprint-add-question= uscivano
-nell'export ODT/PDF con la parola chiave letterale davanti a ogni
-domanda aperta. La parola serve a lint, health score ed elenco
-domande, non al lettore.
-
-Fatto: =blueprint--strip-question-keywords= in =blueprint-export.el=,
-registrata in =org-export-before-parsing-functions= come
-=blueprint--strip-duplicate-titles=. Toglie la parola chiave solo dalle
-voci di elenco che iniziano con essa; la parola dentro una frase, un
-blocco di esempio o di codice resta. Test ERT in
-=test/blueprint-test-export.el=. TBD e FIXME restano stampati: sono
-lavoro dell'autore, non dovrebbero arrivare a un documento consegnato,
-e il lint li segnala già.
-
-** +9.16 Documentare le funzioni native di Org supportate da Blueprint+ (FATTO 2026-11-01)
-Richiesta dal progetto pilota (2026-09-23), insieme alla
-migrazione delle fonti a note a piè di pagina native. Decisione
-dell'utente: per le esigenze di impaginazione e di apparato si
-preferiscono gli strumenti built-in di Org (=ox=, =ox-odt=,
-=ox-latex=, =oc=) a costrutti nuovi dentro Blueprint; Blueprint deve
-però dichiarare ufficialmente cosa del "nativo" supporta e garantisce
-lungo tutta la sua catena (sync, =#+INCLUDE= con =:minlevel=, lint,
-health, export ODT/PDF/DOCX, controllo stili ODT).
-
-*Fatto (2026-11-01)*: sezione "* Funzioni native di Org supportate" in
-USAGE.org (rimando dal README) con le quattro voci previste più la
-dimensione delle immagini (=#+ATTR_ODT: :width=, che chiude anche il
-residuo "diagrammi larghi" di 9.26 lato documentazione). Test di non
-regressione: =blueprint-test-export/footnotes-reach-content-xml=
-(export ODT reale con note in testo, in cella di tabella e in un file
-incluso: un =<text:note>= per ciascuna, numerazione continua 1-2-3
-attraverso gli include). Stili delle note: =Footnote= è già nel
-baseline =OrgOdtStyles.xml=, quindi =blueprint-check-odt-styles= lo
-segnala senza estendere =blueprint--odt-extra-required-styles=.
-
-Le voci previste (tutte implementate):
-
-- sezione in =USAGE.org= (e rimando dal README), "Funzioni native di
-  Org supportate", con per ciascuna: sintassi, comportamento per
-  backend, verifiche fatte da Blueprint, limiti noti. Prime voci:
-  - note a piè di pagina (=[fn:: ...]= inline e =[fn:nome]= con
-    definizione), anche dentro celle di tabella e dentro file inclusi
-    con =#+INCLUDE= (numerazione unica nel documento assemblato);
-  - citazioni =oc= con processore =basic= (=[cite:@chiave]=,
-    =#+bibliography:=, =#+print_bibliography:=), se il pilota le adotta;
-  - interruzioni di pagina (9.15), come costrutto Blueprint sopra
-    keyword native =#+ODT:=/=#+LATEX:=;
-  - keyword di export per backend (=#+ODT:=, =#+LATEX:=, =#+HTML:=).
-- test ERT di non regressione: un progetto di prova con note in testo,
-  in tabella e in un file incluso, esportato in ODT; verifica che
-  =content.xml= contenga un =text:note= per ogni nota e che la
-  numerazione non riparta a ogni =#+INCLUDE=;
-- estendere =blueprint--odt-extra-required-styles= se l'export delle
-  note referenzia stili (es. =Footnote=) che un template =.ott=
-  aziendale potrebbe non definire, così che =blueprint-check-odt-styles=
-  li segnali;
-- valutare se =blueprint-lint= debba riconoscere le note come fonte di
-  un'affermazione (oggi non conta nulla del genere). *Valutato
-  (2026-11-01), non implementato*: le note sono già testo esportato e
-  i marker della metodologia bastano a tracciare la fonte.
-
-** 9.32 =blueprint-project-upgrade= fallisce con il passo =version-file= pendente (FATTO)
-Segnalato dal progetto pilota (2026-11-02), primo uso della 0.4.0 su un
-progetto reale senza =blueprint-version.org=: sia =C-c b ^= sia =u= nella
-dashboard danno =tabulated-list-print-entry: Wrong type argument:
-stringp, nil=, e il piano non si apre. Causa:
-=blueprint--upgrade-plan-entries= mette =(plist-get step :era)= nella
-terza colonna, e per =version-file= =:era= è nil per costruzione (il passo
-non dice nulla sul formato). Riprodotto in =emacs -Q --batch=, senza il
-buffer =*Blueprint Upgrade*= già aperto: il buffer esistente non c'entra.
-Il test di =test/blueprint-test-upgrade.el= che chiama
-=blueprint-project-upgrade= non copre il caso di un piano con
-=version-file= pendente (cioè ogni progetto senza file di versione, il
-caso tipico della migrazione). Da correggere: colonna vuota (o "--")
-quando =:era= è nil, più un test sul piano di un progetto 0.2.0 reale.
-
-*Fatto (2026-11-02)*: "--" nella colonna quando =:era= è nil. Test
-=plan-buffer-with-version-file-pending= (progetto senza file di versione)
-e =plan-entries-are-strings-for-every-step= (ogni passo del registro
-produce solo stringhe), entrambi rossi senza la correzione.
-
-** 9.33 Versione illeggibile nella riga di stato della dashboard (FATTO)
-Segnalato dal progetto pilota (2026-11-02): con la dashboard in una
-finestra affiancata la parte "Blueprint <versione>" della riga di stato
-non si vede, perché viene dopo la milestone e il titolo del primo TODO
-di =CRONOPROGRAMMA.org=/=TODO.org= è inserito per intero (nell'assessment
-è un heading lungo). Si vede solo massimizzando la finestra. Da valutare:
-troncare il titolo della milestone (=truncate-string-to-width= con una
-larghezza configurabile) e/o anticipare la versione rispetto alla
-milestone.
-
-*Fatto (2026-11-02)*: entrambe. La versione viene prima della milestone;
-il titolo è tagliato a =blueprint-dashboard-milestone-width= (40, nil per
-non tagliare) con "...", e il titolo intero resta nel tooltip. Test
-=milestone-title-cut-after-version=.
-
-** 9.34 Il file di versione non è un passo di migrazione (FATTO)
-Segnalato dal progetto pilota (2026-11-02): applicato solo
-=lifecycle-keyword=, il piano si è svuotato, perché ogni passo applicato
-scrive =blueprint-version.org= e il passo =version-file= risultava fatto
-senza essere registrato; su un progetto già nel formato attuale lo
-stesso passo contava come migrazione disponibile in dashboard e CI.
-*Fatto (2026-11-02)*: decisione dell'utente, ADR-002 D7. Passo tolto dal
-registro, =v= nel piano (=blueprint-upgrade-declare-version=). Test sul
-progetto senza file, sulla dichiarazione con passi pendenti e senza, e
-sul file scritto da un passo applicato.
-
-** 9.35 Accenti scritti come apostrofi nei testi generati (FATTO)
-Segnalato dal progetto pilota (2026-11-02): =blueprint-version.org=
-generato con "e'" invece di "è". Stesso difetto nell'intestazione di
-=agenda.org= e nel titolo del passo =project-files=. *Fatto
-(2026-11-02)*: cinque stringhe corrette, test
-=no-apostrophe-accents-in-package-text= su tutti i sorgenti e i
-template. Restano 31 occorrenze in =USAGE.org= (documentazione, non
-testo generato), da correggere a parte.
-
-** 9.36 Vista enterprise C4: progetti senza marker e diagrammi scritti a mano
-Segnalato dal progetto pilota (2026-11-02): =C-c b V=
-(=blueprint-generate-enterprise-c4=) si ferma con "enterprise/context.org
-has no ' @@blueprint-enterprise-start@@ marker; regenerate it from the
-enterprise-context.org template". I marker sono entrati nel template il
-2026-09-16 (777f87f, 10.4): un =enterprise/context.org= creato prima non
-li ha. Tre difetti:
-- l'inventario dei formati di ADR-002 non comprende questo caso, quindi
-  il piano di migrazione non lo propone e la versione dedotta non ne
-  tiene conto;
-- il messaggio suggerisce di rigenerare il file dal template, cosa che
-  cancellerebbe il contenuto scritto a mano (nel progetto pilota il
-  diagramma ha persone, sistemi esterni e 18 relazioni);
-- inserire i marker in un diagramma che dichiara già i componenti a mano
-  (=System(gestionale, ...)=) produrrebbe identificatori duplicati in
-  PlantUML: il generatore non controlla gli id già presenti fuori dai
-  marker.
-Da decidere: un passo di migrazione che inserisce i marker vuoti in
-fondo al blocco (solo se nessun componente è già dichiarato fuori),
-oppure un messaggio che spiega come aggiungerli a mano; in entrambi i
-casi un controllo degli id duplicati prima di scrivere.
-Decisione utente (2026-11-02): la correzione va fatta nel pacchetto,
-per tutti i progetti; rinviata. Fino ad allora la vista enterprise
-generata non si usa.
-
-** 9.37 Inglese nei testi italiani generati
-Segnalato dal progetto pilota (2026-11-02): l'intestazione di
-=.blueprint/metrics-history.org= dice "una quando i valori cambiano (see
-=blueprint-history-on-sync=)" (=blueprint-history.el:45=). Stessa
-famiglia di 9.35: il test sugli apostrofi non lo vede. Da correggere
-("vedi") e da cercare negli altri testi generati in italiano.
-
-** 9.38 Trattini doppi negli identificatori convertiti in trattino medio (FATTO)
-Segnalato dal progetto pilota (2026-11-02): Org converte ogni "--" in
-trattino medio, quindi i nomi dei repository ("acme--portale") uscivano
-come "acme–portale" (217 volte nel PDF). Il verbatim non basta: "=x--y=]"
-non è riconosciuto, e le fonti sono scritte "[FONTE: codice
-repo@sha]". *Fatto (2026-11-02)*: =blueprint-export-double-hyphen=
-(=except-words= di default, =always= come Org, =never= sempre due
-trattini: scelta opinabile, resa configurabile su richiesta
-dell'utente); con =except-words= la regola del trattino medio di
-=org-odt-special-string-regexps= e =org-html-special-string-regexps=
-vale solo quando "--" non sta fra due alfanumerici, e in LaTeX un filtro
-scrive "-{}-". Test ODT, HTML, LaTeX e dei tre valori.
-
-** 9.39 Figure con didascalia sovrapposte in ODT (FATTO)
-Segnalato dal progetto pilota (2026-11-02): una figura alta (20 cm più
-didascalia) che non entrava nello spazio rimasto copriva la figura
-precedente, perché ox-odt ancora al paragrafo il frame della
-didascalia e LibreOffice lo tiene dentro la pagina spostandolo in su.
-*Fatto (2026-11-02)*: =blueprint-export-odt-images-as-char= (default
-t), filtro di output finale: frame =OrgImageCaptionFrame= ancorati come
-carattere, paragrafo con stile =OrgCenter= per mantenerli centrati.
-Verificato sul documento del progetto pilota (167 pagine, figura 9 passa a pagina
-nuova, nessuna sovrapposizione nelle 27 figure). Test sull'export ODT.
+* Phase 9 --- New features (ideas)
+** +9.1 Automatic changelog+ ✅
+Generate a =CHANGELOG.org= file from git commit messages and ADRs. Command: =blueprint-changelog-generate=.
+
+*Done (2026-11-01)*: new =blueprint-changelog.el=. The command (key =J=, prefix =C-u= for a =SINCE..HEAD= range) regenerates =CHANGELOG.org= entirely: the commit history (=%h|%ad|%s=, grouped by date, newest first) and a "Decisioni architetturali" section with the ADRs with =:STATUS: accepted= from =.blueprint/adr.org=. The file is derived: if it already exists, the command asks before overwriting (manual changes would be lost). Parsing and assembly are pure functions (=blueprint--changelog-parse-log=, =blueprint--changelog-assembly=, tested without git); =git log= fails with a clear =user-error= outside a repository. Tests: =test/blueprint-test-changelog.el=, including an end-to-end test with a real temporary repository.
+
+** +9.2 Component status tracking+ ✅
+Add a keyword =#+BLUEPRINT_STATUS: draft|active|deprecated|archived= read by the dashboard with colored icons. The linter could warn when an =active= component has FIXMEs or depends on a =deprecated= one.
+
+*Done (2026-11-01)*: *user decision*: a separate keyword =#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (default =active= when missing or unrecognized), because =#+BLUEPRINT_STATUS:= is already the scope (10.7) and the two axes must not be mixed. Dashboard: a =Life= column after =Scope= (draft dimmed, deprecated red, archived yellow, through text properties). Lint: with =blueprint-lint-lifecycle-checks= (default t, *exit code change accepted by the user*: an =active= component with FIXMEs or depending on a =deprecated= one takes =blueprint-ci-lint= and =blueprint-ci-validate= from 0 to 1 on existing projects). The =component.org= template declares the keyword for new components (existing files stay as they are). Tests: =blueprint-test-lifecycle/*= in =test/blueprint-test-c4.el=, =blueprint-test-lint/lifecycle-*=, =blueprint-test-dashboard/entries-carry-lifecycle-column=.
+
+** +9.3 Metric trends over time+ ✅
+Record the state of the metrics (score, counts) in =.blueprint/metrics-history.org= at every sync, to show a chart of how the project evolves.
+
+*Done (2026-11-01)*: new =blueprint-history.el=. =blueprint-sync= records a line in the history file (in the data directory, not included in master.org: no count changes) when =blueprint-history-on-sync= is on (default t), skipping the line if the values did not change; =blueprint-history-record= is called inside =condition-case=, so the sync never breaks because of the history. =blueprint-metrics-history= (key =x=) draws the score over time as an SVG with a namespace and a white background (pure =blueprint--history-chart-svg=), shown like =blueprint-health-svg=. Tests: =test/blueprint-test-history.el=.
+
+** +9.4 JSON/YAML export for CI+ ✅
+Add =blueprint-ci-export-json=, producing a =blueprint-report.json= file with health score, components, dependencies and warnings --- useful for integration with CI tools that do not support Emacs.
+
+*Done (2026-11-01)*: in =blueprint-ci.el=, =blueprint-ci-export-json= (message and exit 0/2 in batch) writes =blueprint-report.json= (=blueprint-ci-report-file=). The report is built by =blueprint--ci-report-object= as a tree of hash tables with string keys and vectors: =json-serialize= takes it as it is, while an alist with list values cannot be serialized without ambiguity (=(a . ("x"))= reads as the flat list =("a" "x")=). Counts on the scope of the document, like the dashboard; marker keys derived from the regexps of =blueprint--health-weights= (=question=, =da-validare=, ...), so the names follow the weights. Tests: =test/blueprint-test-ci.el=; batch smoke test on a temporary project.
+
+** +9.5 Multi-level "enterprise" template+ ✅
+Support for an =arc42-enterprise.org= template with extra sections (enterprise context, stakeholder map, compliance) for larger engagements. The old assessment framework already had the basis (now =docs/method/=).
+
+*Done (2026-11-01)*: new =templates/arc42-enterprise.org=, based on the old scaffolder's =arc42.org= template: the standard arc42 sections (the ones the lint expects, so an enterprise component is linted like the others) plus /Contesto enterprise/, /Stakeholder e punti di contatto/ and /Conformità e compliance/; same conventions (=:noexport:= guide, anchors, Blueprint keywords). =blueprint-add-component= accepts a template argument: interactively, with =C-u=, it asks among the templates that resolve in the three tiers; without prefix or argument the behavior is the same as before. Tests: =blueprint-test-add-component/enterprise-*= in =test/blueprint-test-core.el=.
+
+** +9.6 org-agenda integration+ ✅
+Turn open QUESTIONs and FIXMEs into org-agenda tasks with deadlines, so triage can happen from Emacs's standard agenda buffer.
+
+*Done (2026-11-01)*: new =blueprint-agenda.el=. =blueprint-agenda-refresh= turns the markers of =blueprint-agenda-marker-types= (default QUESTION and FIXME) into TODO entries of =.blueprint/agenda.org=, with the component, a link to the origin and a stable ID (a hash of file, text and occurrence): DEADLINE, SCHEDULED and TODO/DONE state set by hand survive the refresh. =blueprint-agenda= (key =U=) regenerates and opens an agenda view restricted to the file (deadlines, then every open entry: =org-agenda-list= alone, as in the first version, did not show undated entries); =blueprint-agenda-add-to-org-agenda= (default nil) also adds it to =org-agenda-files=. ANSWERED lines are history and do not become entries. The file lives in the data directory and is not included in master.org. Tests: =test/blueprint-test-agenda.el=.
+
+** +9.7 Diff between versions of a component+ ✅
+Use git to show the diff of the changes to arc42.org files with semantic context (which heading changed, how many questions were resolved). Command: =blueprint-component-diff=.
+
+*Done (2026-11-01)*: new =blueprint-diff.el=, a read-only command. The buffer (=diff-mode=) opens with the semantic summary: files touched, Org headings changed with their level, marker deltas (QUESTION/ANSWERED/TBD/FIXME added and removed) and questions resolved (ANSWERED lines added); below, the diff in unified format. *Always* requested with =--no-ext-diff=: a =diff.external= in the user's gitconfig (difftastic and the like) would produce a format the summary cannot read. Key =d= in the component list (=blueprint-component-diff-at-point=; the binding lives in blueprint-diff, because core cannot require it). Tests: =test/blueprint-test-diff.el= with a real temporary repository.
+
+** +9.8 Semantic search with org-roam-db+ ✅
+If org-roam is available, use its SQLite database for semantic searches across components (similar components, dependency clusters, and so on).
+
+*Done (2026-11-01)*: in =blueprint-roam.el=, =blueprint-roam-similar= ranks components by similarity to a given one: shared tags and shared outgoing links from the database weigh 2, common title tokens 1 (=blueprint--roam-similarity=); =blueprint-roam-clusters= shows the clusters of components connected by =#+BLUEPRINT_DEPENDS:= and roam links (without org-roam, dependencies only). The pure logic is in =blueprint-graph.el= (=blueprint--dependency-clusters=: a union-find that ignores dangling dependencies and sorts with a total order, so the result does not depend on the iteration order of the hash). The database commands are skipped in the tests when org-roam is not installed (as in CI). Tests: =test/blueprint-test-roam.el=.
+
+** 9.9 Blueprint for monorepos
+Support for projects with several subsystems: =.blueprint/systems/= with one directory per system, each with its own components/adr structure. The dashboard would show an aggregate multi-system view.
+
+*Deferred by the user (2026-11-01)*: still an open idea, for a dedicated session --- it is the most invasive change of the lot (it touches the root resolution every module uses).
+
+** +9.10 Live preview in the sidebar+ ✅
+A minor mode that opens a side buffer with the SVG preview of the dependency graph, updated live when files are saved.
+
+*Done (2026-11-01)*: new =blueprint-preview.el=. =blueprint--dashboard-svg-generate= (a refactoring of =blueprint-dashboard-svg=, which stays the same for the user) generates the SVG; =blueprint-preview-mode= (a global minor mode, off by default) regenerates it at every save of an Org file of the project, with a debounce of =blueprint-preview-delay= (1 s), and updates the =*Blueprint Preview*= buffer only if it exists --- it never pops up windows on its own; =blueprint-preview= opens the preview in a side window and turns the mode on, with the SVG through =create-image= of type =svg= (librsvg). Without dot: a single message per session. Tests: =test/blueprint-test-preview.el=.
+
+** +9.11 Milestones and schedule in the dashboard+ ✅
+Found in real use: the dashboard (=blueprint-dashboard.el=) only has per-component metrics (Questions/TBD/FIXME/Status); there is no concept of deadline or milestone at project level. A real project almost always has a schedule with partial deliveries, and knowing "how long until the next one" is worth having at a glance as much as the health score.
+
+Minimal proposal: by convention, if =CRONOPROGRAMMA.org= and/or =TODO.org= exist at the project root, =blueprint-dashboard-refresh= adds to the header line the next open milestone (the first line with a =TODO= keyword, not completed, under a heading or table recognized as a milestone) and the count of open =TODO= items in the project. No new format to impose: it reuses standard Org (TODO/DONE keywords, tables) already used in real projects. Not implemented: to judge whether it is worth generalizing or stays specific to one project.
+
+*Done (2026-11-01)*: =blueprint-milestone-files= (default =CRONOPROGRAMMA.org=, =TODO.org=): if one exists at the root, the summary line adds "Milestone: <title> (<date>) | TODO aperti: N" --- the next milestone is the first TODO heading in file order, with its =:DEADLINE:= as the date; the count sums the TODO headings of every file in the list. Read with org-element and defensively: any parsing problem degrades to nil without breaking the dashboard. The table format of the schedule is not handled in this pass. Tests: =blueprint-test-dashboard/milestone-*=.
+
+** +9.12 Evolving the Open Questions mechanism (=blueprint-questions.el=)+ ✅
+Found in real use, while designing a question-tracking workflow. =blueprint-add-question= / =blueprint-list-questions= only handled a flat list (=- QUESTION <text>=) per component: no tag or area, no history of the resolution (who answered, when, from which source), no way to mark a question as closed without deleting it (losing its history). An external structure had to be built on top (a separate question register, with area tags and a selective projection to =QUESTION= for the questions that belong to one component), because the native mechanism is not enough for an assessment with many cross-component questions and interviews spread over time.
+
+Proposal (not specified in detail, to validate whether it generalizes):
+
+- Extend the =QUESTION= line with optional properties (tag or area, state =OPEN=/=ANSWERED=, reference to the source of the answer), keeping the syntax backward compatible for those who only use the current flow.
+- =blueprint-list-questions= with filters by tag and state, not just a flat list.
+- Consider whether a question "without a component" makes sense (today =blueprint-add-question= always requires a component).
+
+*Done (2026-11-01)*: *user decision*: backward-compatible extended metadata; questions always belong to a component. Format: =- QUESTION text [TAG: tag]= open; =- ANSWERED [YYYY-MM-DD] text [TAG: tag] [FONTE: source]= closed --- answering (new =blueprint-answer-question=) rewrites the token, so the question leaves health, dashboard and lint, but its history stays in the file; old lines stay valid and open. The list shows Tag and State and filters by tag (=t=) and state (=s=). Tests: =blueprint-test-questions/answer-*=, =blueprint-test-questions/list-filters-*= and compatibility tests in =test/blueprint-test-content.el=.
+
+** +9.13 =blueprint-delete-component= does not clean up external references+ ✅
+Found in real use, while reshaping a project's scope (a component turned out to be a functional area of another component and had to be removed as a Blueprint component). =blueprint-delete-component= (=blueprint-core.el=) only deleted the component's directory: it did not touch the =#+INCLUDE= lines referencing it in =master.org= (three, one each for arc42/functional/infrastructure), did not update =BLUEPRINT_DEPENDS= in the other components that might cite it, and did not remove leftover =QUESTION= mirrors elsewhere. Using it would have left =master.org= with =#+INCLUDE= lines pointing to missing files (a silent or loud export error depending on the backend). The workaround was not to use it, leaving the component physically present until its content was merged by hand into the destination component.
+
+Proposal (not specified in detail): before deleting the directory, =blueprint-delete-component= should find and remove the =#+INCLUDE= lines pointing to the component in =master.org= (inside the =@@blueprint-sync-*-start/end@@= sections, consistently with how =blueprint-sync= handles them) and report (not remove automatically: it needs human judgment) the occurrences of the component's name in =BLUEPRINT_DEPENDS= elsewhere in the project.
+
+*Done (2026-11-01)*: =blueprint--master-remove-component= (=blueprint-sync.el=) removes, only inside the sync-marker sections, the component's =#+INCLUDE= lines with the generated headline and the page-break lines before it; the sync markers moved to blueprint-core.el (same name) so that the deletion can start there without a circular require. Before deleting, the command asks for an extra confirmation when other components declare the name in =BLUEPRINT_DEPENDS=: the dependencies stay (human judgment) and the lint reports them as dangling. Tests: =blueprint-test-delete-component/removes-synced-includes=, =.../page-break-removed-with-headline=, =.../dependents-confirmed-and-reported=, =.../legacy-master-without-headlines=.
+
+** +9.14 The sync-managed sections of =master.org= do not separate components with a title+ ✅
+Found in real use, rereading a final export: the three sections managed by =blueprint-sync= (Part II arc42, Part III functional, Part IV infrastructure) generated only a flat list of =#+INCLUDE= lines (=blueprint--generate-includes-for=), with no headline naming the component before each included file. In the exported document every component started with =* Introduction= (or another generic headline reused by every component): a reader had no headline telling them that one component had ended and the next had begun. The only signal was the =#+TITLE:= line of the included file, which Org never renders as a separator in the middle of a document (it concatenates them all into a single title, a /different/ behavior but just as useless for this purpose). It was not an export problem: it was structural, probably present since the first generation of =master.org= for any blueprint.el project with more than one component. A first manual workaround (headlines written by hand between the sync markers) proved fragile: a resync after adding or removing a component deleted the hand-written headlines.
+
+Fixed in =blueprint-sync.el=: =blueprint--generate-includes-for= now generates, for each component, a level-2 headline (=** <ComponentName>=) right before its =#+INCLUDE=, with =:minlevel 3= instead of 2 so the include nests correctly under that headline. The displayed name comes from a new function, =blueprint--component-display-name=, which reads the =#+TITLE:= of the included file and takes the text before the first =" -- "= (the convention already used by the component templates, for example "Portale -- Architettura (arc42)"); if the file cannot be read or the title does not follow that convention, it uses the whole title or, as a last resort, the capitalized component name. Three new tests in =blueprint-test-sync.el= cover the generated headline, the extraction from =#+TITLE:= and the fallback; the two existing tests that assumed =:minlevel 2= and a single matching line per component were updated. No migration needed for existing projects: the next =blueprint-sync= regenerates the section with the right headlines automatically.
+
+** +9.15 Page breaks between components+ ✅
+Requested from real use: in the document exported to ODT, the component sections (Parts II, III, IV) followed each other without a page change. Implemented as an option declared in =master.org= (=#+BLUEPRINT_PAGE_BREAK: components=), read by =blueprint-sync=: before every component title except the first of each part, the sync writes =#+ODT: <text:p text:style-name="PageBreak"/>= and =#+LATEX: \clearpage=. An Org macro was ruled out: it expands inside a paragraph and in ODT would produce a nested =<text:p>=. Added the command =blueprint-insert-page-break= for manual breaks, and =PageBreak= among the styles =blueprint-check-odt-styles= verifies (=blueprint--odt-extra-required-styles=, since it is not in the baseline of OrgOdtStyles.xml). Tests in =blueprint-test-sync.el= and =blueprint-test-export.el=.
+
+** 9.19 Configurable name of the data directory (DONE)
+User request (2026-09-26), anticipating structure conventions imposed by site generators (Hugo- or Jekyll-like for Org) or build tools strict about directories (Maven-like). New defcustom =blueprint-directory-name= (default =.blueprint=; a nested relative path such as =content/blueprint= is allowed; absolute paths, =..=, =.= and empty segments are rejected). Every hardcoded occurrence goes through =blueprint--data-dir= / =blueprint--data-path= in =blueprint-core.el=; =blueprint--generate-includes-for= writes the path relative to =master.org= instead of the literal =.blueprint/components/...=.
+
+Backward compatibility (option A, the user's choice): =blueprint--root= recognizes both the configured name and =.blueprint=, at every level going up (the nearest project wins); if it finds only the old one it uses it and warns once per session; if it finds both it uses the new one and warns that the data is split. =blueprint-init= in a legacy project reuses =.blueprint= instead of creating a second empty directory.
+
+=blueprint-migrate-directory= (=C-c b m=, =blueprint-migrate.el=): computes the plan before touching anything, asks for confirmation, renames (=git mv= if git tracks the directory, otherwise =rename-file=), rewrites =file:= links and =#+INCLUDE:= / =#+SETUPFILE:= paths through =org-element= (resolving every path against the old position of the file and making it relative again to the new one, so outgoing links from the moved tree are fixed too when the depth changes), reattaches open buffers and their =default-directory=, invalidates the cache and reports in a buffer the free-text mentions it did not rewrite. It refuses: an existing target, source equal to target, one inside the other, modified buffers involved.
+
+Bug found during the tests and fixed: Emacs lock files (=.#file.org=, dangling symlinks while =file.org= has unsaved changes) passed the ="\\.org\\'"= filter of =directory-files-recursively=; =blueprint-list-findings= and =blueprint-list-unvalidated= failed with =file-missing= as soon as a project file was modified in a buffer. New constant =blueprint--org-file-regexp=, used by health, async and migrate.
+
+Known limit: a value in =.dir-locals.el= only reaches buffers visiting project files; the dashboard and result buffers see the global value. Documented in README and USAGE; not supported, by the user's choice (2026-09-26).
+
+Tests in =blueprint-test-core.el=, =blueprint-test-sync.el=, =blueprint-test-migrate.el=, =blueprint-test-health.el=.
+
+** 9.20 Configurable position of master.org, enterprise/, nfr/, _archive/ (DEFERRED)
+A consequence of 9.19: with a layout imposed by a site generator, the files and directories at the project root (=master.org=, =glossary.org=, =references.org=, =enterprise/=, =nfr/=, =_archive/=) will probably have to live elsewhere too. To decide with the user whether it is needed and at which granularity (a single "content root" or one path for each) before implementing.
+
+Deferred by the user (2026-09-26): no requirement for now, it gets done when one arrives.
+
+** 9.21 Reading #+BLUEPRINT_DEPENDS and renaming components (DONE)
+Found (2026-09-26) while smoke-testing 9.19 on a project just created with =blueprint-init= + =blueprint-add-component=:
+
+- =blueprint-ci-validate= failed on every new project: lint, ci, dashboard and risks read =#+BLUEPRINT_DEPENDS:= with a regexp on the raw text, which skipped the template's empty line and captured the example =order-service notification-service= in the =#+BEGIN_SRC org= of the =:noexport:= guide. =blueprint--org-keyword= (c4) still had =\\s-*= and, for an empty keyword, returned the next line (="#+BLUEPRINT_OWNER:"= as a dependency in the C4, ="#+BLUEPRINT_TECH:"= as Owner in the dashboard). Now =blueprint--org-keyword= lives in core, uses =org-element=, and every caller goes through it.
+- =blueprint-rename-component= used =\\b= around the old name: renaming =auth= turned the dependency =auth-db= into =identity-db=. It now compares whole tokens.
+
+Behavior accepted by the user (2026-09-26), not to be fixed: =blueprint-rename-component= does not slugify the new name (unlike =blueprint-add-component=) and does not update the =#+INCLUDE= lines of =master.org= until =blueprint-sync= runs again (see also 9.13).
+
+** 9.18 Diagram captions do not reach the ODT export (DONE)
+Found in real use (2026-09-24): no =#+CAPTION:= placed above a =#+begin_src plantuml :file ...= block appeared in the exported =content.xml= (zero occurrences of "Figura"), while the images were all there.
+
+Cause verified (2026-09-26) by dumping the export buffer in the two hooks: Babel replaces the block exported with =:exports results= (ob-plantuml's default) with the =#+RESULTS:= paragraph, and deletes the block's affiliated keywords together with the block. In =org-export-before-parsing-functions= the caption is already gone; in =org-export-before-processing-functions= the =#+INCLUDE:= lines are not expanded yet, so the components included by =master.org= are not in the buffer. No hook falls between the include expansion and Babel.
+
+Done: =blueprint--move-result-captions= (=blueprint-export.el=), a =:before= advice on =org-babel-exp-process-buffer=. It copies the block's =#+CAPTION:= and =#+ATTR_*:= right before the =#+RESULTS:= line (not =#+NAME:= or =#+HEADER:=, which Babel needs). Babel still finds the results, named and anonymous, and rewrites them without touching the lines above =#+RESULTS:= when it re-evaluates; also verified with PlantUML actually running and the component included through =#+INCLUDE:=. It only works on the export copy. Not touched: blocks with =:exports both= (the caption stays on the listing) and results that already have their own caption. Limits later fixed in 9.23: a block never evaluated (no =#+RESULTS:=) stays without a caption; a link =[[fig-ctx]]= to the block's name does not point to the figure, because =#+NAME:= is not moved. The mechanism is backend-independent, but was verified only in ODT (not in PDF/LaTeX). Tests in =test/blueprint-test-export.el=, including an end-to-end one that looks for the caption in =content.xml= (=skip-unless unzip=).
+
+** 9.22 Markers in the templates' =:noexport:= guides counted as real (DONE)
+Found (2026-09-26) on a project just created with a single component: =blueprint-list-findings= reported 10 =[FINDING]=, all false (guide prose with the marker in verbatim, fictitious sample tables "PiattaformaPagamenti" in the =:noexport:= guides), and the component's health score lost 4 points.
+
+User decision: what is not exported does not count. Done: =blueprint--uncounted-regions= in =blueprint-core.el= excludes subtrees with an exclusion tag (=org-export-exclude-tags= and =#+EXCLUDE_TAGS:=) or COMMENT, src/example/export/comment blocks, fixed-width, comments and verbatim/code objects. Used by health (technical and methodological metrics), lint (marker threshold), =blueprint-list-findings=, =blueprint-list-unvalidated=, the pre-delivery check and =blueprint-list-questions=. The match is now case-sensitive (before, =count-matches= inherited =case-fold-search= and also counted "question" and "tbd" in prose). File keywords (=#+STATUS: [DA VALIDARE]=) still count: they mark the whole file as not validated.
+
+Effect on a new component: =[FINDING]= from 10 to 0 in the project, =[DA VALIDARE]= from 67 to 43, health from 78 to 87. The health scores of existing projects change accordingly. Tests in =test/blueprint-test-health.el= and =test/blueprint-test-content.el=.
+
+Extended (2026-09-27, user decision) to the lint's "file has no content" check: lines in non-exported subtrees (=blueprint--non-exported-subtrees=) do not count as content. Src and verbatim blocks do count: a diagram written by the author is content. Tests in =test/blueprint-test-lint.el=. On its own this was not enough: a freshly created component was not reported as empty, because the templates contained exported placeholder text outside the guides. Solved in 9.24.
+
+** 9.24 Template placeholder content counted as content (DONE)
+
+The lint's "file has no content" check treated as content the placeholder text the templates put outside the =:noexport:= guides (section descriptions, tables with only headers, sample diagrams, one =[DA VALIDARE]= per section), so it never reported a component just created and never filled in.
+
+User decision (2026-09-27): instead of comparing lines with the template (fragile), remove the placeholders from the template, since the =:noexport:= guide already contains everything needed. Done in =component.org=, =functional.org=, =infrastructure.org=: the body has only headings and anchors; descriptions and models (tables, PlantUML diagrams with =:eval never=, because Babel also evaluates blocks in =:noexport:= subtrees) are in the guide. Also removed the per-section =[DA VALIDARE]= (the user's choice): the guide asks to add it when the section is written. The lint ignores lines holding only an =<<...>>= anchor. Effect: a new component is reported as empty and has health 99 (=#+STATUS: [DA VALIDARE]= remains); existing projects do not change, because templates only apply to new files.
+
+Not applied, by user decision (2026-09-27): to the other templates (master, enterprise, nfr, glossary, references, adr), which stay full as a compromise that lets single sections of those files be edited; and to the skeleton inserted by the =blueprint-functional-add-*= / =blueprint-runtime-add-*= commands, which the user runs precisely to fill the section right away.
+
+** 9.25 The health score's SVG gauge never visible in Emacs (DONE)
+
+Reported by the user (2026-09-27): =blueprint-health-svg= had never shown the gauge. Reproduced under Xvfb: an empty 30x30 box, with =ImageMagick error: attempt to perform an operation not authorized by the security policy `SVG'= in =*Messages*=. Cause: the command opened the file with =find-file=; =image-mode=, in an Emacs built with ImageMagick, chooses the =imagemagick= type for every file (=image--imagemagick-wanted-p=), and the system's ImageMagick policy forbids SVG. It applies to any =.svg= visited; Org's inline diagrams are not affected because they use the =svg= type (librsvg).
+
+Done: =health.svg= is written as before, but shown in the =*Blueprint Health*= buffer with =create-image= of type =svg=. Also fixed the missing SVG namespace, the transparent background (black strokes invisible with a dark theme) and the radius of the arc. Tests in =test/blueprint-test-health.el=.
+
+On the user's side, to see SVGs when visiting them with =find-file= too: =(add-to-list 'imagemagick-types-inhibit 'SVG)= in the configuration.
+
+** 9.28 Health score: findings at weight 0, every file of the component, normalization on size (DONE)
+
+Found in real use (2026-10-15): health 37/100 on a document that was by then large. The score started from 100 and subtracted absolute penalties, counted only each component's =arc42.org= and weighted =[FINDING]= at -2. So it dropped with every page written even at the same number of open points per page, ignored Parts III and IV, and penalized the results of the assessment as if they were missing work.
+
+User decision (2026-10-15), done in =blueprint-health.el=:
+- =[FINDING]= weighs 0 (=blueprint--health-weights=): a finding is a delivered result, not an open point. The metrics and =blueprint-list-findings= keep counting it.
+- Every file of a component that =blueprint-sync= includes in =master.org= counts: =arc42.org=, =functional.org=, =infrastructure.org=; missing files are ignored. The code had no shared list (sync passes the names as literals): added =blueprint--component-document-files= and =blueprint--component-document-paths= in =blueprint-core.el=.
+- Normalization: score = round(100 * U / (U + P)), with P the weighted sum of the markers over all components, U = W / N, W the words of the exported text (same exclusions as =blueprint--uncounted-regions=, through =blueprint--count-words-outside=, which merges nested regions) and N the defcustom =blueprint-health-words-per-point= (100). P = 0 gives 100, P > 0 with no words gives 0. Exact integer arithmetic, so a document doubled in the same proportion has the same score.
+
+=blueprint--health-component-stats= returns P and W per component; with =M-x blueprint-health-score= the command shows P and W. The score no longer goes through =blueprint--cached-metrics= (the cache is keyed only by file, and other modules keep the technical metrics of =arc42.org= there): one parse per file on every call. Tests in =test/blueprint-test-health.el= and =test/blueprint-test-e2e.el=.
+
+The thresholds stay at 50 (=blueprint-ci-validate=) and 80 (=blueprint-delivery-score-threshold=): user decision (2026-10-15), a document at 81 is in practice deliverable. Still open, in their own entries: the word count (9.29); the pre-delivery check that still flagged =[FINDING]= and the dashboard, graph, daily and navigation limited to =arc42.org= were fixed in 9.30.
+
+** 9.29 Word count of the health score: content text only (DEFERRED)
+
+Found in real use (2026-10-15). W in =blueprint-health-score= counts the exported text literally: keywords (=#+TITLE:=, =#+BLUEPRINT_DEPENDS:=), property drawers, headings, =<<...>>= anchors and link URLs also go in, inflating the denominator. To be restricted to content text (paragraphs, list items, table cells). Deferred by user decision: a real but complex problem, not to be tackled now.
+
+** 9.30 Non-blocking findings in the pre-delivery check; every component document in navigation, dashboard, graph and daily (DONE)
+
+A follow-up of 9.28, found in real use (2026-10-15). After 9.28 the health score counted the three documents of each component with =[FINDING]= at weight 0, but the rest of the package had stayed behind: the pre-delivery check gave =[ATTENZIONE]= for every =[FINDING]= and counted it among the checks to resolve; the component list, the dashboard and the daily opened only =arc42.org=; dashboard, graph and daily showed only the =QUESTION=/=TBD=/=FIXME= of =arc42.org=, without weights.
+
+User decisions (2026-10-15), implemented as follows:
+- Pre-delivery check (=blueprint-delivery.el=): the =[FINDING]= line stays, with the =[INFO]= label ("[FINDING] (solo informativo)"), and enters neither the outcome nor the count of checks to resolve. The outcome is determined only by =[DA VALIDARE]= and =[DA REVISIONARE]=.
+- Navigation to the three documents (=blueprint-core.el=): new =blueprint--read-component-document= (chooses among the existing documents, =arc42.org= preselected, no question if it is the only one) and new command =blueprint-visit-component= (=j= in the transient and in =blueprint-command-map=, where =l= was also added). The component list has its own major mode, =blueprint-components-mode=, with a Documents column: ~RET~ asks for the document, =a=, =f=, =i= open =arc42.org=, =functional.org=, =infrastructure.org= directly. The dashboard's ~RET~ and =blueprint-roam-find= use the same selector.
+- Dashboard, graph and daily: new =blueprint--component-health-summary= in =blueprint-health.el= sums the markers of every document (=blueprint--component-document-paths=) with the weights of =blueprint--health-weights= and returns counts, penalty points, open markers (weight > 0), words and the component's score (=blueprint--health-score-from=). The per-file count is =blueprint--document-stats=, from which =blueprint--health-file-stats= now also derives, so the numbers match =blueprint-health-score=. The dashboard adds the DaVal, DaRev, Findings, Penalty and Health columns (indices 0-6 unchanged, numeric sort); focus mode keeps the components with penalty > 0; Status is no longer "OK" with open methodological markers (=blueprint--component-status= takes an optional fourth argument). The Graphviz graph and =blueprint-dashboard-svg= color by component score with =blueprint--health-score-color=: red below 50, yellow below 80, green (=blueprint--health-color-thresholds=); the old rule "more than 3 markers = yellow" would have turned every component yellow once the methodological markers were counted. The daily offers the components with penalty, most first (=blueprint--daily-candidates=), then asks for the document, preselecting the one with the most penalty.
+- Cache: =blueprint--cached-metrics= takes an optional KIND argument; with KIND the key is (FILE . KIND), without it stays FILE. Per-document counts live under =document-stats=, so they do not collide with the technical metrics =blueprint--detect-risks= reads for =arc42.org= (regression test =blueprint-test-dashboard/cache-shared-with-risks=). =blueprint--invalidate-cache= on a file also removes the keys with KIND.
+- =blueprint-list-questions= reads the =- QUESTION= of all three documents, with a Document column at the end and ~RET~ opening the file at the question's line.
+
+Bug found and fixed: =blueprint-list-components=, =blueprint-list-questions= and =blueprint-adr-list= bound ~RET~ with =local-set-key= in a =tabulated-list-mode= buffer, that is inside the shared =tabulated-list-mode-map=: the last list opened won in the others too (~RET~ in the component list after opening the questions gave =wrong-type-argument=) and in every other tabulated-list buffer of Emacs. The component list and the question list now have a derived major mode with their own keymap; the ADR list a local keymap composed on =tabulated-list-mode-map=. No other =local-set-key= is left in the package.
+
+Calls to =blueprint--component-file= left on =arc42.org=, because the main file is what is needed: the keywords =#+BLUEPRINT_DEPENDS=/=OWNER=/=TECH=/=STATUS= (c4, ci, graph, dashboard, risks, lint); writes (=blueprint-add-question=, which also feeds the =QUESTION= mirror, and the flows and processes of =blueprint-runtime.el=); =blueprint--lint-component= (expected arc42 headings, marker threshold, empty content) and =blueprint--detect-risks= (risk patterns and the "Immature documentation" check), see below.
+
+Still open:
+- Lint and risks still look only at =arc42.org=: the marker threshold, the risk pattern search of =blueprint-suggest-risks= and the "immature documentation" check ignore =functional.org= and =infrastructure.org=. Extending them would change the outcome of =blueprint-pre-delivery-check= (lint warnings count) and the exit codes of =blueprint-ci-lint= / =blueprint-ci-validate=: to decide.
+- The pre-delivery check counted =[DA VALIDARE]= and =[DA REVISIONARE]= in every =.org= file under the root, not only those that end up in the document, so notes, question registers and interview files inflated the totals. To decide whether to restrict it to the files included in =master.org=.
+- The dashboard's Questions column counts every =QUESTION= in exported text (like the health score), =blueprint-list-questions= only the =- QUESTION= entries: the two numbers can differ.
+- The color thresholds are a constant aligned by convention to 50 and 80, not tied to =blueprint-delivery-score-threshold=: if the user changes the delivery threshold, the colors do not follow.
+- Parts 0, I and V (=enterprise/=, =nfr/=) stay outside health, dashboard and per-component navigation.
+
+The first, second and last points were fixed in 9.31.
+
+Tests in =test/blueprint-test-core.el= (KIND cache keys, selector and visit of the three documents, component list keymap), =test/blueprint-test-dashboard.el= (columns summed over the three documents, focus and findings, dashboard ~RET~, cache shared with risks, graph colors, daily candidates and preselected document), =test/blueprint-test-delivery.el= (findings without warning, PRONTO outcome, count of checks), =test/blueprint-test-content.el= (questions from =functional.org= and =infrastructure.org=, ~RET~ to the line) and =test/blueprint-test-adr.el= (ADR list ~RET~ outside the shared keymap).
+
+** 9.31 Counts only on the document included by master.org; dashboard headers; graph in the menu; documented keys (DONE)
+
+Found in real use (2026-10-15), after trying 9.30: the dashboard did not show the column headers, so the numbers could not be read; the colored graph command was not in the menu; the pre-delivery check counted markers in files that do not enter the document, while health score, lint and risks ignored Parts 0, I and V. Principle decided by the user: every count of the package is computed exactly and only on what the document contains, that is =master.org= and the files it includes with =#+INCLUDE:=, nested ones too, with the exclusions of non-exported text already in use (=blueprint--uncounted-regions=). Otherwise the health score "makes a document look good when it isn't".
+
+Implemented as follows:
+- A single list of the document's files (=blueprint-core.el=): =blueprint--document-files= returns =master.org= and the included files, in document order, each once. The path of each =#+INCLUDE:= is resolved against the directory of the file containing it, as Org's exporter does; includes are followed recursively with cycle protection (=blueprint--document-walk=, which also reports missing files). =#+INCLUDE:= lines are found with =org-element=, so commented ones or those inside a block do not count; those inside a non-exported subtree are skipped. A file included as a block (=src=, =example=, =export= or another block name) does not enter, because in the document it is code. The include's value is parsed with a parser of its own (=blueprint--parse-include-value=): =org-export-parse-include-value= does not exist in Emacs 29's Org. Each file's include list is cached under the =includes= KIND of =blueprint--cached-metrics=. =blueprint--master-file= moves from =blueprint-sync.el= to core.
+- Documented limits: a file included in part (=:lines=, =file.org::search=) counts in full; a file included twice counts once; =:minlevel= does not change the text and needs no handling; =#+EXCLUDE_TAGS:= applies only to the file declaring it, while the exporter applies the one of =master.org= (and of the included files) to the whole expanded document, and =#+SELECT_TAGS:= is not handled. Without =master.org= the document is not assembled and the files are the documents of every component (those =blueprint-sync= would include), as before: the case of almost all existing tests.
+- Rows of the document (=blueprint--document-units=): one per component, with its included documents, then one for every other file of the document (=master.org= itself, glossary, =enterprise/*=, =nfr/*=, references), identified by the path relative to the root. Every file is on exactly one row, so the rows together give the document's health score (invariance test). One row per file rather than a grouping by part: ~RET~ opens the file directly, without another question, and the path already says which part it belongs to.
+- Health score (=blueprint-health.el=): =blueprint--files-health-summary= sums the markers of a list of files; =blueprint-health-score= applies it to =blueprint--document-files=, =blueprint--component-health-summary= to the component's included documents. In real use the score went up rather than down once the non-component files were counted, because they add many words and few penalty points; how much of those words is real text and how much is keywords, URLs and table structure is the question of 9.29.
+- Pre-delivery check (=blueprint-delivery.el=): =[DA VALIDARE]=, =[DA REVISIONARE]= and =[FINDING]= are counted with the same sum as the health score, so they match the dashboard columns. In real use the totals dropped sharply, because notes, question registers and interview files no longer count.
+- Lint (=blueprint-lint.el=): new =blueprint--lint-project=, the only one used by =blueprint-lint=, =blueprint-ci-lint=, =blueprint-ci-validate= and the pre-delivery check (before, there were four identical loops). On each component the =arc42.org= checks stay (arc42 headings, dependencies); the marker threshold and the empty file check (=blueprint--lint-content=) run on every file of the document, component or not, labeled =component/functional.org= or with the relative path; the arc42 headings stay only on =arc42.org=. An =#+INCLUDE:= pointing to a missing file is a warning. CI exit codes change accordingly.
+- Risks (=blueprint-risks.el=): patterns are searched in all the component's included documents, and only in exported text (before, also in the templates' =:noexport:= guides); the "immature documentation" check sums the technical markers of those documents. =blueprint-suggest-risks-all= also analyzes the other files of the document (=blueprint--detect-part-risks=, without the isolated-components check).
+- The lists =blueprint-list-findings= and =blueprint-list-unvalidated= now read only the document's files, for consistency with the totals of the pre-delivery check. They were not named in the report: the agent's choice, to be confirmed.
+- Dashboard (=blueprint-dashboard.el=): the headers were not visible because =blueprint-dashboard-refresh= overwrote =header-line-format=, where =tabulated-list-init-header= had put the column titles, with the summary line. The titles are in the header line, with =header-line-indent-mode= where it exists, and the summary (document health, number of components and other files, filters) goes in the mode line (=mode-line-process=). A first attempt with the titles as the first line of the buffer (=tabulated-list-use-header-line= nil) misaligned them from the rows when line numbers are visible: the header line printed in the buffer uses =:align-to= positions that ignore the line number column. Columns: Name, Owner, Tech, Scope, QUESTION, TBD, FIXME, DA VAL, DA REV, FINDING, Penalty, Health, Status, reduced widths never narrower than the title, numbers right-aligned; the mode's docstring (=C-h m=) explains each column. The rows of the other files follow the components; a component with no documents in =master.org= has the =NOT-INCLUDED= status and Health =-= (it stays in focus mode, because it needs syncing). ~RET~ on a file row opens it; =G= in the dashboard generates the colored graph.
+- Navigation: =blueprint-visit-component= (=j=) also offers the other files of the document, by relative path; =blueprint-daily= also offers them among the candidates.
+- Graph: =G= (=blueprint-dependency-graph=) was already in the menu, but with the default =plantuml= backend it produces a =.puml= without colors; the colored graph of 9.30 was =blueprint-dashboard-svg=, which had no key. It is now =h= in the Architecture group of the transient and in =blueprint-command-map=, labeled "health-colored graph (SVG)"; =G= is labeled "dependency graph (puml/dot)". Both commands show the SVG with =blueprint--show-svg-file= (explicit =svg= type, like =blueprint-health-svg=, to avoid ImageMagick) instead of =find-file=. A component outside the document is grey (=blueprint--component-health-color=).
+- =blueprint-command-map= now has exactly the transient's keys: =W=, =w=, =R=, =X=, =s=, =q=, =y=, =z=, =P=, =T=, =n= were missing, so the same key table could not hold for both.
+- USAGE.org and README.org: wrong keys corrected (=C-c b i=, =a=, =D= for delete, =q= for add question, =F a/f/e/i=, =g a=, =A n=, =A l=, =h= for the health score, =k= and the nonexistent command =blueprint-detect-risks= for risks, =s= for sync); described the scope of the counts, the limits, the new dashboard columns and rows, lint on every file, the graph. The test =test/blueprint-test-keys.el= compares transient and command map, and checks that every "M-x command ... C-c b key" pair of USAGE.org, every "C-c b key" of USAGE and README, and the README's key table match the real bindings, and that every =M-x blueprint-...= cited exists.
+
+Tests: =test/blueprint-test-core.el= (nested includes resolved against the including file, missing files, cycles, non-exported/commented/in-block/as-block includes, the value parser, the fallback without master, document rows, visiting a part, =includes= cache), =test/blueprint-test-health.el= (only the document counts, rows summing to the document, lists only on the document), =test/blueprint-test-delivery.el= (notes and question registers excluded, total equal to the DA VAL column; the findings test now includes the files in =master.org=), =test/blueprint-test-lint.el= (checks on included files, non-included files ignored, missing include, exit code of =blueprint-ci-lint=), =test/blueprint-test-risks.el= (patterns in included documents and not in =:noexport:= guides, immature documentation over several documents, risks of the parts), =test/blueprint-test-dashboard.el= (titles visible after refresh and focus, widths, rows of the parts, =NOT-INCLUDED=, ~RET~ on a part, daily with the parts, grey in the graph), =test/blueprint-test-keys.el= (new).
+
+Still open:
+- [RESOLVED 2026-11-01, see 9.12 and the leftover below] =blueprint-list-questions= and the QUESTION column still counted differently (=- QUESTION= entries against every exported =QUESTION=), and the question list read the three documents of every component even when not included.
+- Partial includes (=:lines=, =::search=) count in full; a file included several times counts once.
+- [RESOLVED 2026-11-01] The color thresholds stayed a constant (50/80), not tied to =blueprint-delivery-score-threshold=.
+
+Update 2026-11-01 on the two resolved points: the question list now counts exactly the dashboard's QUESTION occurrences (every marker in the exported text of the included documents, list items and prose) and its scope is =blueprint--component-included-paths=, like health; the yellow/green of the graphs switches on =blueprint-delivery-score-threshold= (moved to =blueprint-health.el=, same name: saved custom values stay valid), red stays at 50 like =blueprint-ci-validate=. With the answers (9.12) the list also shows the ANSWERED ones, which count in no total.
+
+** 9.27 Captions numbered per chapter in the ODT export (DONE)
+
+Found in real use (2026-10-08), after removing the manual prefix from the captions ("Figura DS-2 -- "): in the PDF several figures came out as "Figura 1". Cause: =org-odt-display-outline-level= is 2 by default, Org numbers per chapter (=2.1.1=) and declares the sequences with =text:display-outline-level="2"=; the company template has no outline numbering on its headings, so LibreOffice shows only the counter, which restarts at every chapter.
+
+Done: =blueprint--with-plantuml-export= sets the variable to 0 (one counter for the whole document) if it is still at its default, as it already does for Babel and PlantUML; =blueprint-export-dispatch= now uses the macro too. Verified on a real export: figures numbered consecutively without repetition. Tests in =test/blueprint-test-export.el=.
+
+** 9.26 SVG diagrams shrunk to 5x5 cm in the ODT export (DONE)
+
+Found in real use (2026-10-08): in the PDF obtained from the ODT every diagram was small, centered, distorted and unreadable, the wide ones above all. In the ODT every image frame measured 5.00 x 5.00 cm. Cause: =org-odt--image-size= measures the image with ImageMagick's =identify=, then with Emacs's =image-size=, and otherwise uses the fixed 5x5 cm of =org-odt-default-image-sizes-alist=. On SVG both fail: the system's ImageMagick policy forbids SVG (same cause as 9.25) and Emacs in batch does not measure images.
+
+Done: an =:around= advice =blueprint--odt-image-size-svg= on =org-odt--image-size= in =blueprint-export.el=. For an =.svg= file it reads =width=/=height= (px, unitless or pt) or the =viewBox= of the root element and passes them as width and height in cm, so Org still applies =org-odt-max-image-size= (17x20 cm) and keeps the proportions. Explicit =:scale= or =:width= plus =:height= stay unchanged; with only =:width= or only =:height= the other dimension follows the SVG's ratio. Verified on a real export: every image went from 5x5 cm to full width with correct proportions. Tests in =test/blueprint-test-export.el=.
+
+Still open: very wide diagrams (C4 container, ER) at 17 cm have small text. Possible ways, to decide: landscape pages for wide figures, or a vertical layout in the PlantUML sources. *Closed on the documentation side (2026-11-01, see 9.16)*: the explicit size (=#+ATTR_ODT: :width=) is already honored by this entry's advice and is documented in USAGE with the alternatives (a landscape page in the company template, a vertical layout in the PlantUML sources).
+
+** 9.23 Limits of the caption fix (DONE)
+
+Leftovers of 9.18, fixed on 2026-09-27:
+
+- A block never evaluated (no =#+RESULTS:=) came out without a caption, because Babel creates the results during the export. Now =blueprint--move-result-captions= is a two-phase =:around= advice on =org-babel-exp-process-buffer=: before Babel, =blueprint--mark-result-keywords= puts a sentinel line (a comment) after the existing results or, if there are none, right after the block, where Babel will insert the new results before it; never between block and results, where Babel would no longer find the anonymous ones. After Babel, =blueprint--apply-result-keywords= puts =#+CAPTION:=, =#+NAME:= and =#+ATTR_*:= on the =#+RESULTS:= paragraph preceding each sentinel and removes the sentinels.
+- =#+NAME:= now moves to the results: after Babel it is no longer needed to find named results. Verified that, when the results already carry the block's name (=#+RESULTS: fig-ctx=), Org resolved the link even before: the limit noted in 9.18 was narrower than described.
+- Verified in ODT, LaTeX and PDF, with PlantUML actually run from a component included through =#+INCLUDE:=: caption present ("Figure 1: ..." in the PDF) and =[[fig-ctx]]= resolved as a reference to the figure (=\ref= in LaTeX, =text:sequence-ref= in ODT).
+
+Tests in =test/blueprint-test-export.el=, now run with real Babel (=org-babel-exp-process-buffer=); the evaluated blocks use emacs-lisp with =:results file :file=, so CI does not need PlantUML.
+
+** 9.17 The QUESTION keyword printed in the exported document (DONE)
+Found in real use (2026-09-24): the =- QUESTION ...= entries inserted by =blueprint-add-question= came out in the ODT/PDF export with the literal keyword in front of every open question. The word is for lint, health score and the question list, not for the reader.
+
+Done: =blueprint--strip-question-keywords= in =blueprint-export.el=, registered in =org-export-before-parsing-functions= like =blueprint--strip-duplicate-titles=. It removes the keyword only from list items that start with it; the word inside a sentence, a sample block or a code block stays. ERT test in =test/blueprint-test-export.el=. TBD and FIXME stay printed: they are the author's work, should not reach a delivered document, and the lint already reports them.
+
+** +9.16 Document the native Org features Blueprint supports+ (DONE 2026-11-01)
+Requested from real use (2026-09-23), together with moving the sources to native footnotes. User decision: for layout and apparatus needs, Org's built-in tools (=ox=, =ox-odt=, =ox-latex=, =oc=) are preferred over new constructs inside Blueprint; Blueprint must however state officially which native features it supports and guarantees along its whole chain (sync, =#+INCLUDE= with =:minlevel=, lint, health, ODT/PDF/DOCX export, ODT style check).
+
+*Done (2026-11-01)*: a section "Native Org features supported" in USAGE.org (referenced from the README) with the four planned entries plus image size (=#+ATTR_ODT: :width=, which also closes the "wide diagrams" leftover of 9.26 on the documentation side). Non-regression test: =blueprint-test-export/footnotes-reach-content-xml= (a real ODT export with footnotes in text, in a table cell and in an included file: one =<text:note>= for each, continuous numbering 1-2-3 across the includes). Footnote styles: =Footnote= is already in the =OrgOdtStyles.xml= baseline, so =blueprint-check-odt-styles= reports it without extending =blueprint--odt-extra-required-styles=.
+
+The planned entries (all implemented):
+
+- a section in =USAGE.org= (and a reference from the README), "Native Org features supported", with for each feature: syntax, behavior per backend, what Blueprint checks, known limits. First entries:
+  - footnotes (=[fn:: ...]= inline and =[fn:name]= with a definition), also inside table cells and inside files included with =#+INCLUDE= (single numbering in the assembled document);
+  - =oc= citations with the =basic= processor (=[cite:@key]=, =#+bibliography:=, =#+print_bibliography:=), if real use adopts them;
+  - page breaks (9.15), as a Blueprint construct on top of the native =#+ODT:= / =#+LATEX:= keywords;
+  - export keywords per backend (=#+ODT:=, =#+LATEX:=, =#+HTML:=).
+- a non-regression ERT test: a sample project with footnotes in text, in a table and in an included file, exported to ODT; it checks that =content.xml= contains a =text:note= for every footnote and that numbering does not restart at every =#+INCLUDE=;
+- extend =blueprint--odt-extra-required-styles= if the footnote export references styles (for example =Footnote=) that a company =.ott= template might not define, so that =blueprint-check-odt-styles= reports them;
+- consider whether =blueprint-lint= should recognize footnotes as the source of a statement (today it counts nothing of the kind). *Considered (2026-11-01), not implemented*: footnotes are already exported text and the method's markers are enough to track the source.
+
+** 9.32 =blueprint-project-upgrade= fails with the =version-file= step pending (DONE)
+Found in real use (2026-11-02), the first use of 0.4.0 on a project without =blueprint-version.org=: both =C-c b ^= and =u= in the dashboard give =tabulated-list-print-entry: Wrong type argument: stringp, nil=, and the plan does not open. Cause: =blueprint--upgrade-plan-entries= puts =(plist-get step :era)= in the third column, and for =version-file= =:era= is nil by construction (the step says nothing about the format). Reproduced in =emacs -Q --batch=, without the =*Blueprint Upgrade*= buffer already open: the existing buffer is not involved. The test in =test/blueprint-test-upgrade.el= that calls =blueprint-project-upgrade= did not cover a plan with =version-file= pending (that is, every project without a version file, the typical migration case). To fix: an empty column (or "--") when =:era= is nil, plus a test on the plan of a real 0.2.0 project.
+
+*Done (2026-11-02)*: "--" in the column when =:era= is nil. Tests =plan-buffer-with-version-file-pending= (a project without a version file) and =plan-entries-are-strings-for-every-step= (every step of the registry produces only strings), both red without the fix.
+
+** 9.33 Unreadable version in the dashboard status line (DONE)
+Found in real use (2026-11-02): with the dashboard in a side window, the "Blueprint <version>" part of the status line was not visible, because it came after the milestone, and the title of the first TODO of =CRONOPROGRAMMA.org= / =TODO.org= was inserted in full (a long heading in real projects). It was visible only with the window maximized. To consider: cutting the milestone title (=truncate-string-to-width= with a configurable width) and/or putting the version before the milestone.
+
+*Done (2026-11-02)*: both. The version comes before the milestone; the title is cut at =blueprint-dashboard-milestone-width= (40, nil not to cut it) with "...", and the full title stays in the tooltip. Test =milestone-title-cut-after-version=.
+
+** 9.34 The version file is not a migration step (DONE)
+Found in real use (2026-11-02): after applying only =lifecycle-keyword=, the plan emptied, because every applied step writes =blueprint-version.org= and the =version-file= step appeared done without being recorded; on a project already in the current format, the same step counted as an available migration in the dashboard and CI. *Done (2026-11-02)*: user decision, ADR-002 D7. Step removed from the registry, =v= in the plan (=blueprint-upgrade-declare-version=). Tests on the project without a file, on the declaration with and without pending steps, and on the file written by an applied step.
+
+** 9.35 Accents written as apostrophes in generated text (DONE)
+Found in real use (2026-11-02): =blueprint-version.org= generated with "e'" instead of "è". The same defect in the header of =agenda.org= and in the title of the =project-files= step. *Done (2026-11-02)*: five strings fixed, test =no-apostrophe-accents-in-package-text= on every source and template. 31 occurrences remained in =USAGE.org= (documentation, not generated text), to fix separately (obsolete since USAGE.org is in English, 2026-11-16).
+
+** 9.36 Enterprise C4 view: projects without markers and hand-written diagrams
+Found in real use (2026-11-02): =C-c b V= (=blueprint-generate-enterprise-c4=) stops with "enterprise/context.org has no ' @@blueprint-enterprise-start@@ marker; regenerate it from the enterprise-context.org template". The markers entered the template on 2026-09-16 (777f87f, 10.4): an =enterprise/context.org= created before does not have them. Three defects:
+- ADR-002's inventory of formats does not include this case, so the migration plan does not offer it and the inferred version does not account for it;
+- the message suggests regenerating the file from the template, which would delete the hand-written content (a real diagram can have people, external systems and dozens of relations);
+- inserting the markers into a diagram that already declares the components by hand (=System(orders, ...)=) would produce duplicate identifiers in PlantUML: the generator does not check the ids already present outside the markers.
+To decide: a migration step that inserts empty markers at the end of the block (only if no component is already declared outside), or a message explaining how to add them by hand; in both cases a check for duplicate ids before writing. User decision (2026-11-02): the fix belongs in the package, for every project; deferred. Until then the generated enterprise view is not used.
+
+** 9.37 English in generated Italian text
+Found in real use (2026-11-02): the header of =.blueprint/metrics-history.org= says "una quando i valori cambiano (see =blueprint-history-on-sync=)" (=blueprint-history.el:45=). Same family as 9.35: the apostrophe test does not see it. To fix ("vedi") and to look for in the other generated Italian text. Related to phase 11 (localization).
+
+** 9.38 Double hyphens in identifiers turned into en dashes (DONE)
+Found in real use (2026-11-02): Org turns every "--" into an en dash, so repository names ("acme--portal") came out as "acme–portal" throughout the PDF. Verbatim is not enough: "=x--y=]" is not recognized, and sources are written "[FONTE: code repo@sha]". *Done (2026-11-02)*: =blueprint-export-double-hyphen= (=except-words= by default, =always= like Org, =never= always two hyphens: a debatable choice, made configurable at the user's request); with =except-words= the en dash rule of =org-odt-special-string-regexps= and =org-html-special-string-regexps= applies only when "--" is not between two alphanumerics, and in LaTeX a filter writes "-{}-". Tests for ODT, HTML, LaTeX and the three values.
+
+** 9.39 Captioned figures overlapping in ODT (DONE)
+Found in real use (2026-11-02): a tall figure (20 cm plus caption) that did not fit in the remaining space covered the previous figure, because ox-odt anchors the caption frame to the paragraph and LibreOffice keeps it inside the page by moving it up. *Done (2026-11-02)*: =blueprint-export-odt-images-as-char= (default t), a final output filter: =OrgImageCaptionFrame= frames anchored as characters, in a paragraph with the =OrgCenter= style to keep them centered. Verified on a long real document: the tall figure moves to a new page, no overlap among the figures. Test on the ODT export.
 
 --------------
 
-* Fase 10 --- Allineamento metodologico (gap assessment-framework)
-Analisi del gap tra la metodologia definita in =assessment-framework/= e le
-capacità attuali di Blueprint.el. Le voci sono ordinate per priorità.
+* Phase 10 --- Methodological alignment (assessment-framework gap)
+An analysis of the gap between the method defined in the old =assessment-framework/= and the capabilities of Blueprint.el. Entries are ordered by priority.
 
-** +10.1 Comandi interattivi per NFR (PRIORITÀ ALTA)+ ✅
+*Note (2026-11-16)*: =assessment-framework/= no longer exists. The method was rewritten in English in =docs/method/= (=method.org=, =rationale.org=, =kickoff.org=); the Python scaffolder and the session context were removed.
+
+** +10.1 Interactive NFR commands (HIGH PRIORITY)+ ✅
 - +=blueprint-nfr-add-quality-scenario= (C-c b p)+
 - +=blueprint-nfr-add-constraint= (C-c b c)+
-- +=blueprint-nfr-add-risk= con livello calcolato e ID auto-incrementale (C-c b
-  t)+
-- +Riga "NFR" nel menu Transient+
-- +Modulo =blueprint-nfr.el=+
+- +=blueprint-nfr-add-risk= with a computed level and an auto-incremented ID (C-c b t)+
+- +"NFR" row in the Transient menu+
+- +Module =blueprint-nfr.el=+
 
-** +10.2 Tracciamento marcature metodologiche (PRIORITÀ ALTA)+ ✅
-- +=blueprint--methodology-metrics= --- conteggia =[DA VALIDARE]=, =[FINDING]=,
-  =[DA REVISIONARE]=+
-- +=blueprint-health-score= aggiornato con penalità: -1/+[DA VALIDARE],
-  -2/[FINDING], -1/[DA REVISIONARE]+
-- +=blueprint-list-findings= (C-c b d)+
-- +=blueprint-list-unvalidated= (C-c b g)+
+** +10.2 Tracking the methodological markers (HIGH PRIORITY)+ ✅
+- +=blueprint--methodology-metrics= --- counts =[DA VALIDARE]=, =[FINDING]=, =[DA REVISIONARE]=+
+- +=blueprint-health-score= updated with penalties: -1 per [DA VALIDARE], -2 per [FINDING], -1 per [DA REVISIONARE] (later revised, see 9.28)+
+- +=blueprint-list-findings= (C-c b g)+
+- +=blueprint-list-unvalidated= (C-c b u)+
 
-** +10.3 Checklist pre-consegna automatizzata (PRIORITÀ ALTA)+ ✅
-- +=blueprint-pre-delivery-check= (C-c b u)+
-- +Verifica: health score, [DA VALIDARE], [DA REVISIONARE], lint, master sync+
-- +Report in buffer dedicato con badge OK/ATTENZIONE+
+** +10.3 Automated pre-delivery checklist (HIGH PRIORITY)+ ✅
+- +=blueprint-pre-delivery-check= (C-c b d)+
+- +Checks: health score, [DA VALIDARE], [DA REVISIONARE], lint, master sync+
+- +Report in a dedicated buffer with OK/ATTENZIONE badges+
 
-** +10.4 Vista enterprise auto-generata (PRIORITÀ MEDIA)+ ✅
-=blueprint-generate-c4= produce un diagramma Container (C4 L2). La metodologia
-prevede anche un diagramma C4 L1 enterprise che mostra tutti i sistemi nel
-perimetro e le loro relazioni di alto livello.
+** +10.4 Auto-generated enterprise view (MEDIUM PRIORITY)+ ✅
+=blueprint-generate-c4= produces a Container diagram (C4 level 2). The method also calls for an enterprise C4 level 1 diagram showing every system in scope and their high-level relations.
 
-- [X] =blueprint-generate-enterprise-c4= (=blueprint-c4.el=, tasto "V") ---
-  genera =enterprise/context.org= con un C4 L1 usando i componenti come
-  =System(...)= e le dipendenze come =Rel(...)= (più semplice di C4 L2:
-  nessun Container, solo System). Aggiorna solo la sezione fra i marker
-  =' @@blueprint-enterprise-start@@= / =' @@blueprint-enterprise-end@@=
-  dentro il blocco =#+begin_src plantuml=, riusando
-  =blueprint--sync-section= (già in =blueprint-sync.el=) invece di
-  reimplementare la sostituzione --- sistemi esterni, utenti e relazioni
-  verso l'esterno restano scritti a mano fuori dai marker e non vengono
-  mai toccati, esattamente come =blueprint-sync= preserva il contenuto
-  manuale di master.org. Segnala =user-error= se
-  =enterprise/context.org= manca o non ha i marker (progetti creati
-  prima di questa feature vanno rigenerati dal template aggiornato).
-- [X] Aggiornamento del template =enterprise-context.org= con i marker nel
-  blocco PlantUML
-- [X] Test: =blueprint-test-enterprise-c4/*= in =test/blueprint-test-c4.el=
+- [X] =blueprint-generate-enterprise-c4= (=blueprint-c4.el=, key "V") --- generates =enterprise/context.org= with a C4 level 1 using the components as =System(...)= and the dependencies as =Rel(...)= (simpler than C4 level 2: no Container, only System). It updates only the section between the markers =' @@blueprint-enterprise-start@@= / =' @@blueprint-enterprise-end@@= inside the =#+begin_src plantuml= block, reusing =blueprint--sync-section= (already in =blueprint-sync.el=) instead of reimplementing the replacement --- external systems, users and relations to the outside stay hand-written outside the markers and are never touched, exactly as =blueprint-sync= preserves the hand-written content of master.org. It signals =user-error= if =enterprise/context.org= is missing or lacks the markers (projects created before this feature must be regenerated from the updated template; see 9.36).
+- [X] The =enterprise-context.org= template updated with the markers in the PlantUML block
+- [X] Tests: =blueprint-test-enterprise-c4/*= in =test/blueprint-test-c4.el=
 
-** +10.5 Template activity diagram e DFD (PRIORITÀ MEDIA)+ ✅
-La metodologia prevede esplicitamente:
+** +10.5 Activity diagram and DFD templates (MEDIUM PRIORITY)+ ✅
+The method explicitly calls for:
 
-- UML activity diagram con swimlane per processi di business multi-attore
-- DFD (Data Flow Diagram Yourdon/DeMarco) per data lineage e integrazioni
+- UML activity diagrams with swimlanes for business processes with several actors
+- DFDs (Yourdon/DeMarco data flow diagrams) for data lineage and integrations
 
-- [X] Sezione =* Processi di business= in =component.org=, con blocco PlantUML
-  swimlane di esempio (stesse convenzioni di =* Runtime Behavior=:
-  anchor =<<{{ID}}-business-processes>>=, =[DA VALIDARE]=, heading di
-  livello 2 per ogni processo)
+- [X] A =* Processi di business= section in =component.org=, with a sample swimlane PlantUML block (same conventions as =* Runtime Behavior=: anchor =<<{{ID}}-business-processes>>=, =[DA VALIDARE]=, a level-2 heading for each process)
 
-- [X] Sezione =* Flussi dati= in =functional.org= (dopo "Punti di
-  integrazione", prima di "Open Questions"), con blocco PlantUML che
-  simula un DFD Yourdon/DeMarco --- PlantUML non ha una libreria DFD
-  dedicata (a differenza di C4): entità esterne come =rectangle=,
-  processi come =circle=, data store come =database=
+- [X] A =* Flussi dati= section in =functional.org= (after "Punti di integrazione", before "Open Questions"), with a PlantUML block that simulates a Yourdon/DeMarco DFD --- PlantUML has no dedicated DFD library (unlike C4): external entities as =rectangle=, processes as =circle=, data stores as =database=
 
-- [X] =blueprint-runtime-add-process= (non =blueprint-functional-add-process=
-  come da nota originale --- vedi sotto) in =blueprint-runtime.el=, tasto
-  "b" nel menu, analogo a =blueprint-runtime-add-flow=: aggiunge un
-  livello-2 sotto =* Processi di business=, creando la sezione se
-  assente. =blueprint--runtime-goto-section-end= generalizzata con un
-  parametro =title= (prima hardcoded su "Runtime Behavior") per essere
-  condivisa fra le due funzioni.
+- [X] =blueprint-runtime-add-process= (not =blueprint-functional-add-process= as in the original note --- see below) in =blueprint-runtime.el=, key "b" in the menu, like =blueprint-runtime-add-flow=: it adds a level-2 heading under =* Processi di business=, creating the section if missing. =blueprint--runtime-goto-section-end= generalized with a =title= parameter (previously hardcoded to "Runtime Behavior") so the two functions can share it.
 
-  *Nota sulla deviazione dal nome pianificato*: tutti gli altri comandi
-  =blueprint-functional-add-*= scrivono su =functional.org=
-  (=blueprint--functional-file=). Il processo di business, come le
-  descrizioni di questa voce di piano richiedevano fin dall'inizio, va
-  invece in =component.org=/=arc42.org= --- lo stesso file di
-  =* Runtime Behavior=, con cui condivide le convenzioni di
-  heading/anchor/marker. Chiamarlo =blueprint-functional-add-process=
-  pur scrivendo su arc42.org (e vivendo in =blueprint-runtime.el=, non
-  =blueprint-functional.el=) avrebbe rotto la convenzione
-  prefisso-modulo↔file-target e complicato la voce "Functional" del menu
-  Transient (dove tutti gli altri comandi toccano functional.org). Non è
-  stato aggiunto un comando =blueprint-runtime-list-processes= analogo a
-  =blueprint--runtime-list-flows=: quest'ultimo non è usato da alcun
-  chiamante in produzione (solo dai suoi stessi test), quindi non è un
-  pattern da replicare senza un caso d'uso reale.
+  *Note on the deviation from the planned name*: every other =blueprint-functional-add-*= command writes to =functional.org= (=blueprint--functional-file=). The business process, as this plan entry required from the start, goes instead into =component.org= / =arc42.org= --- the same file as =* Runtime Behavior=, with which it shares the heading, anchor and marker conventions. Calling it =blueprint-functional-add-process= while writing to arc42.org (and living in =blueprint-runtime.el=, not =blueprint-functional.el=) would have broken the module-prefix-to-target-file convention and muddled the "Functional" row of the Transient menu (where every other command touches functional.org). No =blueprint-runtime-list-processes= command analogous to =blueprint--runtime-list-flows= was added: the latter has no production caller (only its own tests), so it is not a pattern to copy without a real use case.
 
-- [X] Test: =blueprint-test-runtime/add-process-*= in
-  =test/blueprint-test-runtime.el=
+- [X] Tests: =blueprint-test-runtime/add-process-*= in =test/blueprint-test-runtime.el=
 
-** +10.6 Differenziazione tipo riferimenti (PRIORITÀ BASSA)+ ✅
-Il =master.org= distingue logicamente riferimenti-documenti da
-riferimenti-interviste (ancore =references-interviews=, =references-documents=).
-=blueprint-reference-add= usava un tipo libero non strutturato, inserito come
-heading di livello 1 con drawer =:PROPERTIES:= --- formato incompatibile con le
-sezioni a tabella (=* Documenti= / =* Interviste= / =* Sistemi e strumenti= /
-=* Ambienti analizzati=) già presenti nel template.
+** +10.6 Distinguishing reference types (LOW PRIORITY)+ ✅
+=master.org= logically separates document references from interview references (anchors =references-interviews=, =references-documents=). =blueprint-reference-add= used a free, unstructured type, inserted as a level-1 heading with a =:PROPERTIES:= drawer --- a format incompatible with the table sections (=* Documenti= / =* Interviste= / =* Sistemi e strumenti= / =* Ambienti analizzati=) already in the template.
 
-- [X] =blueprint-reference-add= instrada per tipo: =interview= → riga nella
-  tabella =* Interviste= (=<<references-interviews>>=), tutto il resto
-  (=document=/=codebase=/=ticket=/=monitoring=, dove TYPE diventa il
-  valore della colonna "Tipo" della tabella) → =* Documenti=
-  (=<<references-documents>>=). Vocabolario dei tipi riconciliato: la
-  vecchia scelta ="system"= nel =completing-read= non corrispondeva a
-  nessuna colonna delle quattro sezioni del template ed è stata rimossa
-  a favore di =document=/=interview=/=codebase=/=ticket=/=monitoring=.
-  Le altre due sezioni del template, "Sistemi e strumenti" e "Ambienti
-  analizzati", restano compilate solo a mano: nessun comando le
-  targetizza (non richiesto da questa voce di piano).
-- [X] ID auto-incrementali per sezione (=D-NN=/=I-NN=), stesso pattern di
-  =blueprint--nfr-next-risk-id= (=blueprint--references-next-id=,
-  =blueprint--references-insert-row-in-section= in
-  =blueprint-references.el=, che riusa l'approccio di
-  =blueprint--nfr-insert-row-in-section= in =blueprint-nfr.el=).
-  Colonne senza un argomento dedicato (Ruolo per un'intervista, Autore /
-  Owner per un documento) sono valorizzate =[DA VALIDARE]= invece di
-  restare vuote, così emergono in =blueprint-list-unvalidated=.
-- [X] Test: =blueprint-test-references/*= in =test/blueprint-test-content.el=
-  (routing per tipo, numerazione, ignorare gli esempi della guida).
+- [X] =blueprint-reference-add= routes by type: =interview= becomes a row of the =* Interviste= table (=<<references-interviews>>=), everything else (=document=/=codebase=/=ticket=/=monitoring=, where TYPE becomes the value of the table's "Tipo" column) goes to =* Documenti= (=<<references-documents>>=). Type vocabulary reconciled: the old ="system"= choice in the =completing-read= matched no column of the template's four sections and was removed in favor of =document=/=interview=/=codebase=/=ticket=/=monitoring=. The template's other two sections, "Sistemi e strumenti" and "Ambienti analizzati", stay filled by hand only: no command targets them (not required by this plan entry).
+- [X] Auto-incremented IDs per section (=D-NN=/=I-NN=), with the same pattern as =blueprint--nfr-next-risk-id= (=blueprint--references-next-id=, =blueprint--references-insert-row-in-section= in =blueprint-references.el=, which reuses the approach of =blueprint--nfr-insert-row-in-section= in =blueprint-nfr.el=). Columns without a dedicated argument (Role for an interview, Author / Owner for a document) are set to =[DA VALIDARE]= instead of staying empty, so they show up in =blueprint-list-unvalidated=.
+- [X] Tests: =blueprint-test-references/*= in =test/blueprint-test-content.el= (routing by type, numbering, ignoring the guide's examples).
 
-*Nota --- analogo debito nel glossario, non risolto qui*: il path bug
-(=.blueprint/glossary.org= invece di =glossary.org=) è stato corretto (vedi
-8.1), ma =blueprint-glossary-add= inserisce ancora un heading di livello 1
-con drawer =:PROPERTIES:= in coda al file, non instradato in una delle
-sezioni strutturate del template (=* Termini di dominio= /
-=* Termini tecnici con uso specifico=, entrambe con heading di livello 2 e
-riga =/Fonte: .../=, non drawer). A differenza di =references.org=, qui non
-c'è un asse di classificazione esplicito (tipo =interview=/=document=) su cui
-instradare: andrebbe deciso se aggiungere un parametro "categoria" a
-=blueprint-glossary-add= o instradare sempre in "Termini di dominio" con
-possibilità di spostare a mano. Non implementato in questa sessione --- vedi
-Fase 10.8 sotto.
+*Note --- similar debt in the glossary, not solved here*: the path bug (=.blueprint/glossary.org= instead of =glossary.org=) was fixed (see 8.1), but =blueprint-glossary-add= still inserted a level-1 heading with a =:PROPERTIES:= drawer at the end of the file, not routed into one of the template's structured sections (=* Termini di dominio= / =* Termini tecnici con uso specifico=, both with level-2 headings and a =/Fonte: .../= line, not a drawer). Unlike =references.org=, there is no explicit classification axis here (such as =interview=/=document=) to route on: it would have to be decided whether to add a "category" parameter to =blueprint-glossary-add= or always route into "Termini di dominio", with the option to move entries by hand. Not implemented in this session --- see phase 10.8 below.
 
-** +10.8 Instradamento di =blueprint-glossary-add= nelle sezioni del template+ ✅
-Stesso problema di formato che aveva =blueprint-reference-add= prima della
-10.6 (vedi nota sopra), non coperto da quella voce di piano perché limitata a
-=references.org=.
+** +10.8 Routing =blueprint-glossary-add= into the template's sections+ ✅
+The same format problem =blueprint-reference-add= had before 10.6 (see the note above), not covered by that plan entry because it was limited to =references.org=.
 
-*Fatto (2026-11-01)*: *decisione dell'utente*: la sezione si chiede
-(=completing-read= fra le sezioni reali di glossary.org, esclusa la guida
-=noexport:=, default la prima, "Termini di dominio"). =blueprint-glossary-add=
-inserisce un heading di livello 2 in fondo alla sezione scelta, nel formato
-del template stesso: riga =/Fonte: .../= più definizione, niente drawer
-=:PROPERTIES:= in coda al file. =blueprint-glossary-lookup= trova entrambi i
-formati (livello 2 nuovo e livello 1 legacy con drawer, che non mostra nel
-messaggio) e ignora gli esempi della guida =:noexport:=. Le voci legacy
-esistenti restano intatte, nessuna migrazione. Test:
-=blueprint-test-glossary/*= aggiornati e nuovi in
-=test/blueprint-test-content.el=.
+*Done (2026-11-01)*: *user decision*: the command asks for the section (=completing-read= among the real sections of glossary.org, the =noexport:= guide excluded, default the first, "Termini di dominio"). =blueprint-glossary-add= inserts a level-2 heading at the end of the chosen section, in the template's own format: a =/Fonte: .../= line plus the definition, no =:PROPERTIES:= drawer at the end of the file. =blueprint-glossary-lookup= finds both formats (the new level 2, and the legacy level 1 with a drawer, which it does not show in the message) and ignores the examples of the =:noexport:= guide. Existing legacy entries stay intact, no migration. Tests: =blueprint-test-glossary/*= updated and new ones in =test/blueprint-test-content.el=.
 
-*Rivista (2026-11-02)*: *decisione dell'utente*: "nessuna migrazione"
-voleva dire nessuna migrazione /obbligatoria/, non nessuna migrazione. Le
-voci legacy restano leggibili senza toccarle e ora c'è anche il percorso
-per convertirle (passo =glossary-sections= di =blueprint-project-upgrade=,
-vedi 10.9). Formato delle voci allineato al template: definizione, poi riga
-=/Fonte: .../= (=blueprint-glossary-source-position= per l'ordine inverso).
+*Revised (2026-11-02)*: *user decision*: "no migration" meant no /mandatory/ migration, not no migration at all. Legacy entries stay readable without touching them, and there is now also a path to convert them (the =glossary-sections= step of =blueprint-project-upgrade=, see 10.9). Entry format aligned with the template: definition, then a =/Fonte: .../= line (=blueprint-glossary-source-position= for the reverse order).
 
-** +10.9 Versione del progetto e migrazioni opzionali+ ✅
-Richiesta dell'utente (2026-11-02): il pacchetto deve leggere ogni formato
-che ha scritto, fino alle versioni precedenti la 0.1.0, senza chiedere una
-migrazione (chi ha una scadenza non deve essere costretto a migrare la
-documentazione), e deve sempre offrire un percorso di migrazione
-facoltativo; la dashboard deve mostrare la versione Blueprint del progetto
-e se servono adeguamenti, anche dei template utente. Decisioni in
-=docs/adr/ADR-002-project-version-and-migrations.org=.
+** +10.9 Project version and optional migrations+ ✅
+User request (2026-11-02): the package must read every format it ever wrote, back to versions before 0.1.0, without asking for a migration (someone with a deadline must not be forced to migrate their documentation), and must always offer an optional migration path; the dashboard must show the project's Blueprint version and whether updates are needed, user templates included. Decisions in =docs/adr/ADR-002-project-version-and-migrations.org=.
 
-*Fatto (2026-11-02)*: inventario dei formati di ogni epoca ricostruito
-dalla storia git (14 cambi, ADR-002). Lettura ripristinata dove mancava:
-ADR in un file ciascuno (fino a 2026-03), glossario e riferimenti scritti
-nella data directory (fino a 2026-09), ID dell'agenda della 0.3.0. Nuovo
-=blueprint-upgrade.el=: =.blueprint/blueprint-version.org= (versione e
-migrazioni applicate, scritto da =blueprint-init=, mai obbligatorio:
-altrimenti la versione si deduce), registro =blueprint-upgrade-steps=
-(rilevatore in sola lettura e applicazione idempotente per ogni formato),
-=blueprint-project-upgrade= (=C-c b ^=, =u= in dashboard) con piano,
-backup in =_archive/=, avviso git, stato dei template di progetto e utente
-classificati con gli hash di tutte le versioni rilasciate
-(=scripts/gen-template-history.sh=). Dashboard, report JSON e
-=blueprint-ci-validate= (effetto configurabile) mostrano versione e
-migrazioni. Configurabili anche base del diff, vista dell'agenda e
-posizione della fonte nel glossario. Verificato su progetti creati con il
-codice reale di 0.1.0, 0.2.0 (tag, febbraio, marzo, settembre, ottobre) e
-0.3.0, e con un progetto pre-0.1.0 ricostruito (il codice dell'initial
-commit non si carica). Test: =test/blueprint-test-upgrade.el=.
+*Done (2026-11-02)*: inventory of the formats of every era rebuilt from the git history (14 changes, ADR-002). Reading restored where it was missing: one file per ADR (until 2026-03), glossary and references written in the data directory (until 2026-09), 0.3.0 agenda IDs. New =blueprint-upgrade.el=: =.blueprint/blueprint-version.org= (version and applied migrations, written by =blueprint-init=, never mandatory: otherwise the version is inferred), the registry =blueprint-upgrade-steps= (a read-only detector and an idempotent apply for each format), =blueprint-project-upgrade= (=C-c b ^=, =u= in the dashboard) with plan, backup in =_archive/=, git warning, and the status of project and user templates classified with the hashes of every released version (=scripts/gen-template-history.sh=). Dashboard, JSON report and =blueprint-ci-validate= (configurable effect) show version and migrations. Also configurable: the diff base, the agenda view and the position of the source in the glossary. Verified on projects created with the real code of 0.1.0, 0.2.0 (tag, February, March, September, October) and 0.3.0, and with a rebuilt pre-0.1.0 project (the code of the initial commit does not load). Tests: =test/blueprint-test-upgrade.el=.
 
-** +10.7 Gestione perimetro (inclusi/esclusi) (PRIORITÀ BASSA)+ ✅
-Non esisteva un modo strutturato per marcare componenti come "fuori perimetro
-con motivazione". Andava documentato solo nel testo della Parte 0.
+** +10.7 Scope management (included/excluded) (LOW PRIORITY)+ ✅
+There was no structured way to mark components as "out of scope, with a reason". It could only be documented in the text of Part 0.
 
-- [X] Keyword =#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd= in
-  =arc42.org=/=component.org= (default =in-scope= nel template per i
-  nuovi componenti). Helper condiviso
-  =blueprint--component-scope-status= in =blueprint-c4.el= (stesso file
-  di =blueprint--org-keyword=, di cui è un consumer): default
-  =in-scope= anche quando il keyword manca (componenti creati prima di
-  questa feature) o ha un valore non riconosciuto, per non cambiare
-  comportamento ai progetti esistenti.
-- [X] =blueprint-lint= avvisa se un componente =in-scope= dipende da uno
-  =out-of-scope= (non il contrario: un componente =out-of-scope= che
-  dipende da un altro =out-of-scope= non è un problema).
-- [X] Dashboard: colonna "Scope" in =blueprint-dashboard-mode=; filtro
-  =blueprint-dashboard-toggle-out-of-scope= (tasto =O= nel buffer
-  dashboard) che mostra solo i componenti =out-of-scope=/=tbd=, stesso
-  pattern di =blueprint-dashboard-toggle-focus=. Entry point diretto
-  =blueprint-out-of-scope-view= (tasto =o= nel menu principale),
-  analogo a =blueprint-focus=.
-- [X] Test: =blueprint-test-scope-status/*= in =test/blueprint-test-c4.el=;
-  =blueprint-test-lint/*out-of-scope*= in =test/blueprint-test-lint.el=;
-  =blueprint-test-dashboard/*scope*= e =*out-of-scope*= in
-  =test/blueprint-test-dashboard.el=.
+- [X] Keyword =#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd= in =arc42.org= / =component.org= (default =in-scope= in the template for new components). Shared helper =blueprint--component-scope-status= in =blueprint-c4.el= (the same file as =blueprint--org-keyword=, which it uses): default =in-scope= also when the keyword is missing (components created before this feature) or has an unrecognized value, so existing projects behave as before.
+- [X] =blueprint-lint= warns when an =in-scope= component depends on an =out-of-scope= one (not the opposite: an =out-of-scope= component depending on another =out-of-scope= one is not a problem).
+- [X] Dashboard: a "Scope" column in =blueprint-dashboard-mode=; the filter =blueprint-dashboard-toggle-out-of-scope= (key =O= in the dashboard buffer) shows only the =out-of-scope=/=tbd= components, with the same pattern as =blueprint-dashboard-toggle-focus=. Direct entry point =blueprint-out-of-scope-view= (key =o= in the main menu), like =blueprint-focus=.
+- [X] Tests: =blueprint-test-scope-status/*= in =test/blueprint-test-c4.el=; =blueprint-test-lint/*out-of-scope*= in =test/blueprint-test-lint.el=; =blueprint-test-dashboard/*scope*= and =*out-of-scope*= in =test/blueprint-test-dashboard.el=.
+
+* Phase 11 --- Localization
+Blueprint must be able to produce a document in a language other than Italian (user decision, 2026-11-16). When and how is still open: the analysis and the alternatives are in =docs/adr/ADR-003-localized-templates.org= (=proposed=).
+
+** 11.1 Templates in one folder per language
+=templates/it/=, =templates/en/= and so on, with the same layout in the project and user template folders, and a setting that picks the language (Italian by default). Existing Italian projects keep working without a migration (ADR-002).
+
+** 11.2 Decouple the code from the heading text
+The code finds some sections by their Italian title ("Aree funzionali", "Entità di dominio", "Punti di integrazione", "Processi di business", and the arc42 sections in the linter): with translated headings, the commands that add areas, features, entities, integration points and processes fail. ADR-003 compares a per-language table with finding sections by anchor.
+
+** 11.3 Generated text and markers
+The prose the commands insert, the messages and the file headers they write (see also 9.37), and the Italian markers (=[DA VALIDARE]=, =[DA REVISIONARE]=, =[APPROVATO]=) recognized by the health score and the linter.
+
+** 11.4 English templates and an English demo
+Once 11.1-11.3 exist: English templates, and =examples/demo/= rebuilt in English (today it stays Italian so that its own commands work on it).

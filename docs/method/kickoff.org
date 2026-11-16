@@ -1,0 +1,91 @@
+#+TITLE: Kickoff: validating the structure with the client
+
+A guide for the first sessions with the client, before any data is collected. It is not a slide deck, it is a guide to the conversation, and the order of the topics can change with the discussion.
+
+The goal of these sessions is to agree on scope, structure, format and conventions before the work starts. Don't start gathering data before the structure is approved: every hour spent collecting information in the wrong shape is an hour lost.
+
+* 1. What we are doing and why
+
+Always first: agree on purpose and expectations.
+
+- Say explicitly that this is reverse engineering, not design: the work starts from nothing and rebuilds from what exists.
+- Make clear that the document describes the current state. It gives no direction and contains no recommendations unless agreed otherwise.
+- Make the value concrete: missing documentation is an operational risk (turnover, maintenance, onboarding, audits), and the assessment reduces it.
+- Ask: who uses this documentation after delivery? Is there anyone who will maintain it? In what format do they need it?
+
+* 2. Scope
+
+Get to a final list of what is in and what is out.
+
+- Present the preliminary list of components, if there is one.
+- For each component: in scope, out of scope, or on hold with a reason.
+- Decide how to treat third-party systems: documented as black boxes (interface only), or excluded and only referenced.
+- Decide which environments to document: production only, or also development and test, which matters when configurations differ.
+- Fix a reference date: systems are documented as they run in production on that date, and later changes are outside the assessment.
+- Ask: are there areas the client considers sensitive and wants to exclude or limit?
+
+* 3. Structure of the document
+
+The most important decision of the kickoff: approve the document in parts.
+
+Present the six parts and their audiences (see [[file:method.org][the method]]): premises, enterprise architecture, architecture by component, functional specifications, infrastructure inventory, non-functional requirements.
+
+- Explain that it is a single document, organized for selective reading by role.
+- If the client wants separate documents, it can be done, but it duplicates shared sections and adds coordination. Recommend a single document with a navigable index.
+- Ask: are there internal documentation standards to follow (company templates, mandatory structures)?
+
+* 4. Format and delivery
+
+Remove every ambiguity about the final format before starting.
+
+- Ask explicitly: Word, PDF, or something else?
+- For Word or ODT: is there a company template (header, footer, styles, logos)? Get the file.
+- For PDF: does it need to be searchable, or accessible (PDF/UA)?
+- Explain that the document grows incrementally and that partial versions will be available for review along the way.
+- Agree on the review cadence: monthly, or every time a component is complete?
+- Ask who signs the final approval, and who reviews each part.
+
+* 5. Access and sources
+
+Find out what is available and plan accordingly.
+
+- Source code: where, how, with which credentials.
+- Environments: read-only access to production or test. Which monitoring, logging and APM tools exist?
+- People: a technical owner for each component, ideally one per system, with agreed availability (say two hours a week).
+- Existing documentation: collect it even if fragmentary or outdated. Old specifications, technical emails, presentations, tickets, everything.
+- Ask: are there components whose technical owner is not available? It weighs heavily on effort and quality.
+
+* 6. Conventions and markers
+
+Align expectations on quality and on how certain each piece of information is.
+
+- Present the markers: to validate, finding, approved with a date.
+- Explain that the document will be explicit about what is not certain. An honest assessment says "we don't know" where it doesn't, instead of inventing or omitting.
+- Explain that findings are observations, not criticism. What to do about them is the client's decision.
+- Ask: should findings come as a separate section, or stay inside the documentation?
+
+* 7. Glossary and language
+
+Keep the document from speaking a language the client doesn't understand.
+
+- Propose building the glossary together during the first sessions: every technical or domain term used in the document gets a definition.
+- Ask for company terms with a specific meaning (internal names of systems, processes, roles).
+- Make clear that the glossary is a living document, updated for the whole project.
+
+* 8. Planning and milestones
+
+In the last session, once everything above is settled.
+
+- Estimate the effort per component once the scope is final.
+- Decide the order: the most critical components first, or the ones with the most available owner?
+- Set intermediate milestones, for example "Part I complete by X", "first three components of Part II by Y".
+- Agree on the approval process: asynchronous review on a shared document, or dedicated sessions?
+- Name the main risks: owners not available, access denied, systems too complex to document in the time.
+
+* Questions to bring to the sessions
+
+- How many components are in scope, as a first estimate?
+- Is there any earlier documentation, even partial or outdated?
+- Does the client's team have the skills to maintain the documentation afterwards?
+- Are there external deadlines (an audit, a migration project) that constrain the delivery date?
+- Is the document for internal use only, or also for third parties (auditors, partners, regulators)?

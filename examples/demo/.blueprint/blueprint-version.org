@@ -1,0 +1,8 @@
+#+TITLE: Versione Blueprint del progetto
+#+BLUEPRINT_VERSION: 0.4.1
+#+BLUEPRINT_MIGRATIONS:
+
+File gestito da Blueprint: la versione del pacchetto con cui il
+progetto è stato creato o aggiornato e le migrazioni applicate
+da `blueprint-project-upgrade'.  Non è incluso in master.org e
+non è obbligatorio: senza, la versione viene dedotta dai file.

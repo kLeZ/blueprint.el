@@ -1,0 +1,64 @@
+#+TITLE: Riferimenti
+#+VERSION: 0.1
+#+UPDATED: 2026-11-16
+#+NOTE: File autonomo.  Usare blueprint-reference-add (C-c b z) per aggiungere riferimenti.
+
+* Guida alla compilazione — Riferimenti                            :noexport:
+
+Traccia le fonti da cui provengono le informazioni documentate.
+Permette di verificare l'origine di ogni affermazione e di pianificare
+le interviste o le sessioni di validazione mancanti.
+
+** Documenti (esempio)
+
+| ID   | Titolo                               | Autore / Owner |       Data | Tipo      | Note                                    |
+|------+--------------------------------------+----------------+------------+-----------+-----------------------------------------|
+| D-01 | Specifiche tecniche API Gateway v2.1 | team-platform  | 2023-11-20 | specifica | Versione in produzione al momento del   |
+|      |                                      |                |            |           | assessment; v3 in sviluppo              |
+| D-02 | Piano di disaster recovery (bozza)   | ops-team       | 2024-01-08 | procedura | [DA VALIDARE] mai testato in produzione |
+
+** Interviste (esempio)
+
+| ID   | Intervistato   | Ruolo                     |       Data | Argomenti trattati                              | Note                        |
+|------+----------------+---------------------------+------------+-------------------------------------------------+-----------------------------|
+| I-01 | Marco Rossi    | Tech Lead payment-service | 2024-02-14 | Architettura interna, gestione errori, backlog  | Registrazione disponibile   |
+| I-02 | Giulia Bianchi | Responsabile operations   | 2024-02-16 | Procedure di deploy, incidenti recenti, SLA ops | Note in =intervista-ops.md= |
+
+** Sistemi e strumenti (esempio)
+
+| ID   | Nome       | Versione | Scopo nel progetto                             |
+|------+------------+----------+------------------------------------------------|
+| S-01 | Stripe     |   API v3 | Provider di pagamenti per carte credito/debito |
+| S-02 | PostgreSQL |     15.4 | Database primario — ordini e pagamenti         |
+| S-03 | Kafka      |      3.6 | Bus eventi asincrono tra order e notification  |
+
+** Ambienti analizzati (esempio)
+
+| ID   | Ambiente   | Data rilevazione | Componenti inclusi                           | Note                                    |
+|------+------------+------------------+----------------------------------------------+-----------------------------------------|
+| E-01 | Produzione |       2024-02-12 | payment-service v2.3, order-service v1.8     | Snapshot pre-assessment; non modificato |
+| E-02 | Staging    |       2024-02-13 | payment-service v2.4-rc1, order-service v1.8 | Versione candidata al rilascio di marzo |
+
+* Documenti
+<<references-documents>>
+
+| ID | Titolo | Autore / Owner | Data | Tipo | Note |
+|----+--------+----------------+------+------+------|
+
+* Interviste
+<<references-interviews>>
+
+| ID | Intervistato | Ruolo | Data | Argomenti trattati | Note |
+|----+--------------+-------+------+--------------------+------|
+
+* Sistemi e strumenti
+<<references-systems>>
+
+| ID | Nome | Versione | Scopo nel progetto |
+|----+------+----------+--------------------|
+
+* Ambienti analizzati
+<<references-environments>>
+
+| ID | Ambiente | Data rilevazione | Componenti inclusi | Note |
+|----+----------+------------------+--------------------+------|

@@ -1,0 +1,263 @@
+#+TITLE: The Blueprint method
+#+SUBTITLE: Architectural documentation for existing systems, and for new ones
+
+* What this is
+
+This is the method behind blueprint.el: how to produce the architectural documentation of a software system, organized so that very different readers can each find their part, and honest about what is known and what is not. The package is the tool that keeps the method in place; this document explains the method itself, so it can be read, criticized and applied without Emacs.
+
+The method was born for one specific job: reconstructing the documentation of systems that run in production and have none. It works just as well the other way round, on a system that is still being designed (see [[*Using the method on a new system][Using the method on a new system]]).
+
+For the reasons behind the main choices (arc42 rather than TOGAF, a document in parts, satellite files) see [[file:rationale.org][rationale.org]]. For the first meetings with the client, where the structure gets validated before any data is collected, see [[file:kickoff.org][kickoff.org]].
+
+* When to use it
+
+The method assumes:
+- one or more systems in production, possibly of different ages and technologies;
+- documentation that is missing, scattered or not reliable;
+- access to the source code and to the environments, which is the preferred condition but not always granted;
+- readers with different needs, from developers to business managers;
+- limited time on the side of whoever writes the document.
+
+It fits when:
+- the goal is a picture of the current state (as-is), not a redesign;
+- the scope includes several systems that depend on each other;
+- the result has to be readable by people who are not technical.
+
+It is overkill for a single simple service, and it is the wrong tool when the client requires conformance to a specific framework such as TOGAF or NAF.
+
+* The output document
+
+** A document in parts
+
+The document is split into six parts, each with a declared audience. Everyone reads their own part without wading through the rest, and the whole is still a single deliverable.
+
+| Part | Title                       | Content                                         | Primary audience              |
+|------+-----------------------------+-------------------------------------------------+-------------------------------|
+| 0    | Premises                    | Purpose, scope, how information was gathered    | Everyone                      |
+| I    | Enterprise architecture     | Aggregate view, dependencies across systems     | Executives, senior architects |
+| II   | Architecture by component   | Selected arc42 sections for each system         | Architects, senior developers |
+| III  | Functional specifications   | Business rules, formulas, domain logic          | Analysts, product owners      |
+| IV   | Infrastructure inventory    | Hosts, deployment, infrastructure dependencies  | IT operations, system admins  |
+| V    | Non-functional requirements | Quality scenarios, constraints, technical risks | Architects, IT management     |
+
+Part III is organized by functional domain, not by technical component: an analyst looks for "how an order is fulfilled", not for the module that happens to implement it.
+
+** Files
+
+Each part of the document lives in its own files, and =master.org= assembles them with =#+INCLUDE:=. This is the layout =blueprint-init= creates:
+
+#+begin_example
+master.org              final document, includes everything else
+glossary.org            glossary, linkable from any file
+references.org          documents, interviews and systems used as sources
+enterprise/
+  context.org           C4 level 1 across all systems
+  dependencies.org      dependency matrix and cross-system flows
+nfr/
+  quality-scenarios.org
+  constraints.org
+  risks.org
+.blueprint/
+  components/
+    <component>/
+      arc42.org         architecture of the component
+      functional.org    functional specifications and business rules
+      infrastructure.org  hosts, network, access
+#+end_example
+
+Every file can be exported on its own, which makes partial reviews with the client easy: send Part II of two components, not the whole draft.
+
+** Cross-references
+
+Files link to each other with ordinary Org links to named targets:
+
+#+begin_example
+[[file:../glossary.org::term][Term]]
+[[file:../.blueprint/components/orders/arc42.org::orders-context][Context]]
+#+end_example
+
+A target is declared with =<<target-name>>=. The templates already carry one for every section.
+
+** Markers: saying what is not certain
+
+Every statement in the document has a level of certainty, and the ones that are not certain are marked in the text. An honest assessment says "we don't know" where it doesn't know, instead of guessing or leaving things out.
+
+The markers keep their Italian names for now, like the templates; localized templates are planned.
+
+| Marker                   | Meaning                                                   |
+|--------------------------+-----------------------------------------------------------|
+| =[DA VALIDARE]=          | to validate: written, not yet confirmed with the client   |
+| =[DA REVISIONARE]=       | to review: produced by an automatic process, not reviewed |
+| =[FINDING]=              | a discrepancy between actual and expected behavior        |
+| =[APPROVATO YYYY-MM-DD]= | approved by the client on that date                       |
+| =TBD=                    | still to be written                                       |
+| =QUESTION=               | an open question that needs someone's answer              |
+| =FIXME=                  | something known to be wrong                               |
+
+Where a statement comes from matters as much as the statement itself: write the source next to it (an interview with a date, a file in the code, a document listed in =references.org=).
+
+Blueprint counts the open markers and turns them into a health score for each component and for the whole document. The score is an incentive to close open points, not a quality metric; the formula is in the README.
+
+* Sources and how far to trust them
+
+** The hierarchy of sources
+
+Sources are not equally reliable. From the most to the least trustworthy:
+
+1. *Source code.* It is what the system actually does. The primary source.
+2. *Unit and integration tests.* They document expected behavior and edge cases, often more precisely than any written specification.
+3. *Production logs and monitoring.* They show real behavior under real load.
+4. *Interviews with the people who built or run the system.* Good for context and original intentions, subject to forgetting and reinterpretation.
+5. *Existing documentation.* Often outdated or incomplete. Always check it against the code before using it.
+
+** Bugs that became features
+
+Code can contain wrong behavior that the business has accepted over the years, to the point that processes have adapted to the bug. Documenting the actual behavior as if it were correct is a risk; fixing it on paper is worse.
+
+Document what the code does. If the behavior looks wrong, say so explicitly, mark it as a =[FINDING]= and check it with a domain expert. Never correct it unilaterally.
+
+* Reverse-engineering the business logic
+
+** Goal
+
+Functional specifications that are independent of the technology: readable by an analyst with no technical background, and precise enough to reimplement the logic in another language without losing anything.
+
+** Procedure for each component
+
+1. Find where the business logic lives: service layers, use-case classes, domain objects. Skip controllers, repositories, configuration and infrastructure code.
+2. Look for the tests. They are often the most precise documentation available, especially for edge cases and rounding rules.
+3. Read named constants and enums: they often carry pieces of explicit logic (states, categories, thresholds).
+4. Check stored procedures and triggers in the database. Business logic ends up there more often than anyone would like.
+5. Translate the logic into the language of the domain: rename technical variables with business names, write formulas in mathematical notation.
+6. Validate with a domain expert, at least a quick review for each relevant functional area.
+
+** How to write a functional specification
+
+For each function or business rule:
+- purpose, in one sentence of domain language;
+- inputs: business name, business type, constraints, where they come from;
+- outputs: business name, business type, format, where they go;
+- business rules, as a numbered list, each one atomic and verifiable;
+- calculation logic: formulas in mathematical notation, rounding, precision;
+- validation rules, as a table of condition and behavior;
+- edge cases and exceptions: every deviation from the normal flow.
+
+Conditional logic with many combinations of inputs reads best as a decision table:
+
+| Condition 1 | Condition 2 | Condition N | Action |
+|-------------+-------------+-------------+--------|
+| value A     | value X     | ...         | ...    |
+| value B     | value Y     | ...         | ...    |
+
+* Diagrams
+
+All diagrams are PlantUML source inside Org blocks: text, versioned with everything else, regenerated on export. Each notation has a job.
+
+** C4 for the static structure
+
+Three levels are enough in practice:
+- level 1, system context: the system, its users and the systems around it;
+- level 2, containers: applications, databases and main processes inside the system;
+- level 3, components: modules inside a container, only when the complexity calls for it.
+
+#+begin_src plantuml :file example-c4-l1.svg :eval never
+!include <C4/C4_Context>
+System(sys, "System A", "Short description")
+Person(user, "User")
+System_Ext(ext, "External system")
+Rel(user, sys, "Uses")
+Rel(sys, ext, "Calls", "REST/HTTPS")
+@enduml
+#+end_src
+
+Blueprint generates the container diagram and the dependency graph from the =#+BLUEPRINT_DEPENDS:= line of each component, so those two are never drawn by hand.
+
+** UML sequence diagrams for runtime interactions
+
+For calls between components when the order of operations matters. Every runtime flow gets a use case diagram for non-technical readers and a sequence diagram for technical ones; =blueprint-runtime-add-flow= creates both.
+
+** UML activity diagrams with swimlanes for business processes
+
+An approximation of BPMN for processes with several actors, decisions and loops. =blueprint-runtime-add-process= creates the section.
+
+#+begin_src plantuml :file example-activity.svg :eval never
+| User |
+start
+:Send request;
+| System |
+:Validate input;
+if (valid?) then (yes)
+  :Process;
+  :Return result;
+else (no)
+  :Return error;
+endif
+| User |
+:Receive response;
+stop
+@enduml
+#+end_src
+
+** Data flow diagrams for data lineage
+
+Where data is born, where it goes and how it is transformed. Level 0 (context) and level 1 (decomposition) are enough for an assessment. PlantUML has no DFD notation, so a component diagram stands in for it:
+
+#+begin_src plantuml :file example-dfd.svg :eval never
+[Data source A] --> (Transformation T1) : raw data
+(Transformation T1) --> [System B] : normalized data
+(Transformation T1) --> [Archive C] : historical copy
+@enduml
+#+end_src
+
+** UML deployment diagrams for the infrastructure
+
+For complex environments (cloud, hybrid, several zones), with ports, protocols, network zones, firewalls and regions written on the diagram.
+
+Data models and convoluted state machines also deserve an entity-relationship diagram and a state diagram.
+
+* When access is missing
+
+If access to code or environments is not available when you need it, fall back in this order:
+
+1. an interview with the technical owner, with a walkthrough of the running system;
+2. secondary artifacts: deployment notes, CI/CD scripts, Dockerfiles, Kubernetes manifests, Terraform;
+3. observation of the environment: monitoring, APM, aggregated logs;
+4. inference from the external interface alone (black box), only as a last resort, and always marked =[DA VALIDARE]=.
+
+* Using the method on a new system
+
+The structure that describes an existing system describes a system being designed just as well, and it is much cheaper to keep it from the first day than to rebuild it ten years later.
+
+Run =blueprint-init= in a =docs/= folder of the source repository: the documentation lives next to the code and is versioned with it. The markers keep their weights and change meaning:
+- a =TBD= is a part still to be designed;
+- a =QUESTION= is a question for the product owner;
+- the health score tells how much of the system is still undecided.
+
+This fits an iterative process well. Describing a component at the level of detail the templates ask for is the documentation a team produces from one sprint to the next, and a component with no =TBD= and no =QUESTION= left is ready for development. Architecture decisions go into ADRs as they are made.
+
+So far the method has been tested in depth on assessments; the green-field use follows from the same structure.
+
+* Tools
+
+Everything is driven from the Transient menu on =C-c b= (see the README for the full list), and every command also runs in batch with =emacs --batch=, which is what scripts and CI use.
+
+- *Structure*: =blueprint-init=, =blueprint-add-component=, and the commands that add functional areas, entities, integrations, runtime flows, processes, quality scenarios, constraints and risks, each in the right section of the right file.
+- *Open points*: =blueprint-add-question= and the question register; the dashboard (=C-c b B=) shows markers, penalty and score for every file.
+- *Checks*: the linter (=C-c b L=) and the pre-delivery check (=C-c b d=).
+- *Export*: Org's own exporter. ODT honors the client's template declared with =#+ODT_STYLES_FILE:= in =master.org=; PDF goes through LaTeX; DOCX needs ox-pandoc.
+
+* Before delivery
+
+Before the document goes to the client:
+
+- [ ] every =[DA VALIDARE]= has been verified or removed;
+- [ ] every =[DA REVISIONARE]= has been reviewed;
+- [ ] the glossary covers every technical and domain term used;
+- [ ] the references are complete and can be checked;
+- [ ] the diagrams are readable (font size, contrast, legend);
+- [ ] Part 0 describes the scope and the sources actually used;
+- [ ] findings are written as observations, not as criticism;
+- [ ] the document has been exported in the agreed format and checked by eye;
+- [ ] the client's owner has approved the version.
+
+The pre-delivery check (=C-c b d=) automates the parts of this list that can be counted.

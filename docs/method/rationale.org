@@ -1,0 +1,49 @@
+#+TITLE: Why the method is built this way
+
+The main choices behind [[file:method.org][the method]], and what an assessment deliberately does not try to do.
+
+* What an assessment is not
+
+Saying it upfront avoids most misunderstandings with the client.
+
+- *Not a design.* An assessment describes the current state. It produces no specification for new systems or for re-engineering the existing ones, and no recommendations unless agreed. (When the method is used on a new system, the document is a design document instead; see the method.)
+- *Not a runbook.* The infrastructure part covers topology and dependencies, not operating procedures.
+- *Not a certification of the business logic.* Functional specifications describe what the code does, not necessarily what it should do. Discrepancies become findings or open questions, never silent corrections.
+- *Not compliance documentation* for ISO 27001, PCI-DSS or similar, unless the scope says so explicitly.
+- *Not training* for the client's team, unless agreed separately.
+
+* Why arc42 and not TOGAF
+
+TOGAF is a governance and transformation framework, not a documentation template. Its development method assumes a forward process, designing a future architecture, not reconstructing an existing one. Its process overhead and its graphical language (ArchiMate, a separate standard) are out of proportion for an assessment.
+
+arc42 asks you to understand twelve sections and gives you something you can use right away. It does not impose a notation, and it adapts well to reverse engineering. Not every section is needed for every component: the method uses Constraints (2), Context and Scope (3), Solution Strategy (4), Building Block View (5), Runtime View (6), Deployment View (7), Cross-cutting Concepts (8), Quality Requirements (10) and Risks (11). Architecture Decisions (9) live in separate ADRs, and the Glossary (12) moves to Part 0, shared by the whole document.
+
+* Why not a fully custom model
+
+A custom model is as flexible as you like, and loses the structure as a guarantee of completeness. Without a template to tick off, whole sections get skipped when time is short. arc42 works as an implicit checklist.
+
+* Why a document in parts
+
+The readers are different and read for different reasons. Mixing technical and business views in one narrative produces a document nobody can use. Parts let every reader go straight to their own, and the client still gets a single deliverable.
+
+If the client insists on separate documents, it can be done, at the cost of duplicating shared sections (glossary, context) and coordinating them. A single document in parts, with a navigable index, is usually the better deal.
+
+* Why satellite files and not one big Org file
+
+An assessment of many components in a single file becomes unmanageable after the first weeks. Satellite files allow work in parallel, or spread over time, partial exports for intermediate reviews, and surgical updates without breaking the structure around them. =master.org= stays the point where everything is assembled.
+
+The same separation is what lets several people, or several agents, work on the same document at once: each takes the files of one component and nobody steps on anybody else.
+
+* Why these notations
+
+- C4, levels 1 to 3, for the static structure: well known, and it maps onto arc42 sections 3 to 5.
+- UML sequence diagrams for runtime interactions.
+- UML activity diagrams with swimlanes for business processes, as an approximation of BPMN, which PlantUML lacks. Good enough for an assessment, not for an executable specification.
+- Data flow diagrams (Yourdon/DeMarco) for data lineage, more direct than C4 for chains of transformations.
+- UML deployment diagrams, extended with network details, for the infrastructure.
+
+Everything is PlantUML: plain text inside the documents, diffable, regenerated on export.
+
+* How the method changes
+
+The method is expected to change when it meets a client: the first validation sessions often move sections, add a notation or change the export format. Every structural change (adding or removing a section, a new notation, a new export format) is a new version of the method, recorded with its date and its reason, ideally as an ADR, and carried into the templates.

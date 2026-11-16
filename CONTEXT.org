@@ -5,8 +5,8 @@
 #+STATUS: paused
 
 * Current Task
-Release 0.4.1 (2026-11-02, on main, not pushed): 0.4.0 defects found at
-first use on the pilot project. PLAN 9.32 (upgrade plan failed with
+Release 0.4.1 (2026-11-02, on main, not pushed): 0.4.0 defects found in
+its first real use. PLAN 9.32 (upgrade plan failed with
 version-file pending, nil :era column), 9.33 (long milestone title hid
 the version in the dashboard summary), 9.34 (version-file removed from
 the step registry, =v= in the plan; ADR-002 D7, user decision), 9.35

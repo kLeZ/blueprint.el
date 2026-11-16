@@ -349,8 +349,7 @@ applies to a project with a corporate `#+ODT_STYLES_FILE:`.
 
 ## Assessment methodology
 
-Templates follow the methodology from
-`assessment-framework/methodology/METHOD.org`:
+Templates follow the method in `docs/method/method.org`:
 
 - **Information source hierarchy**: code > tests > logs > monitoring >
   interviews > docs

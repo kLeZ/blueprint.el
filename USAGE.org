@@ -1,639 +1,533 @@
-#+TITLE: Blueprint.el — Guida operativa per l'assessment architetturale
-#+LANGUAGE: it
+#+TITLE: Blueprint.el: a working guide to architectural documentation
+#+LANGUAGE: en
 #+OPTIONS: toc:3 num:t H:4
-#+DATE: 2026-03-05
+#+DATE: 2026-11-16
 
 #+begin_comment
-Questo documento descrive il workflow operativo per condurre un assessment
-architetturale completo con Blueprint.el. Non e' un riferimento API: e' una
-guida pratica che segue la metodologia definita in assessment-framework/methodology/METHOD.org.
+This document describes the working day of an architectural assessment with Blueprint.el. It is not an API reference: it is a practical guide that follows the method in docs/method/method.org.
 
-Audience: architetti e consulenti che usano Blueprint.el in un engagement.
+Audience: architects and consultants using Blueprint.el on an engagement.
 #+end_comment
 
-* Introduzione
+* Introduction
 
-Blueprint.el e' uno strumento Emacs per la produzione di documentazione
-architetturale su sistemi software esistenti privi di documentazione.
-Il metodo sottostante e' il reverse-engineering: si parte dal codice sorgente
-come fonte primaria e si ricostruisce progressivamente la documentazione.
+Blueprint.el is an Emacs package for producing the architectural documentation of software systems, typically existing ones that have none. The underlying method is reverse engineering: the source code is the primary source, and the documentation is rebuilt from it step by step. The same structure also works for a system being designed (see the method, "Using the method on a new system").
 
-** Modello mentale
+The templates, the headings they create and the markers are in Italian for now. Full English support and localized templates are planned (PLAN.org, phase 11).
 
-Il documento di output e' un =master.org= che assembla file satellite tramite
-=#+INCLUDE=. Ogni componente ha la propria directory con tre file autonomi:
+** Mental model
 
-| File                 | Contenuto                             | Parte master |
-|----------------------+---------------------------------------+--------------|
-| =arc42.org=          | Architettura software (arc42)         | Parte II     |
-| =functional.org=     | Specifiche funzionali, business rules | Parte III    |
-| =infrastructure.org= | Censimento infrastrutturale           | Parte IV     |
+The output document is a =master.org= that assembles satellite files with =#+INCLUDE=. Every component has its own directory with three self-contained files:
 
-I file trasversali al progetto vivono in =.blueprint/=:
+| File                 | Content                                   | Master part |
+|----------------------+-------------------------------------------+-------------|
+| =arc42.org=          | Software architecture (arc42)             | Part II     |
+| =functional.org=     | Functional specifications, business rules | Part III    |
+| =infrastructure.org= | Infrastructure inventory                  | Part IV     |
 
-| File/Directory   | Contenuto                        | Parte master |
-|------------------+----------------------------------+--------------|
-| =enterprise/=    | Vista aggregata multi-sistema    | Parte I      |
-| =nfr/=           | NFR, vincoli, rischi trasversali | Parte V      |
-| =glossary.org=   | Glossario di dominio             | Parte 0      |
-| =references.org= | Fonti, interviste, documenti     | Riferimenti  |
-| =adr.org=        | Architecture Decision Records    | (separato)   |
+The files that cover the whole project live at the project root:
 
-Il menu principale e' disponibile con =C-c b=.
+| File/Directory   | Content                               | Master part |
+|------------------+---------------------------------------+-------------|
+| =enterprise/=    | Aggregate view across systems         | Part I      |
+| =nfr/=           | Quality scenarios, constraints, risks | Part V      |
+| =glossary.org=   | Domain glossary                       | Part 0      |
+| =references.org= | Sources, interviews, documents        | References  |
 
-** Prerequisiti
+The main menu is on =C-c b=.
 
-- Emacs 29+
-- Blueprint.el installato (=M-x package-install RET blueprint RET= o manualmente)
-- PlantUML disponibile per il rendering dei diagrammi (opzionale ma raccomandato)
-- Graphviz per il grafo delle dipendenze (opzionale)
+** Prerequisites
 
-Per il rendering inline di PlantUML in Org-mode, aggiungere al proprio =init.el=:
+- Emacs 29 or later
+- Blueprint.el installed (see "Installation" in the README; the package is not on MELPA yet)
+- PlantUML to render the diagrams (optional, recommended)
+- Graphviz for the dependency graph (optional)
+
+To render PlantUML inline in Org mode, add to your =init.el=:
 
 #+begin_src emacs-lisp
   (setq org-plantuml-jar-path "/path/to/plantuml.jar")
   (add-to-list 'org-src-lang-modes '("plantuml" . plantuml))
   (org-babel-do-load-languages 'org-babel-load-languages
-  			     '((plantuml . t)))
+                               '((plantuml . t)))
 #+end_src
 
 -----
 
-* Struttura del documento di output
+* Structure of the output document
 
-Il documento master segue la struttura a sei parti definita dalla metodologia:
+The master document follows the six-part structure of the method:
 
-| Parte | Titolo                      | Audience primaria               |
-|-------+-----------------------------+---------------------------------|
-| 0     | Premesse                    | Tutti                           |
-| I     | Architettura enterprise     | Dirigenti, architetti senior    |
-| II    | Architettura per componente | Architetti, sviluppatori senior |
-| III   | Specifiche funzionali       | Analisti, product owner, BU     |
-| IV    | Censimento infrastrutturale | IT operations, sistemisti       |
-| V     | NFR, vincoli, rischi        | Architetti, management IT       |
+| Part | Title                     | Primary audience              |
+|------+---------------------------+-------------------------------|
+| 0    | Premises                  | Everyone                      |
+| I    | Enterprise architecture   | Executives, senior architects |
+| II   | Architecture by component | Architects, senior developers |
+| III  | Functional specifications | Analysts, product owners      |
+| IV   | Infrastructure inventory  | IT operations, system admins  |
+| V    | NFR, constraints, risks   | Architects, IT management     |
 
-Ogni parte ha audience esplicita: cio' consente lettura selettiva per ruolo
-senza dover attraversare materiale irrilevante.
+Each part declares its audience, so every reader can go straight to their own without crossing material that does not concern them.
 
 -----
 
-* Flusso 0 — Avvio progetto
+* Workflow 0: starting the project
 
-/Quando: inizio engagement, prima sessione operativa./
+/When: at the start of the engagement, in the first working session./
 
-** Azione 1: Inizializzare la struttura
+** Step 1: create the structure
 
 #+begin_src
-M-x blueprint-init  (oppure: C-c b I)
+M-x blueprint-init  (or: C-c b I)
 #+end_src
 
-Crea la struttura completa =.blueprint/= nella directory corrente. Il comando e'
-idempotente: eseguirlo piu' volte non sovrascrive file esistenti.
+Creates the project structure in the current directory. The command is idempotent: running it again does not overwrite existing files.
 
-Struttura creata:
+What it creates:
 
 #+begin_example
-.blueprint/
-  components/
-  enterprise/
-    enterprise-context.org
-    enterprise-dependencies.org
-  nfr/
-    nfr-quality.org
-    nfr-constraints.org
-    nfr-risks.org
-  templates/
-  _archive/
-  adr.org
-  glossary.org
-  references.org
 master.org
+glossary.org
+references.org
+enterprise/
+  context.org
+  dependencies.org
+nfr/
+  quality-scenarios.org
+  constraints.org
+  risks.org
+_archive/
+.blueprint/
+  blueprint-version.org
+  components/
 #+end_example
 
-** Azione 2: Personalizzare i template (opzionale)
+The first time it runs interactively, =blueprint-init= also copies the system templates to =~/.config/blueprint/templates/=, where they become your personal defaults.
 
-Se il progetto richiede template personalizzati (es. sezioni aggiuntive,
-notazioni diverse, testo prefabbricato per il cliente):
+** Step 2: customize the templates (optional)
+
+If the project needs its own templates (extra sections, different notations, text prepared for the client):
 
 #+begin_src
-M-x blueprint-template-migrate  (oppure: C-c b M)
+M-x blueprint-template-migrate  (or: C-c b M)
 #+end_src
 
-Copia i template di sistema in =.blueprint/templates/=. Da quel momento, i
-template locali hanno precedenza su quelli di sistema.
+Copies the system templates into =.blueprint/templates/=. From then on the project's templates take precedence over the personal and system ones.
 
-I template disponibili: =component.org=, =arc42-enterprise.org=,
-=functional.org=, =infrastructure.org=, =adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=,
-=enterprise-dependencies.org=, =nfr-quality.org=, =nfr-constraints.org=, =nfr-risks.org=.
+Available templates: =component.org=, =arc42-enterprise.org=, =functional.org=, =infrastructure.org=, =adr.org=, =master.org=, =glossary.org=, =references.org=, =enterprise-context.org=, =enterprise-dependencies.org=, =nfr-quality.org=, =nfr-constraints.org=, =nfr-risks.org=.
 
-** Azione 2-bis: Scegliere il nome della directory dati (opzionale)
+** Step 2b: choose the name of the data directory (optional)
 
-La directory dati del progetto (componenti, ADR, template locali) si chiama
-=.blueprint/= per default. Se la struttura del progetto deve rispettare quella
-attesa da un generatore di siti o da un build tool, impostare
-=blueprint-directory-name= con un altro nome o con un percorso relativo
-annidato, es. =content/blueprint=, a livello globale (=init.el= o
-=customize=):
+The project's data directory (components, ADRs, local templates) is called =.blueprint/= by default. If the layout has to match what a site generator or a build tool expects, set =blueprint-directory-name= to another name or to a nested relative path, for example =content/blueprint=, globally (=init.el= or Customize):
 
 #+begin_src emacs-lisp
 (setq blueprint-directory-name "content/blueprint")
 #+end_src
 
-La variabile e' marcata sicura anche come directory-local, ma un valore in
-=.dir-locals.el= arriva solo ai buffer che visitano un file del progetto: i
-comandi lanciati da buffer senza file (dashboard, buffer di risultato) vedono
-comunque il valore globale.
+The variable is also marked safe as a directory-local, but a value in =.dir-locals.el= only reaches buffers visiting a file of the project: commands run from buffers without a file (dashboard, result buffers) still see the global value.
 
-Un progetto che ha ancora =.blueprint/= continua a funzionare anche dopo il
-cambio: Blueprint lo usa come ripiego e lo segnala una volta per sessione. Per
-rinominarlo:
+A project that still has =.blueprint/= keeps working after the change: Blueprint falls back to it and says so once per session. To rename it:
 
 #+begin_src
-M-x blueprint-migrate-directory  (oppure: C-c b m)
+M-x blueprint-migrate-directory  (or: C-c b m)
 #+end_src
 
-Il comando mostra il piano e chiede conferma. Poi rinomina la directory (con
-=git mv= se e' tracciata da git) e riscrive ogni link =file:= e ogni percorso
-di =#+INCLUDE:= / =#+SETUPFILE:= nei file Org del progetto che il rename
-romperebbe, compresi i link dai file dentro la directory spostata verso file
-esterni. Le menzioni in testo libero (prosa, argomenti =:file= dei blocchi
-sorgente) vengono solo elencate nel buffer di report, da correggere a mano.
+The command shows the plan and asks for confirmation. Then it renames the directory (with =git mv= if git tracks it) and rewrites every =file:= link and every =#+INCLUDE:= / =#+SETUPFILE:= path in the project's Org files that the rename would break, including links from files inside the moved directory to files outside it. Mentions in free text (prose, =:file= arguments of source blocks) are only listed in the report buffer, to be fixed by hand.
 
-** Azione 3: Compilare la Parte 0 del master
+** Step 3: write Part 0 of the master
 
-Aprire =master.org= e compilare manualmente le sezioni della Parte 0:
-- Scopo del documento
-- Perimetro dell'assessment (lista componenti inclusi ed esclusi)
-- Metodo di raccolta delle informazioni
-- Periodo di riferimento e versioni analizzate
+Open =master.org= and fill in the sections of Part 0 by hand:
+- purpose of the document;
+- scope of the assessment (components included and excluded);
+- how the information was gathered;
+- reference period and versions analyzed.
 
-Queste sezioni sono editoriali e richiedono input specifico del progetto.
+These sections are editorial and need input specific to the project.
 
 -----
 
-* Flusso 1 — Gestione del perimetro
+* Workflow 1: managing the scope
 
-/Quando: dopo aver concordato con il cliente la lista dei componenti da documentare./
+/When: once the list of components to document has been agreed with the client./
 
-** Aggiungere un componente
+** Add a component
 
 #+begin_src
-M-x blueprint-add-component  (oppure: C-c b A)
+M-x blueprint-add-component  (or: C-c b A)
 Component name: order-service
 #+end_src
 
-Crea la directory =.blueprint/components/order-service/= con:
-- =arc42.org= — sempre creato
-- =functional.org= — se il template esiste
-- =infrastructure.org= — se il template esiste
+Creates =.blueprint/components/order-service/= with:
+- =arc42.org=, always;
+- =functional.org=, if the template exists;
+- =infrastructure.org=, if the template exists.
 
-Il nome viene slugificato automaticamente (lowercase, trattini). Usare nomi
-che riflettano il linguaggio di dominio del cliente, non i nomi interni del codice
-(es. =fatturazione= anziche' =billing-service-v2=).
+The name is turned into a slug (lower case, hyphens). Use names from the client's domain language, not internal code names (=billing= rather than =billing-service-v2=).
 
-Con un argomento prefisso (=C-u C-c b A=) il comando chiede anche il template
-arc42 da usare: =component.org= (standard) o =arc42-enterprise.org=, che
-aggiunge alle sezioni arc42 /Contesto enterprise/, /Stakeholder e punti di
-contatto/ e /Conformità e compliance/ per i componenti di rilievo degli
-engagement grandi. Senza prefisso il comportamento è quello standard.
+With a prefix argument (=C-u C-c b A=) the command also asks which arc42 template to use: =component.org= (standard) or =arc42-enterprise.org=, which adds enterprise context, stakeholders and points of contact, and compliance to the arc42 sections, for the major components of large engagements. Without the prefix the behavior is the standard one.
 
-** Dichiarare le dipendenze
+** Declare dependencies
 
-Aprire il file =arc42.org= del componente e compilare il keyword:
+Open the component's =arc42.org= and fill in the keyword:
 
 #+begin_example
 #+BLUEPRINT_DEPENDS: auth-service database cache
 #+end_example
 
-Questa dichiarazione e' la fonte per la generazione automatica del diagramma C4
-e per il rilevamento di dipendenze anomale (componenti isolati, cicli).
+This line is the source for the generated C4 diagram and for spotting anomalies in the dependencies (isolated components, cycles).
 
-Per i sistemi esterni al perimetro (black-box), documentarli nel diagramma C4
-con =System_Ext= invece di aggiungere un componente blueprint.
+Systems outside the scope (black boxes) go into the C4 diagram as =System_Ext=, not as Blueprint components.
 
-Il ciclo di vita del componente è un asse separato dal perimetro:
-=#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (default =active=
-quando la keyword manca, quindi i componenti creati prima restano =active=).
-La dashboard lo mostra nella colonna =Life= e il lint avvisa quando un
-componente =active= dipende da uno =deprecated= o ha FIXME aperti
-(=blueprint-lint-lifecycle-checks=, default attivo: disattivabile).
+The lifecycle of a component is a separate axis from the scope: =#+BLUEPRINT_LIFECYCLE: draft|active|deprecated|archived= (=active= when the keyword is missing, so older components stay =active=). The dashboard shows it in the =Life= column, and the linter warns when an =active= component depends on a =deprecated= one or has open FIXMEs (=blueprint-lint-lifecycle-checks=, on by default).
 
-** Rinominare un componente
+** Rename a component
 
 #+begin_src
-M-x blueprint-rename-component  (oppure: C-c b R)
+M-x blueprint-rename-component  (or: C-c b R)
 #+end_src
 
-Aggiorna automaticamente tutte le occorrenze del nome in =BLUEPRINT_DEPENDS=
-degli altri componenti.
+Updates every occurrence of the name in the =BLUEPRINT_DEPENDS= of the other components.
 
-** Eliminare un componente
+** Delete a component
 
 #+begin_src
-M-x blueprint-delete-component  (oppure: C-c b X)
+M-x blueprint-delete-component  (or: C-c b X)
 #+end_src
 
-Chiede conferma e cancella la directory del componente. La conferma
-avverte quando altri componenti dichiarano ancora il nome in
-=#+BLUEPRINT_DEPENDS:=: quelle dipendenze restano in vita (giudizio umano)
-e il lint le segnala come pendenti finché non vengono rimosse a mano. Dopo
-la conferma, prima di cancellare la directory, rimuove da master.org le
-righe =#+INCLUDE= e le headline del componente dentro le sezioni
-sincronizzate (il prossimo =blueprint-sync= riporta la sezione al formato
-esatto).
+Asks for confirmation and deletes the component's directory. The confirmation warns when other components still declare the name in =#+BLUEPRINT_DEPENDS:=: those dependencies stay (a human decides), and the linter reports them as dangling until they are removed by hand. After the confirmation, before deleting the directory, it removes the component's =#+INCLUDE= lines and headings from the synchronized sections of =master.org= (the next =blueprint-sync= restores the exact format of the section).
 
-** Verificare lo stato del perimetro
+** Check the scope
 
 #+begin_src
-M-x blueprint-lint  (oppure: C-c b L)
+M-x blueprint-lint  (or: C-c b L)
 #+end_src
 
-Segnala: componenti con dipendenze verso componenti non esistenti, sezioni
-obbligatorie mancanti, file di template assenti.
+Reports dependencies on components that do not exist, missing mandatory sections and missing template files.
 
 -----
 
-* Flusso 2 — Architettura per componente (arc42)
+* Workflow 2: architecture by component (arc42)
 
-/Quando: per ogni componente, dopo aver acquisito accesso al codice sorgente./
+/When: for each component, once there is access to the source code./
 
-** Approccio consigliato: dall'alto verso il basso
+** Recommended order: top down
 
-1. Compilare prima =Context and Scope= (cosa fa, chi lo usa, sistemi confinanti)
-2. Poi =Building Blocks= (struttura interna, C4 L2/L3)
-3. Poi =Runtime Behavior= (flussi principali)
-4. Poi =Constraints= e =Solution Strategy= (ricostruite dal codice)
-5. Per ultimo =Risks= e =Open Questions= (emergono durante l'analisi)
+1. =Context and Scope= first (what it does, who uses it, neighboring systems).
+2. Then =Building Blocks= (internal structure, C4 level 2 or 3).
+3. Then =Runtime Behavior= (main flows).
+4. Then =Constraints= and =Solution Strategy=, reconstructed from the code.
+5. =Risks= and =Open Questions= last: they come out of the analysis.
 
-** Aprire i documenti di un componente
+** Open a component's documents
 
-Ogni componente ha fino a tre documenti, uno per parte del deliverable: =arc42.org= (Parte II), =functional.org= (Parte III) e =infrastructure.org= (Parte IV), tutti in =.blueprint/components/<nome>/=. Per aprirne uno:
+Every component has up to three documents, one for each part of the deliverable: =arc42.org= (Part II), =functional.org= (Part III) and =infrastructure.org= (Part IV), all in =.blueprint/components/<name>/=. To open one:
 
-- =M-x blueprint-visit-component= (=C-c b j=): chiede il componente e poi il documento, tra quelli che esistono, con =arc42.org= preselezionato; se il componente ha solo =arc42.org= lo apre senza chiedere. Fra le scelte ci sono anche gli altri file del documento (=master.org=, glossario, =enterprise/*=, =nfr/*=, riferimenti), indicati con il percorso relativo alla radice: scelti, si aprono direttamente.
-- Lista dei componenti (=C-c b l=): la colonna Documents mostra quali file ha ogni componente; ~RET~ chiede quale aprire, =a=, =f= e =i= aprono direttamente =arc42.org=, =functional.org= e =infrastructure.org=.
-- Dashboard (=C-c b B=): ~RET~ sul componente chiede il documento come =blueprint-visit-component=; sulla riga di un altro file del documento lo apre.
+- =M-x blueprint-visit-component= (=C-c b j=) asks for the component and then for the document among those that exist, with =arc42.org= preselected; a component with only =arc42.org= opens without asking. The choices also include the other files of the document (=master.org=, glossary, =enterprise/*=, =nfr/*=, references), shown with their path relative to the root: choosing one opens it directly.
+- The component list (=C-c b l=): the Documents column shows which files each component has; ~RET~ asks which one to open, =a=, =f= and =i= open =arc42.org=, =functional.org= and =infrastructure.org= directly.
+- The dashboard (=C-c b B=): ~RET~ on a component asks for the document like =blueprint-visit-component=; on the row of another file of the document it opens that file.
 
-** Gestire i flussi runtime
+** Runtime flows
 
-Aggiungere un flusso runtime documentato (casi d'uso + sequence diagram):
+Add a documented runtime flow (use cases plus a sequence diagram):
 
 #+begin_src
-M-x blueprint-runtime-add-flow  (oppure: C-c b r)
+M-x blueprint-runtime-add-flow  (or: C-c b r)
 Component: order-service
 Flow name: checkout
 #+end_src
 
-Inserisce nella sezione =* Runtime Behavior= un sotto-heading con:
-- =*** Casi d'uso= — diagramma PlantUML use case (per stakeholder non tecnici)
-- =*** Sequenza= — sequence diagram (per team tecnici)
+Inserts under =* Runtime Behavior= a subheading with:
+- a use case diagram, for non-technical stakeholders;
+- a sequence diagram, for technical teams.
 
-Entrambi i blocchi contengono PlantUML template da completare.
+Both are PlantUML templates to complete.
 
-** Gestire i processi di business
+** Business processes
 
-Aggiungere un processo di business multi-attore, come diagramma di attività
-UML con corsie (swimlane) — distinto dai flussi runtime: un flusso descrive
-come i messaggi si scambiano tra componenti di sistema, un processo di
-business descrive quale attore compie ciascun passo:
+Add a business process with several actors, as a UML activity diagram with swimlanes. It is different from a runtime flow: a flow describes how messages travel between system components, a business process describes which actor performs each step.
 
 #+begin_src
-M-x blueprint-runtime-add-process  (oppure: C-c b b)
+M-x blueprint-runtime-add-process  (or: C-c b b)
 Component: order-service
-Process name: gestione reso
+Process name: returns handling
 #+end_src
 
-Inserisce nella sezione =* Processi di business= (creata se assente) un
-sotto-heading con un blocco PlantUML swimlane da completare (corsie, passi,
-punto decisionale di esempio).
+Inserts under =* Processi di business= (created if missing) a subheading with a swimlane PlantUML block to complete (lanes, steps, a sample decision point).
 
-** Marcare un componente fuori perimetro
+** Mark a component out of scope
 
-Impostare =#+BLUEPRINT_STATUS:= nell'intestazione di =arc42.org= (default
-=in-scope= se assente, per non cambiare comportamento ai componenti creati
-prima di questa feature):
+Set =#+BLUEPRINT_STATUS:= in the header of =arc42.org= (=in-scope= when missing, so components created before this feature behave as before):
 
 #+begin_src org
 #+BLUEPRINT_STATUS: out-of-scope
 #+end_src
 
-Valori: =in-scope= (default), =out-of-scope=, =tbd=. =blueprint-lint=
-segnala se un componente =in-scope= dipende da uno =out-of-scope=; la
-dashboard mostra la colonna "Scope" e un filtro dedicato (=C-c b o=, o
-tasto =O= dentro il buffer dashboard) per rivedere solo i componenti fuori
-perimetro. La motivazione dell'esclusione va documentata a mano nella
-Parte 0 del master — il keyword traccia solo lo stato, non il motivo.
+Values: =in-scope= (default), =out-of-scope=, =tbd=. =blueprint-lint= reports an =in-scope= component that depends on an =out-of-scope= one; the dashboard has a "Scope" column and a filter (=C-c b o=, or =O= in the dashboard buffer) to review only the components outside the scope. The reason for the exclusion is written by hand in Part 0 of the master: the keyword only records the state, not the reason.
 
-** Convenzioni di marcatura durante la compilazione
+** Markers while writing
 
-Usare le marcature definite dalla metodologia:
+Use the markers defined by the method:
 
-| Marcatura                | Quando usarla                                           |
-|--------------------------+---------------------------------------------------------|
-| =[DA VALIDARE]=          | Sezione scritta ma non ancora verificata con il cliente |
-| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso        |
-| =[APPROVATO YYYY-MM-DD]= | Sezione approvata dal referente nella data indicata     |
-| =[FONTE: X]=             | Specificare la fonte (es. FONTE: intervista Mario R.)   |
+| Marker                   | When to use it                                         |
+|--------------------------+--------------------------------------------------------|
+| =[DA VALIDARE]=          | To validate: written, not yet checked with the client  |
+| =[FINDING]=              | A discrepancy between actual and expected behavior     |
+| =[APPROVATO YYYY-MM-DD]= | Approved by the client's owner on that date            |
+| =[FONTE: X]=             | The source (for example, FONTE: interview with J. Doe) |
 
-I marcatori =QUESTION=, =TBD=, =FIXME=, =[DA VALIDARE]= e =[DA REVISIONARE]= sono rilevati automaticamente dal sistema di health scoring e penalizzano il punteggio di salute del progetto; =[FINDING]= viene contato ma non penalizza, perché è un risultato dell'assessment e non un punto aperto.
+The markers =QUESTION=, =TBD=, =FIXME=, =[DA VALIDARE]= and =[DA REVISIONARE]= are picked up by the health score and lower the project's score; =[FINDING]= is counted but carries no penalty, because it is a result of the assessment, not an open point.
 
-Contano solo le marcature nel testo che l'export mostra davvero: vengono
-ignorati i sottoalberi con un tag di esclusione (=:noexport:= o quelli
-elencati in =#+EXCLUDE_TAGS:=), i sottoalberi COMMENT, i blocchi
-src/example/export/comment, le righe di commento e il markup
-verbatim/code (scrivere ==[FINDING]== cita la marcatura senza crearla).
-Il confronto distingue maiuscole e minuscole. Le keyword di file come
-=#+STATUS: [DA VALIDARE]= contano ancora. Per questo le guide
-=:noexport:= dei template, con i loro dati d'esempio, non pesano sul
-punteggio.
+Only markers in the text that the export actually shows count. Ignored: subtrees with an exclusion tag (=:noexport:= or those listed in =#+EXCLUDE_TAGS:=), COMMENT subtrees, src/example/export/comment blocks, comment lines and verbatim/code markup (writing ==[FINDING]== quotes the marker without creating one). The match is case-sensitive. File keywords such as =#+STATUS: [DA VALIDARE]= still count. That is why the =:noexport:= guides in the templates, with their sample data, do not weigh on the score.
 
-** Aggiungere domande aperte durante l'analisi
+** Open questions during the analysis
 
 #+begin_src
-M-x blueprint-add-question  (oppure: C-c b Q)
+M-x blueprint-add-question  (or: C-c b Q)
 Component: order-service
-Question: Chi autorizza il rimborso quando il pagamento e' gia' contabilizzato?
+Question: Who authorizes a refund when the payment is already booked?
 #+end_src
 
-Le domande vengono inserite nella sezione =* Open Questions= del componente
-e tracciate nel health score (peso 3 per ogni =QUESTION= non risolta).
+Questions go into the component's =* Open Questions= section and count in the health score (weight 3 for every unresolved =QUESTION=).
 
 -----
 
-* Flusso 3 — Specifiche funzionali
+* Workflow 3: functional specifications
 
-/Quando: dopo la prima lettura del codice, per tradurre la logica tecnica in linguaggio di dominio./
+/When: after a first reading of the code, to translate the technical logic into the language of the domain./
 
-L'obiettivo e' produrre specifiche leggibili da un analista senza background tecnico,
-sufficientemente precise da permettere la reimplementazione senza perdita di logica.
+The goal is specifications that an analyst without a technical background can read, precise enough to reimplement the logic without losing anything.
 
-** Struttura del file functional.org
+** Structure of functional.org
 
-Il file =functional.org= si organizza in:
-- =* Aree funzionali= — macro-aree del dominio (es. =Ordini=, =Fatturazione=)
-  - =** Area= — sotto-sezione per area
-    - =*** Feature= — singola funzione o regola di business con input/output/regole
-- =* Entita' di dominio= — oggetti di business (non tabelle DB)
-- =* Punti di integrazione= — flussi IN/OUT verso altri sistemi
-- =* Open questions=
+=functional.org= is organized as:
+- =* Aree funzionali=: functional areas of the domain (for example, Orders, Invoicing)
+  - =** Area=: one subsection per area
+    - =*** Feature=: a single function or business rule, with inputs, outputs and rules
+- =* Entità di dominio=: business objects (not database tables)
+- =* Punti di integrazione=: flows in and out of other systems
+- =* Open Questions=
 
-** Aggiungere un'area funzionale
-
-#+begin_src
-M-x blueprint-functional-add-area  (oppure: C-c b a)
-Component: order-service
-Area name: Gestione ordini
-#+end_src
-
-** Aggiungere una feature
+** Add a functional area
 
 #+begin_src
-M-x blueprint-functional-add-feature  (oppure: C-c b f)
+M-x blueprint-functional-add-area  (or: C-c b a)
 Component: order-service
-Area: Gestione ordini
-Feature name: Calcolo importo netto
+Area name: Order management
 #+end_src
 
-Inserisce uno skeleton con: Scopo, Input, Output, Regole di business,
-Logica di calcolo, Regole di validazione, Casi limite.
-
-** Aggiungere un'entita' di dominio
+** Add a feature
 
 #+begin_src
-M-x blueprint-functional-add-entity  (oppure: C-c b e)
+M-x blueprint-functional-add-feature  (or: C-c b f)
 Component: order-service
-Entity name: Ordine
+Area: Order management
+Feature name: Net amount calculation
 #+end_src
 
-Inserisce una tabella attributi e un blocco PlantUML per il diagramma ER.
+Inserts a skeleton with purpose, inputs, outputs, business rules, calculation logic, validation rules and edge cases.
 
-** Aggiungere un punto di integrazione
+** Add a domain entity
 
 #+begin_src
-M-x blueprint-functional-add-integration  (oppure: C-c b i)
+M-x blueprint-functional-add-entity  (or: C-c b e)
 Component: order-service
-Integration name: Invio a sistema di fatturazione
+Entity name: Order
 #+end_src
 
-Inserisce una tabella metadati (direzione, controparte, frequenza) e una
-sotto-sezione =*** Formato scambio= per documentare la struttura del payload.
+Inserts an attribute table and a PlantUML block for the ER diagram.
 
-** Principio: tecnologia-agnostico
+** Add an integration point
 
-Le specifiche funzionali non devono menzionare classi, metodi, tabelle, endpoint.
-Rinominare sempre le variabili tecniche con nomi di business:
-- =order.total_amount_cents= → =Importo totale dell'ordine (centesimi di euro)=
-- =ENUM Status { PENDING, CONFIRMED }= → =Stato ordine: in_attesa, confermato=
+#+begin_src
+M-x blueprint-functional-add-integration  (or: C-c b i)
+Component: order-service
+Integration name: Sending invoices to the billing system
+#+end_src
+
+Inserts a metadata table (direction, counterpart, frequency) and a subsection to document the structure of the exchanged payload.
+
+** Principle: independent of the technology
+
+Functional specifications do not mention classes, methods, tables or endpoints. Always rename technical variables with business names:
+- =order.total_amount_cents= becomes "Order total (euro cents)";
+- =ENUM Status { PENDING, CONFIRMED }= becomes "Order state: pending, confirmed".
 
 -----
 
-* Flusso 4 — Censimento infrastrutturale
+* Workflow 4: infrastructure inventory
 
-/Quando: con accesso agli ambienti o agli script di deployment (Dockerfile, Kubernetes, Terraform)./
+/When: with access to the environments or to the deployment scripts (Dockerfile, Kubernetes, Terraform)./
 
-Il file =infrastructure.org= e' principalmente manuale: le fonti sono configurazioni
-infrastrutturali, non codice applicativo.
+=infrastructure.org= is mostly written by hand: its sources are infrastructure configurations, not application code.
 
-** Fonti raccomandate
+** Recommended sources
 
-In ordine di affidabilita':
-1. Script Terraform / Pulumi / CloudFormation — fonte piu' precisa
-2. Manifest Kubernetes / Docker Compose
-3. Documentazione CI/CD (pipeline YAML)
-4. Intervista al sistemista / DevOps
+In order of reliability:
+1. Terraform, Pulumi or CloudFormation scripts, the most precise source
+2. Kubernetes manifests, Docker Compose files
+3. CI/CD pipeline definitions
+4. An interview with the system administrator or DevOps engineer
 
-** Sezioni da compilare
+** Sections to fill in
 
-Aprire =.blueprint/components/<nome>/infrastructure.org= e compilare:
+Open =.blueprint/components/<name>/infrastructure.org= and fill in:
 
-- =* Inventario= — tabella host/servizi: nome, ruolo, OS/runtime, versione, ambiente, owner
-- =* Deployment view= — diagramma PlantUML del deployment (nodi, container, DB)
-- =* Dipendenze infrastrutturali= — porte, protocolli, direzione, obbligatorieta'
-- =* Configurazione rilevante= — parametri ad impatto architetturale (pool size, timeout, failover)
-- =* Ambienti= — differenze tra produzione, collaudo, sviluppo
+- =* Inventario=: a table of hosts and services: name, role, OS or runtime, version, environment, owner
+- =* Deployment view=: a PlantUML deployment diagram (nodes, containers, databases)
+- =* Dipendenze infrastrutturali=: ports, protocols, direction, whether mandatory
+- =* Configurazione rilevante=: parameters with an architectural impact (pool sizes, timeouts, failover)
+- =* Ambienti=: differences between production, test and development
 
-** Nota sugli accessi mancanti
+** When access is missing
 
-Se gli accessi non sono disponibili, la procedura di fallback (in ordine):
-1. Walkthrough con il referente tecnico
-2. Artefatti secondari (Dockerfile, CI/CD config)
-3. Osservazione di monitoring/APM/log
-4. Inferenza black-box — usare solo come ultima risorsa, marcare =[DA VALIDARE]=
-
------
-
-* Flusso 5 — Vista enterprise
-
-/Quando: dopo aver documentato almeno i componenti principali, per avere una vista aggregata./
-
-La vista enterprise e' la Parte I del documento master. Ha due file, entrambi
-nella root del progetto (non dentro =.blueprint/=):
-- =enterprise/context.org= — C4 L1 aggregato
-- =enterprise/dependencies.org= — mappa dipendenze
-
-** Generare il diagramma C4 container (Parte II)
-
-#+begin_src
-M-x blueprint-generate-c4  (oppure: C-c b C)
-#+end_src
-
-Genera =c4.puml= nella root del progetto con tutti i componenti come Container
-e le loro dipendenze come relazioni =Rel=. Il file e' pronto per il rendering
-con PlantUML.
-
-** Generare il diagramma C4 enterprise (Parte I)
-
-#+begin_src
-M-x blueprint-generate-enterprise-c4  (oppure: C-c b V)
-#+end_src
-
-Aggiorna =enterprise/context.org= con un C4 L1: un =System(...)= per ogni
-componente e un =Rel(...)= per ogni =#+BLUEPRINT_DEPENDS:=. A differenza del
-diagramma Container (Parte II), qui non ci sono =Container=, solo =System=.
-
-Il comando tocca solo la sezione fra i marker
-=' @@blueprint-enterprise-start@@= / =' @@blueprint-enterprise-end@@= dentro
-il blocco PlantUML — esattamente come =blueprint-sync= preserva il contenuto
-scritto a mano in =master.org=. Tutto cio' che va oltre i componenti resta da
-compilare manualmente, fuori da quei marker:
-- Sistemi esterni come =System_Ext(...)=
-- Utenti come =Person(...)=
-- Relazioni verso l'esterno (es. =Rel(utente, sistema, "...")=)
-
-Se =enterprise/context.org= non esiste ancora (progetto inizializzato prima
-di questa feature, o file compilato a mano senza i marker), il comando
-segnala un errore invece di sovrascrivere: rigenerare il file dal template
-=enterprise-context.org= aggiornato.
-
-Aprire =enterprise/dependencies.org= e compilare:
-- La matrice di dipendenze (tabella N×N con IN/OUT/BI/--)
-- I flussi cross-sistema principali (sequence diagram per ogni flusso rilevante)
+If access is not available, fall back in this order:
+1. a walkthrough with the technical owner;
+2. secondary artifacts (Dockerfile, CI/CD configuration);
+3. observation of monitoring, APM, logs;
+4. black-box inference, only as a last resort, marked =[DA VALIDARE]=.
 
 -----
 
-* Flusso 6 — NFR, vincoli e rischi
+* Workflow 5: the enterprise view
 
-/Quando: durante e dopo la raccolta per componente; i rischi emergono naturalmente./
+/When: once at least the main components are documented, to get the aggregate view./
 
-I file NFR sono trasversali all'intero progetto (non per componente) e vivono in
-=.blueprint/nfr/=. Il file =arc42.org= di ogni componente ha anche una sezione
-=* Risks= per i rischi specifici del componente; rimanda al registro trasversale.
+The enterprise view is Part I of the master document. It has two files, both at the project root (not inside =.blueprint/=):
+- =enterprise/context.org=: aggregate C4 level 1
+- =enterprise/dependencies.org=: the dependency map
 
-** File NFR disponibili
-
-| File                  | Contenuto                                           |
-|-----------------------+-----------------------------------------------------|
-| =nfr-quality.org=     | Scenari di qualita' (performance, affidabilita'...) |
-| =nfr-constraints.org= | Vincoli tecnici, organizzativi, normativi           |
-| =nfr-risks.org=       | Registro rischi trasversale                         |
-
-** Scenari di qualita' (nfr-quality.org)
-
-Ogni scenario usa la struttura: attributo / contesto / stimolo / risposta attesa / misura / priorita'.
-
-Aprire =nfr-quality.org= e aggiungere scenari manualmente. Per ogni scenario:
-
-- Attributo di qualita': Performance, Sicurezza, Affidabilita', Manutenibilita', Scalabilita'
-- Stimolo: cosa scatena lo scenario (es. "1000 richieste concorrenti")
-- Risposta attesa: comportamento corretto del sistema
-- Misura: criterio quantificabile (es. "latenza p95 < 200ms")
-
-La tabella SLA (uptime, RTO, RPO, latenza p95) va compilata per ogni servizio critico.
-
-** Vincoli (nfr-constraints.org)
-
-Tre categorie:
-- Vincoli tecnici: es. "must run on JVM 11", "max 4GB RAM per container"
-- Vincoli organizzativi: es. "team responsabile e' di 2 persone", "nessun accesso root in prod"
-- Vincoli normativi: es. GDPR, PCI-DSS, SOC2 — con stato di conformita'
-
-** Registro rischi (nfr-risks.org)
-
-Il rilevamento automatico di pattern di rischio e' disponibile:
+** Generate the C4 container diagram (Part II)
 
 #+begin_src
-M-x blueprint-suggest-risks-all  (oppure: C-c b s)
+M-x blueprint-generate-c4  (or: C-c b C)
 #+end_src
 
-Rileva pattern come: "no backup", "single point of failure", "hardcoded credentials",
-"no monitoring", "deprecated library", "isolated component". I risultati vanno
-trasferiti manualmente nel registro con valutazione di probabilita' e impatto.
+Writes =c4.puml= at the project root, with every component as a Container and its dependencies as =Rel= relations, ready for PlantUML.
 
-Per i rischi non rilevati automaticamente, aprire =nfr-risks.org= e aggiungere
-righe alla tabella con: ID (R-NNN), descrizione, componente/i coinvolti,
-probabilita', impatto, livello, mitigazione, owner.
+** Generate the enterprise C4 diagram (Part I)
+
+#+begin_src
+M-x blueprint-generate-enterprise-c4  (or: C-c b V)
+#+end_src
+
+Updates =enterprise/context.org= with a C4 level 1 diagram: a =System(...)= for each component and a =Rel(...)= for each =#+BLUEPRINT_DEPENDS:=. Unlike the container diagram (Part II), there are no =Container= elements here, only =System=.
+
+The command only touches the area between the markers =' @@blueprint-enterprise-start@@= and =' @@blueprint-enterprise-end@@= inside the PlantUML block, exactly as =blueprint-sync= preserves what is written by hand in =master.org=. Everything beyond the components is written by hand, outside those markers:
+- external systems as =System_Ext(...)=;
+- users as =Person(...)=;
+- relations to the outside (for example =Rel(user, system, "...")=).
+
+If =enterprise/context.org= does not exist yet (a project initialized before this feature, or a file written by hand without the markers), the command reports an error instead of overwriting: regenerate the file from the updated =enterprise-context.org= template.
+
+Then open =enterprise/dependencies.org= and fill in:
+- the dependency matrix (an N×N table with IN/OUT/BI/--);
+- the main cross-system flows (a sequence diagram for each relevant flow).
 
 -----
 
-* Flusso 7 — Glossario e riferimenti
+* Workflow 6: NFR, constraints and risks
 
-/Quando: in continuo, durante tutta la durata del progetto./
+/When: during and after the work on each component; risks come up naturally./
 
-** Aggiungere un termine al glossario
+The NFR files cover the whole project (not one component) and live in =nfr/=. Each component's =arc42.org= also has a =* Risks= section for the risks specific to it, which points to the project-wide register.
+
+** NFR files
+
+| File                    | Content                                              |
+|-------------------------+------------------------------------------------------|
+| =quality-scenarios.org= | Quality scenarios (performance, reliability, ...)    |
+| =constraints.org=       | Technical, organizational and regulatory constraints |
+| =risks.org=             | The project-wide risk register                       |
+
+** Quality scenarios
+
+Each scenario follows the structure attribute, context, stimulus, expected response, measure, priority. Add them by hand or with =blueprint-nfr-add-quality-scenario= (=C-c b p=). For each scenario:
+
+- quality attribute: performance, security, reliability, maintainability, scalability;
+- stimulus: what triggers the scenario (for example "1000 concurrent requests");
+- expected response: the correct behavior of the system;
+- measure: a quantifiable criterion (for example "p95 latency < 200 ms").
+
+Fill in the SLA table (uptime, RTO, RPO, p95 latency) for every critical service.
+
+** Constraints
+
+Three categories (=C-c b c= adds one):
+- technical, for example "must run on JVM 11", "max 4 GB RAM per container";
+- organizational, for example "the team in charge is two people", "no root access in production";
+- regulatory, for example GDPR, PCI-DSS, SOC 2, with their compliance status.
+
+** Risk register
+
+Risk patterns can be detected automatically:
 
 #+begin_src
-M-x blueprint-glossary-add  (oppure: C-c b y)
+M-x blueprint-suggest-risks-all  (or: C-c b s)
+#+end_src
+
+Detects patterns such as "no backup", "single point of failure", "hardcoded credentials", "no monitoring", "deprecated library", "isolated component". The results are moved into the register by hand, with an assessment of probability and impact.
+
+Risks not detected automatically go into =risks.org= by hand, or with =blueprint-nfr-add-risk= (=C-c b t=): ID (R-NNN), description, components involved, probability, impact, level, mitigation, owner.
+
+-----
+
+* Workflow 7: glossary and references
+
+/When: continuously, for the whole project./
+
+** Add a term to the glossary
+
+#+begin_src
+M-x blueprint-glossary-add  (or: C-c b y)
 Term: SLA
-Definition: Service Level Agreement - accordo contrattuale sui livelli di servizio
-Source: contratto-cliente-2024
+Definition: Service Level Agreement, the contractual agreement on service levels
+Source: client-contract-2024
 #+end_src
 
-Il termine viene inserito in =glossary.org= come heading di livello 2 in
-fondo alla sezione scelta, nel formato del template stesso: definizione e
-riga =/Fonte: contratto-cliente-2024/=. La sezione si chiede
-(=Termini di dominio= di default, poi =Termini tecnici con uso specifico=
-e =Acronimi e abbreviazioni=). Le voci scritte dalle versioni vecchie
-(livello 1 con drawer =:PROPERTIES:= in coda al file) restano valide:
-=blueprint-glossary-lookup= le trova entrambe.
+The term goes into =glossary.org= as a level-2 heading at the end of the chosen section, in the template's own format: the definition and a =/Fonte: client-contract-2024/= line. The command asks for the section (domain terms by default, then technical terms with a specific use, then acronyms and abbreviations). Entries written by older versions (level 1 with a =:PROPERTIES:= drawer at the end of the file) stay valid: =blueprint-glossary-lookup= finds both.
 
-** Cercare un termine
+** Look up a term
 
 #+begin_src
 M-x blueprint-glossary-lookup
 #+end_src
 
-Non ha un tasto dedicato nel menu Transient, solo M-x.
+It has no key in the Transient menu, only =M-x=.
 
-** Aggiungere una fonte
+** Add a source
 
 #+begin_src
-M-x blueprint-reference-add  (oppure: C-c b z)
-Title: Intervista con Mario Rossi (Lead Dev)
+M-x blueprint-reference-add  (or: C-c b z)
+Title: Interview with Jane Doe (lead developer)
 Type: interview
-Notes: Walkthrough architettura ordini, 2026-03-10
+Notes: Walkthrough of the order architecture, 2026-03-10
 #+end_src
 
-=Type: interview= instrada la fonte come riga nella tabella =* Interviste=;
-qualunque altro tipo (=document=, =codebase=, =monitoring=, =ticket=) la
-instrada in =* Documenti=, dove =Type= diventa il valore della colonna
-"Tipo" di quella tabella. L'ID (=I-NN=/=D-NN=) e' assegnato automaticamente.
+=Type: interview= files the source as a row of the interviews table; any other type (=document=, =codebase=, =monitoring=, =ticket=) goes into the documents table, where the type becomes the value of the "Tipo" column. The ID (=I-NN= or =D-NN=) is assigned automatically.
 
-** Principio: tracciabilita' completa
+** Principle: full traceability
 
-Ogni affermazione non derivabile direttamente dal codice deve avere una fonte
-esplicita. Usare la marcatura =[FONTE: X]= nel testo o la sezione References
-per la tracciabilita' formale.
+Every statement that does not come straight from the code needs an explicit source. Use =[FONTE: X]= in the text, or the references for formal traceability.
 
 -----
 
-* Flusso 8 — Architecture Decision Records
+* Workflow 8: architecture decision records
 
-/Quando: ogni volta che viene presa o rilevata una decisione architetturale significativa./
+/When: every time a significant architectural decision is taken or discovered./
 
-Gli ADR documentano le decisioni prese, il loro contesto e le conseguenze.
-Sono utili sia per le decisioni del cliente (trovate nel codice) che per le
-decisioni del progetto di assessment stesso.
+ADRs record the decisions, their context and their consequences. They serve both for the client's decisions (found in the code) and for the decisions of the assessment itself.
 
-** Aggiungere un ADR
+** Add an ADR
 
 #+begin_src
-M-x blueprint-adr-new  (oppure: C-c b N)
-ADR title: Adozione di PostgreSQL come database primario
+M-x blueprint-adr-new  (or: C-c b N)
+ADR title: PostgreSQL as the primary database
 #+end_src
 
-Aggiunge in =.blueprint/adr.org= un nuovo heading livello-1 con numero progressivo:
+Adds to =.blueprint/adr.org= a new level-1 heading with a sequential number:
 
 #+begin_example
-* ADR 0001: Adozione di PostgreSQL come database primario
+* ADR 0001: PostgreSQL as the primary database
 :PROPERTIES:
 :STATUS:   proposed
 :DATE:     2026-03-05
@@ -641,36 +535,34 @@ Aggiunge in =.blueprint/adr.org= un nuovo heading livello-1 con numero progressi
 
 ** Contesto
 
-Situazione che ha motivato questa decisione.
+Situation that led to this decision.
 
 ** Decisione
 
-La decisione presa e le alternative considerate.
+The decision taken and the alternatives considered.
 
 ** Conseguenze
 
-Conseguenze positive, negative e neutre.
+Positive, negative and neutral consequences.
 #+end_example
 
-** Ciclo di vita degli ADR
+** ADR lifecycle
 
-Gli stati possibili sono: =proposed= → =accepted= (o =deprecated= / =superseded=).
-Aggiornare manualmente il campo =:STATUS:= dopo la validazione con il cliente.
+The states are =proposed=, then =accepted= (or =deprecated= / =superseded=). Update =:STATUS:= by hand after validating with the client.
 
-** Visualizzare la lista degli ADR
+** List the ADRs
 
 #+begin_src
-M-x blueprint-adr-list  (oppure: C-c b n)
+M-x blueprint-adr-list  (or: C-c b n)
 #+end_src
 
-Apre un buffer =*Blueprint ADRs*= con titolo e stato di ogni ADR. Premere =RET=
-su un ADR per aprire =adr.org= posizionato sull'heading corrispondente.
+Opens a =*Blueprint ADRs*= buffer with the title and state of every ADR. =RET= on an ADR opens =adr.org= at its heading.
 
 -----
 
-* Flusso 9 — Monitoraggio salute dell'assessment
+* Workflow 9: monitoring the health of the assessment
 
-/Quando: periodicamente, per capire quanto lavoro resta e dove concentrarsi./
+/When: regularly, to see how much work is left and where to focus./
 
 ** Health score
 
@@ -678,236 +570,185 @@ su un ADR per aprire =adr.org= posizionato sull'heading corrispondente.
 M-x blueprint-health-score
 #+end_src
 
-Non ha un tasto nel menu: il punteggio compare anche in testa alla dashboard (=C-c b B=) e nel controllo pre-consegna (=C-c b d=), e =C-c b H= lo disegna come indicatore SVG.
+It has no key in the menu: the score also appears at the top of the dashboard (=C-c b B=) and in the pre-delivery check (=C-c b d=), and =C-c b H= draws it as an SVG gauge.
 
-Restituisce un punteggio 0-100 calcolato esattamente sul testo del documento: =master.org= e tutti i file che include con =#+INCLUDE:=, anche annidati (un file incluso che ne include altri), con i percorsi risolti rispetto al file che li include. Quindi contano Parte 0 (il testo di =master.org=), glossario, Parte I (=enterprise/=), i documenti dei componenti, Parte V (=nfr/=) e riferimenti; non contano i file che =master.org= non include (note, knowledge base, domande, interviste), né un documento di componente non ancora sincronizzato. Ogni marcatore irrisolto aggiunge punti di penalità secondo il suo peso:
+It returns a score from 0 to 100 computed on the text of the document exactly: =master.org= and every file it includes with =#+INCLUDE:=, nested includes too (an included file that includes others), with paths resolved relative to the including file. So Part 0 (the text of =master.org=), the glossary, Part I (=enterprise/=), the component documents, Part V (=nfr/=) and the references all count; files that =master.org= does not include (notes, knowledge base, questions, interviews) do not, and neither does a component document not yet synchronized. Every unresolved marker adds penalty points according to its weight:
 
-| Marcatore          | Peso |
-|--------------------+------|
-| =QUESTION=         |    3 |
-| =TBD=              |    2 |
-| =FIXME=            |    4 |
-| =[DA VALIDARE]=    |    1 |
-| =[DA REVISIONARE]= |    1 |
-| =[FINDING]=        |    0 |
+| Marker             | Weight |
+|--------------------+--------|
+| =QUESTION=         |      3 |
+| =TBD=              |      2 |
+| =FIXME=            |      4 |
+| =[DA VALIDARE]=    |      1 |
+| =[DA REVISIONARE]= |      1 |
+| =[FINDING]=        |      0 |
 
-La somma P dei pesi si confronta con la dimensione degli stessi file, così il punteggio non scende solo perché il documento cresce. Con W il numero di parole del testo esportato (stesse esclusioni dei marcatori) e N la variabile =blueprint-health-words-per-point= (100 di default):
+The sum P of the weights is compared with the size of the same files, so the score does not drop just because the document grows. With W the number of words of the exported text (same exclusions as the markers) and N the variable =blueprint-health-words-per-point= (100 by default):
 
 #+begin_example
-U         = W / N
-punteggio = round(100 * U / (U + P))
+U     = W / N
+score = round(100 * U / (U + P))
 #+end_example
 
-Il punteggio vale 50 con un punto di penalità ogni N parole. Con P = 0 vale 100, anche su un progetto vuoto; con P > 0 e nessuna parola vale 0. Raddoppiare il documento mantenendo la stessa proporzione di marcatori lascia il punteggio invariato. Lanciato con =M-x=, il comando mostra anche P e W.
+The score is 50 with one penalty point every N words. With P = 0 it is 100, even on an empty project; with P > 0 and no words it is 0. Doubling the document with the same proportion of markers leaves the score unchanged. Run with =M-x=, the command also shows P and W.
 
-Un punteggio di 100 significa che tutti i marcatori sono stati risolti. Un punteggio basso non significa "documentazione scarsa" ma "lavoro ancora da fare".
+A score of 100 means every marker has been resolved. A low score does not mean "poor documentation" but "work still to do".
 
-Lo stesso perimetro vale per tutti i conteggi del pacchetto: dashboard, controllo pre-consegna, lint, rischi, liste di =[FINDING]= e =[DA VALIDARE]=. Nei file inclusi i marcatori contano solo nel testo esportato: sono esclusi i sottoalberi =:noexport:= (o con un tag di =#+EXCLUDE_TAGS:=) e =COMMENT=, i blocchi src/example/export/comment, le righe di commento e il testo =verbatim=/~code~. Gli =#+INCLUDE:= dentro un sottoalbero non esportato o in un commento non si seguono; un file incluso come blocco (=#+INCLUDE: "x.org" src org=) non conta, perché nel documento compare come codice.
+The same scope applies to every count in the package: dashboard, pre-delivery check, lint, risks, the lists of =[FINDING]= and =[DA VALIDARE]=. In the included files, markers only count in the exported text: =:noexport:= subtrees (or those with a tag from =#+EXCLUDE_TAGS:=) and =COMMENT= subtrees, src/example/export/comment blocks, comment lines and =verbatim=/~code~ text are excluded. =#+INCLUDE:= lines inside a non-exported subtree or a comment are not followed; a file included as a block (=#+INCLUDE: "x.org" src org=) does not count, because in the document it appears as code.
 
-Limiti noti: un file incluso solo in parte (=:lines=, =file.org::*Titolo=) conta per intero; un file incluso due volte conta una volta; =#+EXCLUDE_TAGS:= vale solo nel file che lo dichiara, mentre l'esportazione applica quello di =master.org= (e dei file inclusi) a tutto il documento, e =#+SELECT_TAGS:= non è gestito; =:minlevel= non cambia il testo e non ha effetto sui conteggi. Senza =master.org= il documento non è ancora assemblato e i conteggi usano i documenti di tutti i componenti, come li includerebbe =blueprint-sync=.
+Known limits: a file included only in part (=:lines=, =file.org::*Heading=) counts in full; a file included twice counts once; =#+EXCLUDE_TAGS:= only applies to the file that declares it, while the export applies the one of =master.org= (and of the included files) to the whole document, and =#+SELECT_TAGS:= is not handled; =:minlevel= does not change the text and has no effect on the counts. Without =master.org= the document is not assembled yet, and the counts use the documents of every component, as =blueprint-sync= would include them.
 
 ** Lint
 
 #+begin_src
-M-x blueprint-lint  (oppure: C-c b L)
+M-x blueprint-lint  (or: C-c b L)
 #+end_src
 
-Verifica:
-- Sezioni obbligatorie mancanti in =arc42.org= (solo lì: gli altri file non hanno le intestazioni arc42)
-- Dipendenze verso componenti non esistenti (dangling deps) e componenti nel perimetro che dipendono da componenti fuori perimetro
-- In ogni file del documento (=master.org= e i file inclusi, componenti e no): troppi =QUESTION=/=TBD=/=FIXME= (oltre =blueprint-lint-marker-threshold=) e file senza contenuto
-- =#+INCLUDE:= verso file che non esistono
+Checks:
+- mandatory sections missing in =arc42.org= (only there: the other files do not have the arc42 headings);
+- dependencies on components that do not exist (dangling dependencies), and in-scope components that depend on out-of-scope ones;
+- in every file of the document (=master.org= and the included files, components or not): too many =QUESTION=/=TBD=/=FIXME= (above =blueprint-lint-marker-threshold=) and files with no content;
+- =#+INCLUDE:= lines pointing to files that do not exist.
 
-Gli avvisi su un file di componente diverso da =arc42.org= sono nella forma =componente/functional.org: ...=, quelli sugli altri file con il percorso relativo alla radice (=nfr/risks.org: ...=). =blueprint-ci-lint=, =blueprint-ci-validate= e il controllo pre-consegna usano lo stesso lint.
+Warnings about a component file other than =arc42.org= read =component/functional.org: ...=; those about other files use the path relative to the root (=nfr/risks.org: ...=). =blueprint-ci-lint=, =blueprint-ci-validate= and the pre-delivery check use the same lint.
 
 ** Dashboard
 
 #+begin_src
-M-x blueprint-dashboard  (oppure: C-c b B)
+M-x blueprint-dashboard  (or: C-c b B)
 #+end_src
 
-Una riga per componente, in ordine alfabetico, poi una riga per ogni altro file del documento nell'ordine in cui =master.org= lo include (=master.org= stesso, glossario, =enterprise/*=, =nfr/*=, riferimenti), identificata dal percorso relativo alla radice. Ogni file del documento sta in una sola riga, quindi le righe sommate danno l'health score del documento. La prima riga del buffer contiene i titoli delle colonne; la riga di intestazione in alto mostra l'health score del documento, quanti componenti e quanti altri file ci sono, e i filtri attivi.
+One row per component, in alphabetical order, then one row for every other file of the document in the order =master.org= includes it (=master.org= itself, glossary, =enterprise/*=, =nfr/*=, references), identified by its path relative to the root. Every file of the document is on exactly one row, so the rows together make up the document's health score. The first line of the buffer holds the column titles; the header line at the top shows the document's health score, how many components and other files there are, and the active filters.
 
-| Colonna            | Contenuto                                                                    |
+| Column             | Content                                                                      |
 |--------------------+------------------------------------------------------------------------------|
-| Name               | Id del componente, o percorso del file                                       |
-| Owner/Tech/Scope   | =#+BLUEPRINT_OWNER=, =#+BLUEPRINT_TECH=, =#+BLUEPRINT_STATUS= di =arc42.org= |
-| QUESTION/TBD/FIXME | Marcatori tecnici                                                            |
+| Name               | Component id, or path of the file                                            |
+| Owner/Tech/Scope   | =#+BLUEPRINT_OWNER=, =#+BLUEPRINT_TECH=, =#+BLUEPRINT_STATUS= of =arc42.org= |
+| QUESTION/TBD/FIXME | Technical markers                                                            |
 | DA VAL             | =[DA VALIDARE]=                                                              |
 | DA REV             | =[DA REVISIONARE]=                                                           |
-| FINDING            | =[FINDING]= (peso 0, solo informativo)                                       |
-| Penalty            | Punti di penalità, con i pesi dell'health score                              |
-| Health             | Punteggio della sola riga (=-= per un componente fuori dal documento)        |
-| Status             | OK, IN-PROGRESS, NEEDS-WORK, FIXME, o NOT-INCLUDED                           |
+| FINDING            | =[FINDING]= (weight 0, information only)                                     |
+| Penalty            | Penalty points, with the health score weights                                |
+| Health             | Score of the row alone (=-= for a component outside the document)            |
+| Status             | OK, IN-PROGRESS, NEEDS-WORK, FIXME, or NOT-INCLUDED                          |
 
-Per un componente si contano solo i suoi documenti inclusi in =master.org=; un componente di cui =master.org= non include nessun documento ha stato NOT-INCLUDED (va sincronizzato con =C-c b S=). Il focus mode (=F=) tiene le righe con punti di penalità e i componenti NOT-INCLUDED, quindi una riga che ha solo =[FINDING]= non compare. ~RET~ apre il file della riga; per un componente chiede quale documento. =g= ricalcola, =O= filtra i componenti fuori perimetro, =G= genera il grafo SVG colorato (=blueprint-dashboard-svg=).
+For a component, only its documents included in =master.org= count; a component none of whose documents is included is NOT-INCLUDED (synchronize it with =C-c b S=). Focus mode (=F=) keeps the rows with penalty points and the NOT-INCLUDED components, so a row with only =[FINDING]= does not appear. ~RET~ opens the file of the row; for a component it asks which document. =g= recomputes, =O= filters the out-of-scope components, =G= generates the colored SVG graph (=blueprint-dashboard-svg=).
 
-Gli stessi numeri guidano i colori del grafo: =C-c b h= (=blueprint-dashboard-svg=) disegna i componenti con le dipendenze, colorati in base al punteggio: rosso sotto 50 (la soglia di avviso di =blueprint-ci-validate=), giallo sotto 80 (il valore di default di =blueprint-delivery-score-threshold=), verde altrimenti, grigio se =master.org= non include nessun documento del componente. Richiede Graphviz (=dot=). Il grafo delle dipendenze di =C-c b G= (=blueprint-dependency-graph=) usa =blueprint-graph-backend=: con il default =plantuml= produce il sorgente =.puml= senza colori, con =graphviz= lo stesso SVG colorato. =blueprint-daily= (=C-c b .=) propone i componenti e gli altri file del documento con punti di penalità, dal più carico; per un componente chiede poi quale documento aprire e preseleziona quello con più penalità.
+The same numbers drive the colors of the graph: =C-c b h= (=blueprint-dashboard-svg=) draws the components and their dependencies, colored by score: red below 50 (the warning threshold of =blueprint-ci-validate=), yellow below 80 (the default of =blueprint-delivery-score-threshold=), green otherwise, grey when =master.org= includes none of the component's documents. It needs Graphviz (=dot=). The dependency graph on =C-c b G= (=blueprint-dependency-graph=) uses =blueprint-graph-backend=: with the default =plantuml= it writes the =.puml= source without colors, with =graphviz= the same colored SVG. =blueprint-daily= (=C-c b .=) offers the components and the other files of the document that have penalty points, most first; for a component it then asks which document to open and preselects the one with the most penalty.
 
-** Rilevamento automatico rischi
+** Automatic risk detection
 
 #+begin_src
-M-x blueprint-suggest-risks-all  (oppure: C-c b s)
+M-x blueprint-suggest-risks-all  (or: C-c b s)
 #+end_src
 
-Cerca pattern di rischio (nessun backup, single point of failure, valori hardcoded, tecnologie deprecate, nessun monitoring, processi manuali) nel testo esportato del documento: per ogni componente in tutti i suoi documenti inclusi in =master.org=, poi in ogni altro file del documento. Segnala anche i componenti isolati (nessuna dipendenza in entrata o in uscita) e la documentazione immatura (più di 8 =QUESTION=/=TBD=/=FIXME= nei file della riga). =M-x blueprint-suggest-risks= fa lo stesso per un solo componente.
+Looks for risk patterns (no backup, single point of failure, hardcoded values, deprecated technologies, no monitoring, manual processes) in the exported text of the document: for each component in all its documents included in =master.org=, then in every other file of the document. It also reports isolated components (no dependencies in or out) and immature documentation (more than 8 =QUESTION=/=TBD=/=FIXME= in the files of a row). =M-x blueprint-suggest-risks= does the same for a single component.
 
 -----
 
-* Flusso 10 — Sincronizzazione del documento master
+* Workflow 10: synchronizing the master document
 
-/Quando: periodicamente, e prima di ogni consegna intermedia./
+/When: regularly, and before every intermediate delivery./
 
 #+begin_src
-M-x blueprint-sync  (oppure: C-c b S)
+M-x blueprint-sync  (or: C-c b S)
 #+end_src
 
-Aggiorna le tre sezioni auto-gestite di =master.org= con i file attuali dei
-componenti:
+Updates the three self-managed sections of =master.org= with the current component files:
 
-| Marker pair                               | Sezione sincronizzata           |
-|-------------------------------------------+---------------------------------|
-| =@@blueprint-sync-start/end@@=            | =arc42.org= (Parte II)          |
-| =@@blueprint-sync-functional-start/end@@= | =functional.org= (Parte III)    |
-| =@@blueprint-sync-infra-start/end@@=      | =infrastructure.org= (Parte IV) |
+| Marker pair                               | Synchronized section           |
+|-------------------------------------------+--------------------------------|
+| =@@blueprint-sync-start/end@@=            | =arc42.org= (Part II)          |
+| =@@blueprint-sync-functional-start/end@@= | =functional.org= (Part III)    |
+| =@@blueprint-sync-infra-start/end@@=      | =infrastructure.org= (Part IV) |
 
-I marker sono commenti org nel =master.org=. Le coppie mancanti sono saltate
-silenziosamente (backward compatible con master parzialmente configurati).
+The markers are Org comments in =master.org=. Missing pairs are skipped silently, so partially configured masters keep working.
 
-Parti del master che NON sono sincronizzate automaticamente:
-- Parte 0 (premesse) — compilazione manuale
-- Parte I (enterprise) — compilazione manuale
-- Parte V (NFR) — i file nfr/*.org sono inclusi con =#+INCLUDE= statici
+Parts of the master that are not synchronized automatically:
+- Part 0 (premises): written by hand;
+- Part I (enterprise): written by hand;
+- Part V (NFR): the =nfr/*.org= files are included with static =#+INCLUDE= lines.
 
 -----
 
-* Flusso 11 — Export e consegna
+* Workflow 11: export and delivery
 
-/Quando: per le review intermedie con il cliente e per la consegna finale./
+/When: for intermediate reviews with the client and for the final delivery./
 
-** Export in ODT
-
-#+begin_src
-M-x blueprint-export-odt  (oppure: C-c b O)
-#+end_src
-
-Usa =org-odt-export-to-odt= (export nativo di org, nessuna dipendenza
-esterna). Rispetta =#+ODT_STYLES_FILE:= impostato in =master.org=: è il modo
-per applicare un template aziendale (intestazione/stili del cliente), a
-differenza del PDF via LaTeX che non ha un meccanismo equivalente. Il backend
-di default resta =pdf= (valore di pacchetto, condiviso da ogni progetto/
-utente Blueprint); per farne =odt= il proprio default personale, impostare
-=blueprint-export-backend= nella propria configurazione (=:custom= nel
-=use-package blueprint=), non nel pacchetto.
-
-Due scelte dell'export sono configurabili. =blueprint-export-double-hyphen=
-decide che cosa diventa ="--"= in ODT, HTML e LaTeX: =except-words= (default)
-lo rende trattino medio tranne fra due lettere o cifre, così un nome come
-=acme--portale= resta intatto anche fuori dal verbatim; =always= lo rende
-sempre trattino medio, come Org; =never= lo lascia sempre di due trattini.
-="---"= resta in ogni caso un trattino lungo. =blueprint-export-odt-images-as-char=
-(attiva di default) ancora come carattere le figure con didascalia in ODT,
-centrate: una figura che non entra nella pagina passa alla successiva invece
-di coprire la precedente.
-
-** Verificare un template =#+ODT_STYLES_FILE:= aziendale
-
-Un template =.ott= aziendale "grezzo" (scritto in LibreOffice Writer, non
-derivato da un export di org) sostituisce integralmente =styles.xml=,
-incluso gli stili interni di cui org ha bisogno (=OrgDisplayImage=,
-=OrgTable*=, =OrgCode=, =OrgBulletedList=/=OrgNumberedList=, ecc.). Il
-documento risulta "quasi giusto" — nessun errore, nessun warning — ma le
-immagini a paragrafo (ogni diagramma incluso via
-=#+begin_src plantuml :file x.svg=) si sovrappongono al contenuto
-successivo invece di riservare lo spazio verticale.
+** Export to ODT
 
 #+begin_src
-M-x blueprint-check-odt-styles  (oppure: C-c b k)
+M-x blueprint-export-odt  (or: C-c b O)
 #+end_src
 
-Esporta =master.org= in ODT e confronta gli stili che il documento
-referenzia con quelli definiti nel template custom, segnalando solo quelli
-che org normalmente fornisce lui stesso (dal file bundled
-=OrgOdtStyles.xml=) e che il template ha silenziosamente eliminato.
-Richiede =unzip= per ispezionare l'=.odt= generato. Eseguire prima di
-consegnare un documento con un template aziendale nuovo o modificato, non
-solo alla prima configurazione: un aggiornamento del template puo'
-reintrodurre lo stesso problema.
+Uses =org-odt-export-to-odt= (Org's native export, no external dependency). It honors =#+ODT_STYLES_FILE:= set in =master.org=: that is how a company template (the client's header and styles) is applied, which PDF via LaTeX has no equivalent for. The default backend stays =pdf= (a package value, shared by every project and user); to make =odt= your personal default, set =blueprint-export-backend= in your own configuration (=:custom= in =use-package blueprint=), not in the package.
 
-** Interruzioni di pagina
+Two export choices are configurable. =blueprint-export-double-hyphen= decides what ="--"= becomes in ODT, HTML and LaTeX: =except-words= (default) turns it into an en dash except between two letters or digits, so a name like =acme--portal= stays intact even outside verbatim; =always= always turns it into an en dash, like Org; =never= always leaves two hyphens. ="---"= is an em dash in every case. =blueprint-export-odt-images-as-char= (on by default) anchors captioned figures as characters in ODT, centered: a figure that does not fit on the page moves to the next one instead of covering the previous one.
 
-Per far partire ogni componente su una pagina nuova nelle Parti gestite
-da =blueprint-sync= (II, III e IV), aggiungere a =master.org=:
+** Check a company =#+ODT_STYLES_FILE:= template
+
+A "raw" company =.ott= template (written in LibreOffice Writer, not derived from an Org export) replaces =styles.xml= entirely, including the internal styles Org needs (=OrgDisplayImage=, =OrgTable*=, =OrgCode=, =OrgBulletedList=/=OrgNumberedList= and so on). The document comes out "almost right", with no error and no warning, but paragraph images (every diagram included through =#+begin_src plantuml :file x.svg=) overlap the content that follows instead of reserving their vertical space.
+
+#+begin_src
+M-x blueprint-check-odt-styles  (or: C-c b k)
+#+end_src
+
+Exports =master.org= to ODT and compares the styles the document references with those defined in the custom template, reporting only the ones Org normally provides itself (from its bundled =OrgOdtStyles.xml=) and that the template silently dropped. It needs =unzip= to inspect the generated =.odt=. Run it before delivering a document with a new or modified company template, not only the first time: a template update can bring the same problem back.
+
+** Page breaks
+
+To start every component on a new page in the parts managed by =blueprint-sync= (II, III and IV), add to =master.org=:
 
 #+begin_src org
 ,#+BLUEPRINT_PAGE_BREAK: components
 #+end_src
 
-Al =blueprint-sync= successivo, prima di ogni titolo di componente
-tranne il primo di ciascuna Parte, compaiono due righe:
+At the next =blueprint-sync=, two lines appear before every component heading except the first of each part:
 
 #+begin_src org
 ,#+ODT: <text:p text:style-name="PageBreak"/>
 ,#+LATEX: \clearpage
 #+end_src
 
-Ogni exporter usa la sua riga e ignora l'altra: ODT va a pagina nuova
-tramite lo stile di paragrafo =PageBreak=, il PDF via LaTeX con
-=\clearpage=. Il primo componente di ogni Parte resta sulla pagina del
-titolo della Parte. Togliendo la parola chiave, il sync successivo
-toglie anche le interruzioni. Un valore diverso da =components= viene
-ignorato con un messaggio.
+Each exporter uses its own line and ignores the other: ODT starts a new page through the =PageBreak= paragraph style, PDF via LaTeX through =\clearpage=. The first component of each part stays on the page of the part's title. Removing the keyword, the next sync removes the breaks too. A value other than =components= is ignored with a message.
 
-Per un'interruzione in un punto qualsiasi, fuori dalle sezioni del sync:
+For a break anywhere else, outside the synchronized sections:
 
 #+begin_src
 M-x blueprint-insert-page-break
 #+end_src
 
-Lo stile =PageBreak= deve esistere nel template =#+ODT_STYLES_FILE:=
-(un paragrafo con =fo:break-before="page"=): se manca, LibreOffice
-ignora l'interruzione senza avvisare. =blueprint-check-odt-styles= lo
-segnala insieme agli stili interni di org.
+The =PageBreak= style must exist in the =#+ODT_STYLES_FILE:= template (a paragraph with =fo:break-before="page"=): if it is missing, LibreOffice ignores the break without warning. =blueprint-check-odt-styles= reports it together with Org's internal styles.
 
-** Export in Word (.docx)
+** Export to Word (.docx)
 
 #+begin_src
 M-x blueprint-export-docx
 #+end_src
 
-Usa la pipeline: =org-mode → pandoc → .docx=. Richiede il pacchetto
-=ox-pandoc=.
+Pipeline: Org mode, then Pandoc, then =.docx=. It needs the =ox-pandoc= package.
 
-Se il cliente ha un template Word aziendale (header, footer, stili, logo),
-salvarlo come =.blueprint/templates/reference.docx= prima di eseguire l'export.
-Blueprint lo usa come reference document per pandoc.
+If the client has a company Word template (header, footer, styles, logo), save it as =.blueprint/templates/reference.docx= before exporting: Blueprint uses it as Pandoc's reference document.
 
-** Export in PDF
+** Export to PDF
 
 #+begin_src
-M-x blueprint-export-pdf  (oppure: C-c b P)
+M-x blueprint-export-pdf  (or: C-c b P)
 #+end_src
 
-Usa la pipeline: =org-mode → LaTeX → PDF= (via Emacs org-export). Non applica
-=#+ODT_STYLES_FILE:= né un template Word: per un template aziendale, preferire
-ODT o DOCX.
+Pipeline: Org mode, then LaTeX, then PDF (through Org's exporter). It does not apply =#+ODT_STYLES_FILE:= or a Word template: for a company template, prefer ODT or DOCX.
 
-** Scegliere il formato a runtime
+** Choose the format at export time
 
 #+begin_src
-M-x blueprint-export-dispatch  (oppure: C-c b v)
+M-x blueprint-export-dispatch  (or: C-c b v)
 #+end_src
 
-Apre =master.org= e passa il controllo al menu standard di org
-(=org-export-dispatch=): qualunque backend org conosca (ODT, PDF, HTML,
-ASCII, ...) e qualunque opzione per-file già supportata da org
-(=#+ODT_STYLES_FILE:=, =#+LATEX_CLASS:=, ecc.) è scelta lì, invece di essere
-fissata in anticipo da =blueprint-export-backend=. =M-x blueprint-export=
-(=C-c b E=) resta la scorciatoia che usa sempre il backend di default.
+Opens =master.org= and hands over to Org's standard menu (=org-export-dispatch=): any backend Org knows (ODT, PDF, HTML, ASCII, ...) and any per-file option Org already supports (=#+ODT_STYLES_FILE:=, =#+LATEX_CLASS:= and so on) are chosen there, instead of being fixed in advance by =blueprint-export-backend=. =M-x blueprint-export= (=C-c b E=) stays the shortcut that always uses the default backend.
 
-** CI headless
+** Headless CI
 
-Per ambienti CI/CD o workflow automatizzati:
+For CI/CD or automated workflows:
 
 #+begin_src bash
   # Lint: exit 0=ok, 1=warning
@@ -920,392 +761,254 @@ Per ambienti CI/CD o workflow automatizzati:
   emacs -Q --batch -l blueprint.el -f blueprint-ci-export
 #+end_src
 
-Lint e health score coprono tutto il documento (=master.org= e i file inclusi), quindi un avviso in Parte 0, I o V cambia il codice di uscita come un avviso in un componente.
+Lint and health score cover the whole document (=master.org= and the included files), so a warning in Part 0, I or V changes the exit code just like a warning in a component.
 
 -----
 
-* Flusso 12 — Ciclo di revisione e approvazione
+* Workflow 12: review and approval
 
-/Quando: prima di ogni consegna al cliente e prima della consegna finale./
+/When: before every delivery to the client and before the final one./
 
-** Checklist pre-consegna
+** Pre-delivery checklist
 
-=M-x blueprint-pre-delivery-check= (=C-c b d=) verifica in automatico health score, =[DA VALIDARE]= e =[DA REVISIONARE]= residui, avvisi del lint e sincronizzazione di =master.org=. Tutti i conteggi riguardano solo il documento, cioè =master.org= e i file che include (vedi l'health score): marcatori in note, knowledge base o altri file =.org= del progetto non contano. Il numero di =[FINDING]= compare con l'etichetta =[INFO]=, solo a titolo informativo: un finding è un risultato da consegnare, quindi non genera avvisi e non cambia l'esito.
+=M-x blueprint-pre-delivery-check= (=C-c b d=) checks the health score, the remaining =[DA VALIDARE]= and =[DA REVISIONARE]=, the lint warnings and whether =master.org= is synchronized. All the counts concern the document only, that is =master.org= and the files it includes (see the health score): markers in notes, knowledge bases or other =.org= files of the project do not count. The number of =[FINDING]= appears with the =[INFO]= label, for information only: a finding is a result to deliver, so it raises no warning and does not change the outcome.
 
-Prima di consegnare il documento al cliente, verificare manualmente:
+Before delivering the document to the client, check by hand:
 
-- [ ] Tutte le sezioni =[DA VALIDARE]= sono state verificate o rimosse
-- [ ] Tutte le sezioni =[DA REVISIONARE]= sono state revisionate
-- [ ] Il glossario copre tutti i termini tecnici e di dominio usati nel documento
-- [ ] I riferimenti sono completi e verificabili
-- [ ] I diagrammi PlantUML sono stati renderizzati e sono leggibili
-- [ ] La Parte 0 descrive accuratamente perimetro e fonti effettivamente usate
-- [ ] I finding sono formulati come osservazioni, non come critiche
-- [ ] Il health score e' a un livello accettabile (raccomandato: > 80)
-- [ ] Il lint non riporta errori bloccanti
-- [ ] Il documento e' stato esportato nel formato concordato e verificato visivamente
-- [ ] La versione e' stata approvata dal referente del cliente
+- [ ] every =[DA VALIDARE]= has been verified or removed
+- [ ] every =[DA REVISIONARE]= has been reviewed
+- [ ] the glossary covers every technical and domain term used in the document
+- [ ] the references are complete and can be checked
+- [ ] the PlantUML diagrams are rendered and readable
+- [ ] Part 0 describes the scope and the sources actually used
+- [ ] findings are written as observations, not as criticism
+- [ ] the health score is at an acceptable level (recommended: above 80)
+- [ ] the lint reports no blocking errors
+- [ ] the document has been exported in the agreed format and checked by eye
+- [ ] the client's owner has approved the version
 
-** Ciclo di approvazione
+** Approval cycle
 
-Per ogni sezione approvata dal cliente, aggiornare la marcatura:
+For every section the client approves, update the marker:
 
 #+begin_example
 [APPROVATO 2026-03-15]
 #+end_example
 
-La data di approvazione permette di tracciare la validita' nel tempo:
-se il sistema cambia dopo la data, la sezione torna =[DA VALIDARE]=.
+The approval date keeps track of validity over time: if the system changes after that date, the section goes back to =[DA VALIDARE]=.
 
 -----
 
-* Flusso 13 — Strumenti di progetto
+* Workflow 13: project tools
 
-/Quando: gestione corrente del progetto — storico delle metriche, triage
-delle domande, cronologia, confronti fra versioni./
+/When: day-to-day project management: metrics over time, question triage, history, comparisons between versions./
 
-** Metriche nel tempo
+** Metrics over time
 
-Ogni =blueprint-sync= (=C-c b S=) registra una riga in
-=.blueprint/metrics-history.org= con score, punti di penalità, parole e
-conteggi dei marcatori del documento (=blueprint-history-on-sync=, default
-attivo: disattivabile). Una riga con gli stessi valori della precedente non
-viene aggiunta. Il file sta nella data directory e non è incluso in
-=master.org=: non entra in nessun conteggio.
+Every =blueprint-sync= (=C-c b S=) records a line in =.blueprint/metrics-history.org= with the document's score, penalty points, words and marker counts (=blueprint-history-on-sync=, on by default). A line with the same values as the previous one is not added. The file lives in the data directory and is not included in =master.org=: it is never counted.
 
-=M-x blueprint-metrics-history= (=C-c b x=) disegna l'andamento dello score
-in un SVG e lo mostra; senza registrazioni dice solo che non ce ne sono.
+=M-x blueprint-metrics-history= (=C-c b x=) draws the trend of the score as an SVG and shows it; with no records it just says so.
 
-** Milestone nella dashboard
+** Milestones in the dashboard
 
-Se alla radice del progetto esiste =CRONOPROGRAMMA.org= o =TODO.org=
-(=blueprint-milestone-files=), la riga di stato della dashboard
-(=C-c b B=) aggiunge la prossima milestone aperta (primo heading con la
-keyword =TODO= in ordine di file, con la eventuale =:DEADLINE:= come data)
-e il numero di =TODO= aperti. Nessun formato nuovo: si riusano gli heading
-TODO/DONE di Org. Un file malformato non rompe la dashboard: la riga di
-stato resta senza milestone. La milestone viene dopo la versione del
-progetto e il titolo è tagliato a =blueprint-dashboard-milestone-width=
-caratteri (40; nil per non tagliarlo), con il titolo intero nel tooltip.
+If the project root has a =CRONOPROGRAMMA.org= or =TODO.org= (=blueprint-milestone-files=), the status line of the dashboard (=C-c b B=) adds the next open milestone (the first heading with the =TODO= keyword in file order, with its =:DEADLINE:= as the date, if any) and the number of open =TODO= items. No new format: it reuses Org's TODO/DONE headings. A malformed file does not break the dashboard: the status line simply has no milestone. The milestone comes after the project version, and its title is cut at =blueprint-dashboard-milestone-width= characters (40; nil not to cut it), with the full title in the tooltip.
 
-** Domande: tag, risposte e filtri
+** Questions: tags, answers and filters
 
-=blueprint-add-question= (=C-c b Q=) chiede anche un tag opzionale, che
-finisce sulla riga come =[TAG: tag]=. Una domanda si chiude con
-=M-x blueprint-answer-question=: la riga diventa =- ANSWERED [data] testo
-[FONTE: fonte]= — smette di contare in health, dashboard e lint, ma resta
-nel file con la fonte della risposta, secondo la convenzione
-=[FONTE: X]= della metodologia. La lista domande (=C-c b q=) mostra Tag e
-State e filtra per tag (=t=) e per stato (=s=); le occorrenze aperte della
-lista coincidono con la colonna QUESTION della dashboard. Le righe scritte
-dalle versioni precedenti restano valide e aperte.
+=blueprint-add-question= (=C-c b Q=) also asks for an optional tag, which ends up on the line as =[TAG: tag]=. A question is closed with =M-x blueprint-answer-question=: the line becomes =- ANSWERED [date] text [FONTE: source]=. It stops counting in the health score, dashboard and lint, but stays in the file with the source of the answer, following the method's =[FONTE: X]= convention. The question list (=C-c b q=) shows Tag and State and filters by tag (=t=) and by state (=s=); the open entries of the list match the QUESTION column of the dashboard. Lines written by earlier versions stay valid and open.
 
 ** Triage in org-agenda
 
-=M-x blueprint-agenda= (=C-c b U=) rigenera =.blueprint/agenda.org= e apre
-l'agenda Org su quel file: ogni QUESTION e FIXME del documento diventa una
-voce TODO con link all'origine. Le scadenze (=DEADLINE=), le date
-(=SCHEDULED=) e lo stato (TODO/DONE) impostati a mano vengono preservati ai
-refresh successivi. Con =blueprint-agenda-add-to-org-agenda= il file entra
-anche in =org-agenda-files= dell'utente.
+=M-x blueprint-agenda= (=C-c b U=) regenerates =.blueprint/agenda.org= and opens the Org agenda on that file: every QUESTION and FIXME of the document becomes a TODO entry with a link to where it came from. Deadlines (=DEADLINE=), dates (=SCHEDULED=) and states (TODO/DONE) set by hand are preserved across refreshes. With =blueprint-agenda-add-to-org-agenda= the file also joins the user's =org-agenda-files=.
 
-** Cronologia del progetto
+** Project history
 
-=M-x blueprint-changelog-generate= (=C-c b J=) rigenera =CHANGELOG.org= dai
-messaggi dei commit git (più recenti prima, raggruppati per data; con =C-u=
-si può limitare a =SINCE..HEAD=) e dalle ADR con =:STATUS: accepted=. Il file
-è derivato: se esiste già, il comando chiede prima di sovrascrivere.
+=M-x blueprint-changelog-generate= (=C-c b J=) regenerates =CHANGELOG.org= from the git commit messages (newest first, grouped by date; with =C-u= it can be limited to =SINCE..HEAD=) and from the ADRs with =:STATUS: accepted=. The file is derived: if it already exists, the command asks before overwriting it.
 
-** Confronto fra versioni di un componente
+** Comparing versions of a component
 
-=M-x blueprint-component-diff= mostra il =git diff= della directory del
-componente rispetto all'ultimo commit (=HEAD=, modifiche già in stage
-comprese) con in testa una sintesi semantica: file toccati, heading
-cambiati, marker aggiunti/rimossi, domande risolte. Con argomento prefisso
-si può confrontare contro una revisione (tag o commit). I file mai
-aggiunti a git (untracked) non compaiono. Nella lista
-componenti (=C-c b l=) il tasto =d= fa lo stesso per il componente al punto.
-Il comando è di sola lettura.
+=M-x blueprint-component-diff= shows the =git diff= of the component's directory against the last commit (=HEAD=, staged changes included), headed by a semantic summary: files touched, headings changed, markers added or removed, questions resolved. With a prefix argument it compares against a revision (a tag or a commit). Files never added to git (untracked) do not appear. In the component list (=C-c b l=), =d= does the same for the component at point. The command is read-only.
 
-** Anteprima del grafo
+** Graph preview
 
-=M-x blueprint-preview= apre il grafo delle dipendenze colorato per health
-in una finestra laterale e attiva =blueprint-preview-mode=: a ogni
-salvataggio di un file Org del progetto il grafo viene rigenerato (dopo
-=blueprint-preview-delay= secondi) e il buffer si aggiorna. Richiede
-Graphviz (=dot=); senza, lo dice una volta sola. La modalità è spenta di
-default e non apre finestre da sola.
+=M-x blueprint-preview= opens the dependency graph colored by health in a side window and turns on =blueprint-preview-mode=: every time an Org file of the project is saved, the graph is regenerated (after =blueprint-preview-delay= seconds) and the buffer refreshes. It needs Graphviz (=dot=); without it, it says so once. The mode is off by default and never opens windows on its own.
 
 -----
 
-* Funzioni native di Org supportate
+* Native Org features supported
 
-Per impaginazione e apparato del documento finale si preferiscono gli
-strumenti built-in di Org (=ox=, =ox-odt=, =ox-latex=, =oc=) a
-costrutti nuovi dentro Blueprint. Questa sezione dichiara cosa del
-"nativo" Blueprint supporta e garantisce lungo tutta la sua catena
-(sync, =#+INCLUDE= con =:minlevel=, lint, health, export ODT/PDF/DOCX,
-controllo stili ODT): per ciascuna funzione, la sintassi, il
-comportamento per backend, le verifiche che Blueprint fa e i limiti
-noti.
+For the layout and apparatus of the final document, Org's built-in tools (=ox=, =ox-odt=, =ox-latex=, =oc=) are preferred over new constructs inside Blueprint. This section states which native features Blueprint supports and guarantees along its whole chain (sync, =#+INCLUDE= with =:minlevel=, lint, health, ODT/PDF/DOCX export, ODT style check): for each one, the syntax, the behavior per backend, what Blueprint checks and the known limits.
 
-** Note a piè di pagina
+** Footnotes
 
-- *Sintassi*: =[fn:: testo della nota]= inline, oppure
-  =[fn:nome]= nel testo con la definizione =[fn:nome]= (o un paragrafo
-  che inizia per =[fn:nome]=) piu' avanti nel file.
-- *Comportamento per backend*: in ODT ogni nota diventa un
-  =<text:note>= con citazione e corpo (stile =Footnote=); in
-  PDF/LaTeX =\footnote=; in DOCX via pandoc. La numerazione e' unica
-  per tutto il documento assemblato: le note dentro un file incluso
-  con =#+INCLUDE= continuano la numerazione del master, non ripartono
-  (verificato dal test =blueprint-test-export/footnotes-reach-content-xml=).
-  Funzionano anche dentro le celle di tabella.
-- *Verifiche di Blueprint*: le note sono testo esportato, quindi
-  entrano in ogni conteggio (health score, marker, lint, liste) come
-  qualunque paragrafo; =blueprint-check-odt-styles= segnala lo stile
-  =Footnote= se un template =#+ODT_STYLES_FILE:= aziendale non lo
-  definisce (e' tra gli stili del baseline =OrgOdtStyles.xml= di Org).
-- *Limiti*: la definizione di una nota nominata deve stare nello
-  stesso file del riferimento (org risolve le note a livello di
-  buffer, non attraverso gli =#+INCLUDE=).
+- *Syntax*: =[fn:: footnote text]= inline, or =[fn:name]= in the text with the definition =[fn:name]= (or a paragraph starting with =[fn:name]=) further down the file.
+- *Behavior per backend*: in ODT every footnote becomes a =<text:note>= with citation and body (style =Footnote=); in PDF/LaTeX a =\footnote=; in DOCX through Pandoc. Numbering is unique across the assembled document: footnotes in a file included with =#+INCLUDE= continue the master's numbering, they do not restart (checked by the test =blueprint-test-export/footnotes-reach-content-xml=). They also work inside table cells.
+- *What Blueprint checks*: footnotes are exported text, so they enter every count (health score, markers, lint, lists) like any paragraph; =blueprint-check-odt-styles= reports the =Footnote= style if a company =#+ODT_STYLES_FILE:= template does not define it (it is one of the baseline styles of Org's =OrgOdtStyles.xml=).
+- *Limits*: the definition of a named footnote must be in the same file as its reference (Org resolves footnotes per buffer, not across =#+INCLUDE=).
 
-** Citazioni bibliografiche (oc)
+** Citations (oc)
 
-- *Sintassi*: =[cite:@chiave]= con =#+bibliography: file.bib= e
-  =#+print_bibliography:=, con il processore =basic= di default
-  (nessun pacchetto esterno richiesto).
-- *Comportamento per backend*: ODT/PDF/HTML con il processore =basic=
-  producono l'apparato essenziale (autore-anno o numerico senza
-  CSL). Blueprint non tocca nulla: le citazioni sono testo esportato
-  e seguono il percorso standard di org.
-- *Verifiche di Blueprint*: nessuna specifica; il conteggio le tratta
-  come testo.
-- *Limiti*: stili CSL avanzati richiedono =citeproc-el= (fuori dal
-  perimetro di Blueprint).
+- *Syntax*: =[cite:@key]= with =#+bibliography: file.bib= and =#+print_bibliography:=, using the default =basic= processor (no external package needed).
+- *Behavior per backend*: ODT, PDF and HTML with the =basic= processor produce the essential apparatus (author-year or numeric, without CSL). Blueprint changes nothing: citations are exported text and follow Org's standard path.
+- *What Blueprint checks*: nothing specific; the counts treat them as text.
+- *Limits*: advanced CSL styles need =citeproc-el= (outside Blueprint's scope).
 
-** Interruzioni di pagina
+** Page breaks
 
-- *Sintassi*: keyword Blueprint =#+BLUEPRINT_PAGE_BREAK: components=
-  in master.org (interruzione automatica fra i componenti sincronizzati,
-  vedi Flusso 10) oppure =M-x blueprint-insert-page-break= per una
-  interruzione manuale.
-- *Comportamento per backend*: due righe di keyword native, =#+ODT:=
-  (paragrafo con stile =PageBreak=) e =#+LATEX: \clearpage=; ogni
-  backend usa la sua e ignora l'altra.
-- *Verifiche di Blueprint*: lo stile =PageBreak= e' nella lista degli
-  stili extra di =blueprint-check-odt-styles=, segnalato se un
-  template aziendale non lo definisce.
-- *Limiti*: una macro Org non e' utilizzabile qui (si espanderebbe dentro un
-  paragrafo, producendo un =<text:p>= annidato in ODT).
+- *Syntax*: the Blueprint keyword =#+BLUEPRINT_PAGE_BREAK: components= in =master.org= (automatic breaks between synchronized components, see workflow 11) or =M-x blueprint-insert-page-break= for a manual break.
+- *Behavior per backend*: two native keyword lines, =#+ODT:= (a paragraph with the =PageBreak= style) and =#+LATEX: \clearpage=; each backend uses its own and ignores the other.
+- *What Blueprint checks*: the =PageBreak= style is in the list of extra styles of =blueprint-check-odt-styles=, reported if a company template does not define it.
+- *Limits*: an Org macro cannot be used here (it would expand inside a paragraph, producing a nested =<text:p>= in ODT).
 
-** Keyword di export per backend
+** Export keywords per backend
 
-- *Sintassi*: =#+ODT:=, =#+LATEX:=, =#+HTML:= — una riga per backend,
-  presa in carico solo dall'esportatore corrispondente.
-- *Comportamento per backend*: queste keyword sono il meccanismo con
-  cui Blueprint stesso scrive le interruzioni di pagina (sopra) e
-  quello con cui si possono aggiungere importazioni raw (es.
-  =#+LATEX: \newpage=). I blocchi =#+begin_export odt= / =latex= /
-  =html= sono il corrispondente a blocco.
-- *Verifiche di Blueprint*: nessuna specifica: il contenuto delle
-  keyword conta come testo esportato per i conteggi.
-- *Limiti*: nessuno oltre quelli di org.
+- *Syntax*: =#+ODT:=, =#+LATEX:=, =#+HTML:=, one line per backend, handled only by the matching exporter.
+- *Behavior per backend*: these keywords are how Blueprint itself writes page breaks (above), and how raw output can be added (for example =#+LATEX: \newpage=). The =#+begin_export odt= / =latex= / =html= blocks are the block equivalent.
+- *What Blueprint checks*: nothing specific: the content of the keywords counts as exported text.
+- *Limits*: none beyond Org's.
 
-** Dimensione di immagini e diagrammi larghi
+** Size of images and wide diagrams
 
-- *Sintassi*: =#+ATTR_ODT: :width 25cm= (o =:height=) sopra il
-  paragrafo o il blocco che genera l'immagine; anche
-  =#+ATTR_LATEX:= / =#+ATTR_HTML:= per gli altri backend.
-- *Comportamento per backend*: ODT applica la dimensione esplicita al
-  posto del calcolo automatico (per gli SVG, l'advice di Blueprint su
-  =org-odt--image-size= misura width/height o viewBox e si ferma
-  quando =:width=/=:height= sono dati, vedi Flusso 11); LaTeX e HTML
-  seguono i loro attributi.
-- *Verifiche di Blueprint*: il test =odt-svg-user-width-honoured=
-  copre il caso esplicito.
-- *Limiti*: per i diagrammi molto larghi (C4 container, ER) a piena
-  pagina il testo resta piccolo: le alternative sono una pagina
-  orizzontale (template aziendale con uno stile di pagina landscape)
-  o un layout verticale nei sorgenti PlantUML.
+- *Syntax*: =#+ATTR_ODT: :width 25cm= (or =:height=) above the paragraph or block that produces the image; =#+ATTR_LATEX:= / =#+ATTR_HTML:= for the other backends.
+- *Behavior per backend*: ODT applies the explicit size instead of computing one (for SVGs, Blueprint's advice on =org-odt--image-size= measures width/height or the viewBox, and stops when =:width=/=:height= are given, see workflow 11); LaTeX and HTML follow their own attributes.
+- *What Blueprint checks*: the test =odt-svg-user-width-honoured= covers the explicit case.
+- *Limits*: very wide diagrams (C4 container, ER) at full page width still have small text: the alternatives are a landscape page (a company template with a landscape page style) or a vertical layout in the PlantUML sources.
 
 -----
 
-* Flusso 14 — Aggiornare un progetto esistente
+* Workflow 14: updating an existing project
 
-/Quando: un progetto creato con una versione precedente di Blueprint, anche
-anteriore alla 0.1.0./
+/When: a project created with an earlier version of Blueprint, even one before 0.1.0./
 
-Blueprint legge ogni formato che ha scritto in passato: un progetto vecchio
-si apre e si lavora subito, senza migrare nulla. La migrazione esiste sempre
-ma è facoltativa, da fare quando c'è tempo: nessuna scadenza deve dipendere
-dall'aggiornamento della documentazione.
+Blueprint reads every format it has ever written: an old project opens and can be worked on immediately, without migrating anything. A migration is always available but optional, to run when there is time: no deadline should depend on updating the documentation tool.
 
-** Versione del progetto
+** Project version
 
-=.blueprint/blueprint-version.org= registra la versione di Blueprint con cui
-il progetto è stato creato o aggiornato e le migrazioni applicate.
-=blueprint-init= lo scrive; nei progetti che non lo hanno, la versione viene
-dedotta dalla struttura dei file (per esempio "0.2.0 (fino a 2026-03)" per
-un progetto con gli ADR in un file ciascuno). Il file non è incluso in
-=master.org=. Lo scrive anche ogni migrazione applicata; scriverlo non è
-una migrazione, quindi un progetto nel formato attuale senza il file non
-ha migrazioni disponibili e lo dichiara con =v= nel piano.
+=.blueprint/blueprint-version.org= records the Blueprint version that created or last updated the project, and the migrations applied. =blueprint-init= writes it; for projects that lack it, the version is inferred from the file layout (for example "0.2.0 (until 2026-03)" for a project with one file per ADR). The file is not included in =master.org=. Every applied migration writes it too; writing it is not a migration, so a project in the current format without the file has no migrations available and says so with =v= in the plan.
 
-La riga di stato della dashboard (=C-c b B=) mostra la versione, dichiarata
-o dedotta, il numero di migrazioni disponibili e i template di progetto e
-utente più vecchi di quelli di sistema (=blueprint-dashboard-show-version=
-per nasconderla). Il tasto =u= nella dashboard apre il piano.
+The status line of the dashboard (=C-c b B=) shows the version, declared or inferred, the number of migrations available, and the project and user templates older than the system ones (=blueprint-dashboard-show-version= hides it). =u= in the dashboard opens the plan.
 
-** Il piano di migrazione
+** The migration plan
 
 #+begin_src
-M-x blueprint-project-upgrade  (oppure: C-c b ^)
+M-x blueprint-project-upgrade  (or: C-c b ^)
 #+end_src
 
-Apre il buffer =*Blueprint Upgrade*= con una riga per ogni passo disponibile
-e per ogni template da rivedere. Nulla cambia finché non lo si chiede:
+Opens the =*Blueprint Upgrade*= buffer, with a row for each available step and for each template to review. Nothing changes until you ask:
 
-- =x= applica il passo al punto (o aggiorna il template al punto), dopo
-  conferma;
-- =X= applica tutti i passi, poi propone di aggiornare i template non
-  modificati;
-- =d= (o =RET=) mostra i file di un passo o il diff di un template;
-- =v= scrive =blueprint-version.org= (versione dedotta finché restano
-  passi da applicare, altrimenti quella del pacchetto);
-- =g= ricalcola il piano.
+- =x= applies the step at point (or updates the template at point), after confirmation;
+- =X= applies every step, then offers to update the unmodified templates;
+- =d= (or =RET=) shows the files of a step or the diff of a template;
+- =v= writes =blueprint-version.org= (the inferred version while steps remain, otherwise the package's);
+- =g= recomputes the plan.
 
-I passi, dal formato più vecchio:
+The steps, from the oldest format:
 
-| Passo                    | Formato di partenza                                          |
-|--------------------------+--------------------------------------------------------------|
-| =component-arc42-layout= | componente con =* Component= e sezioni di livello 2 (< 0.1.0) |
-| =component-dir-ids=      | directory del componente con il nome digitato, non l'id       |
-| =project-files=          | file di progetto mancanti (Parti I e V, glossario, ...)       |
-| =master-sync-sections=   | master.org senza le sezioni sincronizzate di Parte III e IV   |
-| =component-documents=    | componenti senza =functional.org= / =infrastructure.org=      |
-| =adr-single-file=        | un file per ADR in =.blueprint/adr/= (fino a 2026-03)         |
-| =orphan-glossary=        | termini scritti in =.blueprint/glossary.org= (fino a 2026-09) |
-| =orphan-references=      | riferimenti scritti in =.blueprint/references.org=            |
-| =references-table-rows=  | riferimenti come heading con drawer =:TYPE:=                  |
-| =data-directory=         | =.blueprint= quando =blueprint-directory-name= è un altro     |
-| =glossary-sections=      | termini come heading di livello 1 con drawer =:SOURCE:=       |
-| =lifecycle-keyword=      | componenti senza =#+BLUEPRINT_LIFECYCLE:= (diventa =active=)  |
-| =agenda-ids=             | =agenda.org= della 0.3.0 (ID su percorsi assoluti)            |
+| Step                     | Starting format                                                  |
+|--------------------------+------------------------------------------------------------------|
+| =component-arc42-layout= | component with =* Component= and level-2 sections (< 0.1.0)      |
+| =component-dir-ids=      | component directory named as typed, not by its id                |
+| =project-files=          | project files missing (Parts I and V, glossary, ...)             |
+| =master-sync-sections=   | master.org without the synchronized sections of Parts III and IV |
+| =component-documents=    | components without =functional.org= / =infrastructure.org=       |
+| =adr-single-file=        | one file per ADR in =.blueprint/adr/= (until 2026-03)            |
+| =orphan-glossary=        | terms written in =.blueprint/glossary.org= (until 2026-09)       |
+| =orphan-references=      | references written in =.blueprint/references.org=                |
+| =references-table-rows=  | references as headings with a =:TYPE:= drawer                    |
+| =data-directory=         | =.blueprint= when =blueprint-directory-name= is something else   |
+| =glossary-sections=      | terms as level-1 headings with a =:SOURCE:= drawer               |
+| =lifecycle-keyword=      | components without =#+BLUEPRINT_LIFECYCLE:= (becomes =active=)   |
+| =agenda-ids=             | =agenda.org= from 0.3.0 (IDs on absolute paths)                  |
 
-I file creati da =project-files= e =component-documents= nascono vuoti: il
-lint li segnala finché non vengono compilati, e il prossimo =blueprint-sync=
-li include nel documento.
+The files created by =project-files= and =component-documents= start empty: the lint reports them until they are filled in, and the next =blueprint-sync= includes them in the document.
 
-** Sicurezza
+** Safety
 
-Prima di toccare un file, ogni migrazione lo copia in
-=_archive/migration-AAAAMMGG-HHMMSS/= con lo stesso percorso relativo, insieme
-a =report.org= con i passi applicati (=blueprint-upgrade-backup=,
-=blueprint-upgrade-backup-directory=). In un repository git con modifiche non
-committate il comando avvisa e prosegue (=blueprint-upgrade-git-check=:
-=warn=, =refuse= per fermarsi, nil per non controllare); rinomina e
-cancellazioni passano da =git mv= e =git rm= quando i file sono tracciati.
+Before touching a file, every migration copies it to =_archive/migration-YYYYMMDD-HHMMSS/= with the same relative path, together with a =report.org= of the steps applied (=blueprint-upgrade-backup=, =blueprint-upgrade-backup-directory=). In a git repository with uncommitted changes the command warns and continues (=blueprint-upgrade-git-check=: =warn=, =refuse= to stop, nil not to check); renames and deletions go through =git mv= and =git rm= when the files are tracked.
 
-** Template di progetto e utente
+** Project and user templates
 
-Le copie in =.blueprint/templates/= e in =~/.config/blueprint/templates/=
-(=blueprint-template-status-scopes=) vengono confrontate con tutte le versioni
-rilasciate dei template di sistema:
+The copies in =.blueprint/templates/= and in =~/.config/blueprint/templates/= (=blueprint-template-status-scopes=) are compared with every released version of the system templates:
 
-- /versione precedente/: copia identica a una versione vecchia, mai
-  modificata. =x= la sostituisce con quella attuale, conservando la vecchia
-  in una directory =backup-AAAAMMGG-HHMMSS= accanto;
-- /personalizzato/: diverso da ogni versione rilasciata. Non viene mai
-  sostituito: =d= mostra il diff con il template attuale e l'allineamento si
-  fa a mano.
+- /previous version/: identical to an old version, never modified. =x= replaces it with the current one, keeping the old one in a =backup-YYYYMMDD-HHMMSS= directory next to it;
+- /customized/: different from every released version. It is never replaced: =d= shows the diff against the current template, and aligning it is done by hand.
 
 ** CI
 
-=blueprint-ci-validate= riporta versione e migrazioni disponibili; il codice
-d'uscita cambia solo se lo si chiede con =blueprint-ci-pending-migrations=
-(=ignore= di default, =warn= esce con 1, =error= con 2). Il report JSON
-(=blueprint-ci-export-json=) ha le stesse informazioni nella chiave
-=blueprint=.
+=blueprint-ci-validate= reports the version and the available migrations; the exit code only changes if you ask for it with =blueprint-ci-pending-migrations= (=ignore= by default, =warn= exits with 1, =error= with 2). The JSON report (=blueprint-ci-export-json=) has the same information under the =blueprint= key.
 
 -----
 
-* Appendice A — Domande del framework e mapping ai comandi
+* Appendix A: the method's questions and the commands that answer them
 
-Le domande sotto, tratte dalla metodologia di assessment, indicano quale
-comando Blueprint.el e' rilevante per rispondervi. Una domanda senza comando
-associato e' un gap attuale dello strumento (vedi Appendice C).
+The questions below, taken from the method, point to the Blueprint.el command that helps answer each one. A question with no command would be a current gap of the tool (see Appendix C).
 
-** Perimetro e struttura
+** Scope and structure
 
-| Domanda                                    | Comando                       |
-|--------------------------------------------+-------------------------------|
-| Quali componenti sono nel perimetro?       | =blueprint-add-component=     |
-| Come si chiamano i componenti nel dominio? | =blueprint-rename-component=  |
-| Quali sistemi di terze parti esistono?     | C4 =System_Ext= in template   |
-| Quali ambienti documentare?                | =infrastructure.org= Ambienti |
+| Question                                      | Command                            |
+|-----------------------------------------------+------------------------------------|
+| Which components are in scope?                | =blueprint-add-component=          |
+| What are the components called in the domain? | =blueprint-rename-component=       |
+| Which third-party systems exist?              | C4 =System_Ext= in the template    |
+| Which environments to document?               | =infrastructure.org=, environments |
 
-** Raccolta architetturale
+** Architecture
 
-| Domanda                                   | Comando                         |
-|-------------------------------------------+---------------------------------|
-| Quale e' il contesto del componente?      | =arc42.org= → Context and Scope |
-| Quali sono le dipendenze?                 | =BLUEPRINT_DEPENDS= keyword     |
-| Come si genera il diagramma C4?           | =blueprint-generate-c4=         |
-| Quali sono i flussi runtime principali?   | =blueprint-runtime-add-flow=    |
-| Ci sono open questions durante l'analisi? | =blueprint-add-question=        |
+| Question                                    | Command                        |
+|---------------------------------------------+--------------------------------|
+| What is the context of the component?       | =arc42.org=, Context and Scope |
+| What are its dependencies?                  | =BLUEPRINT_DEPENDS= keyword    |
+| How is the C4 diagram generated?            | =blueprint-generate-c4=        |
+| What are the main runtime flows?            | =blueprint-runtime-add-flow=   |
+| Are there open questions from the analysis? | =blueprint-add-question=       |
 
-** Logica di business
+** Business logic
 
-| Domanda                                       | Comando                                |
-|-----------------------------------------------+----------------------------------------|
-| Quali sono le aree funzionali del componente? | =blueprint-functional-add-area=        |
-| Quali regole di business esistono?            | =blueprint-functional-add-feature=     |
-| Quali entita' di dominio gestisce?            | =blueprint-functional-add-entity=      |
-| Quali sono i punti di integrazione?           | =blueprint-functional-add-integration= |
+| Question                                   | Command                                |
+|--------------------------------------------+----------------------------------------|
+| What are the component's functional areas? | =blueprint-functional-add-area=        |
+| Which business rules exist?                | =blueprint-functional-add-feature=     |
+| Which domain entities does it manage?      | =blueprint-functional-add-entity=      |
+| What are the integration points?           | =blueprint-functional-add-integration= |
 
-** Infrastruttura e NFR
+** Infrastructure and NFR
 
-| Domanda                                        | Comando                            |
-|------------------------------------------------+------------------------------------|
-| Dove gira il componente?                       | =infrastructure.org= manuale       |
-| Quali sono i requisiti di qualita' misurabili? | =nfr-quality.org= manuale          |
-| Quali vincoli architetturali esistono?         | =nfr-constraints.org= manuale      |
-| Quali rischi tecnici sono stati rilevati?      | =blueprint-detect-risks= + manuale |
+| Question                                      | Command                                     |
+|-----------------------------------------------+---------------------------------------------|
+| Where does the component run?                 | =infrastructure.org=, by hand               |
+| What are the measurable quality requirements? | =blueprint-nfr-add-quality-scenario=        |
+| Which architectural constraints exist?        | =blueprint-nfr-add-constraint=              |
+| Which technical risks have been found?        | =blueprint-suggest-risks-all=, then by hand |
 
-** Governance e tracciabilita'
+** Governance and traceability
 
-| Domanda                                          | Comando                   |
-|--------------------------------------------------+---------------------------|
-| Quali decisioni architetturali sono state prese? | =blueprint-adr-new=       |
-| Quali termini tecnici/dominio vanno definiti?    | =blueprint-glossary-add=  |
-| Quali fonti sono state usate?                    | =blueprint-reference-add= |
-| Quanto lavoro manca?                             | =blueprint-health-score=  |
-| Ci sono anomalie nella struttura?                | =blueprint-lint=          |
+| Question                                        | Command                   |
+|-------------------------------------------------+---------------------------|
+| Which architectural decisions have been taken?  | =blueprint-adr-new=       |
+| Which technical and domain terms need defining? | =blueprint-glossary-add=  |
+| Which sources were used?                        | =blueprint-reference-add= |
+| How much work is left?                          | =blueprint-health-score=  |
+| Are there anomalies in the structure?           | =blueprint-lint=          |
 
 -----
 
-* Appendice B — Convenzioni di marcatura
+* Appendix B: markers
 
-| Marcatura                | Significato                                                 | Tracciata da |
-|--------------------------+-------------------------------------------------------------+--------------|
-| =[DA VALIDARE]=          | Sezione non ancora verificata con referente del cliente     | Automatica   |
-| =[DA REVISIONARE]=       | Sezione prodotta automaticamente, non revisionata           | Automatica   |
-| =[FINDING]=              | Discrepanza tra comportamento effettivo e atteso/dichiarato | Automatica   |
-| =[APPROVATO YYYY-MM-DD]= | Sezione validata dal cliente nella data indicata            | Manuale      |
-| =[FONTE: X]=             | Attribuzione specifica della fonte informativa              | Manuale      |
-| =QUESTION=               | Domanda aperta irrisolta (health score: peso 3)             | Automatica   |
-| =TBD=                    | Sezione da completare (health score: peso 2)                | Automatica   |
-| =FIXME=                  | Problema identificato da correggere (health score: peso 4)  | Automatica   |
+| Marker                   | Meaning                                                      | Tracked   |
+|--------------------------+--------------------------------------------------------------+-----------|
+| =[DA VALIDARE]=          | To validate: not yet checked with the client's owner         | Automatic |
+| =[DA REVISIONARE]=       | To review: produced automatically, not reviewed              | Automatic |
+| =[FINDING]=              | Discrepancy between actual and expected or declared behavior | Automatic |
+| =[APPROVATO YYYY-MM-DD]= | Approved by the client on that date                          | Manual    |
+| =[FONTE: X]=             | The specific source of a piece of information                | Manual    |
+| =QUESTION=               | Unresolved open question (health score weight 3)             | Automatic |
+| =TBD=                    | Section still to be written (weight 2)                       | Automatic |
+| =FIXME=                  | Known problem to fix (weight 4)                              | Automatic |
 
-=[DA VALIDARE]= e =[DA REVISIONARE]= (peso 1) penalizzano il health score come =QUESTION=/=TBD=/=FIXME=; =[FINDING]= ha peso 0, perché è un risultato consegnato e non un punto aperto. Tutte e tre compaiono in =blueprint-list-findings= / =blueprint-list-unvalidated= (=C-c b g= / =C-c b u=). Solo =[APPROVATO]= e =[FONTE: X]= restano puramente manuali: non penalizzano e non sono cercate da alcun comando dedicato.
+=[DA VALIDARE]= and =[DA REVISIONARE]= (weight 1) lower the health score like =QUESTION=/=TBD=/=FIXME=; =[FINDING]= has weight 0, because it is a delivered result, not an open point. All three appear in =blueprint-list-findings= / =blueprint-list-unvalidated= (=C-c b g= / =C-c b u=). Only =[APPROVATO]= and =[FONTE: X]= are purely manual: they carry no penalty and no command looks for them.
 
 -----
 
-* Appendice C — Gap noti tra metodologia e strumento
+* Appendix C: known gaps between the method and the tool
 
-I seguenti aspetti della metodologia non sono ancora automatizzati in Blueprint.el.
-Richiedono gestione manuale fino all'implementazione.
-
-Nessuno al momento. L'ultimo, l'instradamento di =blueprint-glossary-add=
-nelle sezioni del template, è chiuso dalla 0.3.0 (PLAN.org, Fase 10.8).
+None at the moment. The last one, routing =blueprint-glossary-add= into the template's sections, was closed in 0.3.0 (PLAN.org, phase 10.8).

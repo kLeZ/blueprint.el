@@ -1,0 +1,68 @@
+#+TITLE: Glossario
+#+VERSION: 0.1
+#+UPDATED: 2026-11-16
+#+NOTE: File autonomo.  Usare blueprint-glossary-add (C-c b y) per aggiungere termini.
+
+* Guida alla compilazione — Glossario                              :noexport:
+
+Il glossario disambigua il linguaggio del dominio.  Ogni termine ha una
+definizione operativa (come viene usato in questo progetto, non la
+definizione enciclopedica) e indica la fonte da cui proviene.
+
+** Termini di dominio (esempio)
+
+*** Reversale
+
+Operazione che annulla totalmente o parzialmente un pagamento già
+autorizzato.  Nel sistema attuale si distingue da /rimborso/: la reversale
+agisce prima della regolazione con la banca, il rimborso dopo.
+/Fonte: intervista con il responsabile operations (2024-03-12)/
+
+*** Riconciliazione
+
+Processo notturno di confronto tra le transazioni registrate nel sistema
+e il file di rendiconto fornito dal provider di pagamenti.  Identifica
+disallineamenti (es. pagamenti autorizzati ma non regolati).
+/Fonte: codice — modulo =reconciliation-service=/
+
+** Termini tecnici con uso specifico (esempio)
+
+*** Idempotency key
+
+Identificatore univoco incluso dal client in ogni richiesta di pagamento.
+Nel sistema garantisce che ritrasmissioni dovute a timeout non generino
+addebiti doppi.  Diverso dall'uso generico REST: qui è obbligatorio e
+persistito per 24 h.
+/Fonte: decisione architetturale ADR 0003/
+
+** Acronimi e abbreviazioni (esempio)
+
+| Acronimo | Espansione                          | Note                                              |
+|----------+-------------------------------------+---------------------------------------------------|
+| SLA      | Service Level Agreement             | Contratto di livello di servizio con il fornitore |
+| RTO      | Recovery Time Objective             | Tempo massimo accettabile per il ripristino       |
+| RPO      | Recovery Point Objective            | Perdita di dati massima accettabile               |
+| PCI-DSS  | Payment Card Industry Data Security | Standard di sicurezza per i dati di carta         |
+|          | Standard                            |                                                   |
+
+* Termini di dominio
+<<glossary-domain>>
+
+** [Termine]
+<<glossary-esempio>>
+[Definizione operativa in linguaggio non tecnico.  Una o due frasi.]
+/Fonte: [intervista / codice / documento preesistente]/
+
+* Termini tecnici con uso specifico
+<<glossary-technical>>
+
+** [Termine tecnico]
+<<glossary-tecnico-esempio>>
+[Definizione di come il termine è usato in questo documento,
+se diversa dall'uso comune.]
+
+* Acronimi e abbreviazioni
+<<glossary-acronyms>>
+
+| Acronimo | Espansione | Note |
+|----------+------------+------|
