@@ -1,7 +1,7 @@
 ;;; blueprint-core.el --- Core utilities for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -16,6 +16,7 @@
 (require 'org-element)
 (require 'tabulated-list)
 (require 'lisp-mnt)
+(require 'blueprint-l10n)
 
 (defgroup blueprint nil
   "Text-first architectural assessment toolkit."
@@ -178,34 +179,60 @@ ids in #+BLUEPRINT_MIGRATIONS:.  nil when the file does not exist."
             (let ((m (blueprint--org-keyword file "BLUEPRINT_MIGRATIONS")))
               (and m (split-string m)))))))
 
-(defun blueprint--version-write (version migrations &optional root)
+(defun blueprint--version-write (version migrations &optional root language)
   "Write the project version file of ROOT with VERSION and MIGRATIONS.
-MIGRATIONS is the list of step ids applied to the project.  Returns
-the file path."
-  (let ((file (blueprint--version-file root)))
+MIGRATIONS is the list of step ids applied to the project.  LANGUAGE
+is the document language to declare; when nil, the one the file
+already declares is kept, and none is written if it declares none (a
+project without the keyword is Italian, see
+`blueprint--project-language').  Returns the file path."
+  (let* ((file (blueprint--version-file root))
+         (language (or language
+                       (blueprint--org-keyword file "BLUEPRINT_LANGUAGE")))
+         (text-lang (or language blueprint--legacy-language))
+         (title (blueprint--l10n 'version-file-title root text-lang))
+         (intro (blueprint--l10n 'version-file-intro root text-lang)))
     (make-directory (file-name-directory file) t)
     (with-temp-file file
-      (insert "#+TITLE: Versione Blueprint del progetto\n"
+      (insert (format "#+TITLE: %s\n" title)
               (format "#+BLUEPRINT_VERSION: %s\n" version)
               (format "#+BLUEPRINT_MIGRATIONS:%s\n"
                       (if migrations
                           (concat " " (mapconcat #'identity migrations " "))
                         ""))
-              "\n"
-              "File gestito da Blueprint: la versione del pacchetto con cui il\n"
-              "progetto è stato creato o aggiornato e le migrazioni applicate\n"
-              "da `blueprint-project-upgrade'.  Non è incluso in master.org e\n"
-              "non è obbligatorio: senza, la versione viene dedotta dai file.\n"))
+              (if language (format "#+BLUEPRINT_LANGUAGE: %s\n" language) "")
+              "\n" intro "\n"))
     (blueprint--invalidate-cache file)
     file))
 
-(defun blueprint--version-record-init (&optional root)
+(defun blueprint--version-record-init (&optional root language)
   "Record the current package version for a new project at ROOT.
-Called by `blueprint-init'; never overwrites an existing file, so a
-re-run of `blueprint-init' on an old project does not claim it is
-up to date."
+LANGUAGE is the document language of the new project.  Called by
+`blueprint-init'; never overwrites an existing file, so a re-run of
+`blueprint-init' on an old project does not claim it is up to date."
   (unless (file-exists-p (blueprint--version-file root))
-    (blueprint--version-write (blueprint-package-version) nil root)))
+    (blueprint--version-write (blueprint-package-version) nil root language)))
+
+;;; --- Markers (docs/adr/ADR-003-localized-templates.org, D3) ---
+
+(defconst blueprint-marker-to-validate "[TO VALIDATE]"
+  "Marker of information not yet confirmed, as the commands write it.
+The Italian [DA VALIDARE] of older documents is still recognized.")
+
+(defconst blueprint-marker-to-review "[TO REVIEW]"
+  "Marker of content to be reviewed, as the commands write it.
+The Italian [DA REVISIONARE] of older documents is still recognized.")
+
+(defconst blueprint--to-validate-regexp "\\[\\(?:TO VALIDATE\\|DA VALIDARE\\)\\]"
+  "Regexp of the to-validate marker, English or legacy Italian.")
+
+(defconst blueprint--to-review-regexp "\\[\\(?:TO REVIEW\\|DA REVISIONARE\\)\\]"
+  "Regexp of the to-review marker, English or legacy Italian.")
+
+(defconst blueprint--source-regexp
+  "\\[\\(?:SOURCE\\|FONTE\\):[ \t]*\\([^]]*?\\)[ \t]*]"
+  "Regexp of a [SOURCE: x] attribution, English or legacy [FONTE: x].
+Group 1 is the source.")
 
 (defun blueprint--init-file (path template-name replacements)
   "Create PATH from TEMPLATE-NAME applying REPLACEMENTS, unless PATH exists.
@@ -228,31 +255,41 @@ in the user or project template directory could not be edited."
   (copy-file file newname)
   (set-file-modes newname (logior (or (file-modes newname) #o444) #o200)))
 
-(defun blueprint--provision-user-templates ()
-  "Copy system templates to the user template directory if they do not exist.
+(defun blueprint--provision-user-templates (&optional lang)
+  "Copy the system templates of LANG to the user template directory.
+LANG defaults to the document language of the current project.  Only
+templates the user does not have yet are copied.
 
 This function is called automatically on `blueprint-init' to ensure that
 user-level templates are available for customisation.
 
 IMPORTANT -- FILES WRITTEN TO YOUR HOME DIRECTORY:
-This function writes template files to `blueprint-user-template-dir',
-which defaults to `~/.config/blueprint/templates/'.  These become your
-personal defaults that apply across all Blueprint projects.
+This function writes template files to the LANG folder of
+`blueprint-user-template-dir', by default
+`~/.config/blueprint/templates/<lang>/'.  These become your personal
+defaults for every Blueprint project in that language.
 
 You can edit them freely.  Blueprint will NEVER overwrite them once
-created.  To revert a template to the system default, delete the file
-from `~/.config/blueprint/templates/' -- Blueprint will then fall back
-to the version bundled with the package."
-  (let ((user-dir blueprint-user-template-dir)
-        (sys-dir blueprint-template-dir)
-        (copied '()))
+created.  To revert a template to the system default, delete the
+file -- Blueprint will then fall back to the version bundled with the
+package.  Italian templates customized in the directory itself, as
+earlier versions wrote them, keep being used: no copy is made over
+them."
+  (let* ((lang (or lang (blueprint--project-language)))
+         (user-dirs (blueprint--user-template-dirs lang))
+         (user-dir (car user-dirs))
+         (sys-dir (blueprint--system-template-dir lang))
+         (copied '()))
     (unless (file-directory-p user-dir)
       (make-directory user-dir t))
-    (dolist (f (directory-files sys-dir t "\\.org\\'"))
-      (let ((target (expand-file-name (file-name-nondirectory f) user-dir)))
-        (unless (file-exists-p target)
+    (dolist (f (blueprint--template-files sys-dir))
+      (let* ((name (blueprint--template-relative-name f))
+             (target (expand-file-name name user-dir)))
+        (unless (cl-some (lambda (d) (file-exists-p (expand-file-name name d)))
+                         user-dirs)
+          (make-directory (file-name-directory target) t)
           (blueprint--copy-file-writable f target)
-          (push (file-name-nondirectory f) copied))))
+          (push name copied))))
     (when copied
       (message
        (concat "Blueprint: wrote %d template(s) to %s\n"
@@ -261,19 +298,25 @@ to the version bundled with the package."
                "Edit freely -- Blueprint will never overwrite them.")
        (length copied)
        user-dir
-       (mapconcat (lambda (f) (format "  - %s" f)) copied "\n")))))
+       (mapconcat (lambda (f) (format "  - %s" f)) (nreverse copied) "\n")))))
 
 ;;;###autoload
-(defun blueprint-init (&optional project-name author)
+(defun blueprint-init (&optional project-name author language)
   "Initialize a new Blueprint project in the current directory.
 
 PROJECT-NAME is the client/project name used in `master.org'.
 AUTHOR is used as the document author.  Both default to sensible values
-when called non-interactively.
+when called non-interactively.  LANGUAGE is the language of the
+document (default `blueprint-default-language'; with a prefix
+argument the command asks for it).  It picks the templates and is
+recorded in the project, so it stays the same for its whole life.
+Running the command again on an existing project never changes its
+language.
 
 On the first run, this command also provisions user-level templates to
-`~/.config/blueprint/templates/' (see `blueprint--provision-user-templates').
-You will see a message listing the files written to your home directory.
+`~/.config/blueprint/templates/<language>/' (see
+`blueprint--provision-user-templates').  You will see a message
+listing the files written to your home directory.
 
 Creates the following structure (the data directory is named after
 `blueprint-directory-name', default \".blueprint\"):
@@ -282,6 +325,7 @@ Creates the following structure (the data directory is named after
     components/   -- one subdirectory per component (arc42.org, etc.)
     adr/          -- Architecture Decision Records
     templates/    -- project-local template overrides (initially empty)
+    blueprint-version.org -- package version and document language
   enterprise/
     context.org   -- C4 L1 multi-system context diagram
     dependencies.org  -- dependency matrix and cross-system flows
@@ -297,9 +341,21 @@ Creates the following structure (the data directory is named after
    (list (read-string
           "Project/client name: "
           (file-name-nondirectory (directory-file-name default-directory)))
-         (read-string "Author name: " (user-full-name))))
+         (read-string "Author name: " (user-full-name))
+         (when current-prefix-arg
+           (completing-read "Document language: " (blueprint--languages)
+                            nil nil nil nil blueprint-default-language))))
   (let* ((root default-directory)
          (bp (blueprint--data-dir root))
+         ;; A new project gets a language; an existing one (even one
+         ;; without a version file, which is Italian) keeps its own.
+         (fresh (not (or (file-exists-p (blueprint--version-file root))
+                         (file-exists-p (expand-file-name "master.org" root)))))
+         (language (and fresh (or language blueprint-default-language)))
+         (blueprint--language (or language
+                                  (and (file-directory-p bp)
+                                       (blueprint--project-language root))
+                                  blueprint--legacy-language))
          (pname (or project-name
                     (file-name-nondirectory (directory-file-name root))))
          (pauthor (or author (user-full-name)))
@@ -313,15 +369,20 @@ Creates the following structure (the data directory is named after
                      (expand-file-name "adr" bp)
                      (expand-file-name "templates" bp)))
       (make-directory d t))
-    ;; 2. Provision user-level templates (interactive only, never in tests)
+    ;; 2. Version of the project layout and language, first: the
+    ;; templates below are resolved in that language.  Never
+    ;; overwritten: re-running init on an old project must not claim
+    ;; it is up to date.
+    (blueprint--version-record-init root language)
+    ;; 3. Provision user-level templates (interactive only, never in tests)
     (when (called-interactively-p 'interactive)
-      (blueprint--provision-user-templates))
-    ;; 3. Project top-level directories
+      (blueprint--provision-user-templates blueprint--language))
+    ;; 4. Project top-level directories
     (dolist (d (list (expand-file-name "enterprise" root)
                      (expand-file-name "nfr" root)
                      (expand-file-name "_archive" root)))
       (make-directory d t))
-    ;; 4. Populate project files from templates (skips files that already exist)
+    ;; 5. Populate project files from templates (skips files that already exist)
     (blueprint--init-file (expand-file-name "master.org" root)
                           "master.org" replacements)
     (blueprint--init-file (expand-file-name "glossary.org" root)
@@ -338,10 +399,8 @@ Creates the following structure (the data directory is named after
                           "nfr-constraints.org" replacements)
     (blueprint--init-file (expand-file-name "nfr/risks.org" root)
                           "nfr-risks.org" replacements)
-    ;; 5. Version of the project layout (never overwritten: re-running
-    ;; init on an old project must not claim it is up to date).
-    (blueprint--version-record-init root)
-    (message "Blueprint project '%s' initialized in %s" pname root)))
+    (message "Blueprint project '%s' initialized in %s (language: %s)"
+             pname root blueprint--language)))
 
 (defun blueprint--components ()
   "Return a hash table mapping component names to their directories."
@@ -481,14 +540,17 @@ what the export shows as live text, so these are excluded:
   which is where the templates keep their fictional example data;
 - src, example, export and comment blocks, fixed-width areas and
   comment lines;
-- verbatim and code objects (=[FINDING]= names the marker, it is not one).
+- verbatim and code objects (=[FINDING]= names the marker, it is not one);
+- property drawers (:BLUEPRINT_SECTION: and the like), which the
+  export does not show (`org-export-with-properties' is nil).
 
-Keywords such as #+STATUS: [DA VALIDARE] are not excluded: they
+Keywords such as #+STATUS: [TO VALIDATE] are not excluded: they
 mark the whole file as not yet validated."
   (let ((tree (org-element-parse-buffer 'object))
         (regions '()))
     (org-element-map tree '(src-block example-block export-block
-                            comment-block fixed-width comment verbatim code)
+                            comment-block fixed-width comment verbatim code
+                            property-drawer)
       (lambda (el)
         (push (cons (org-element-property :begin el)
                     (org-element-property :end el))
@@ -1098,17 +1160,21 @@ them as dangling dependencies until they are resolved by hand."
         (message "Deleted component %s" name)))))
 
 (defun blueprint--project-template-dir ()
-  "Return the path to the project-level templates directory."
+  "Return the path to the project-level templates directory.
+It is flat: a project has one language."
   (blueprint--data-path "templates"))
 
 (defun blueprint--resolve-template (name)
   "Resolve template NAME by searching project, user, and system directories.
-Returns the first matching path, or nil if not found."
-  (cl-loop for d in (list (blueprint--project-template-dir)
-                          blueprint-user-template-dir
-                          blueprint-template-dir)
-           for p = (expand-file-name name d)
-           when (file-exists-p p) return p))
+The user and system directories are those of the document language
+of the current project (`blueprint--project-language').  Returns the
+first matching path, or nil if not found."
+  (let ((lang (blueprint--project-language)))
+    (cl-loop for d in (append (list (blueprint--project-template-dir))
+                              (blueprint--user-template-dirs lang)
+                              (list (blueprint--system-template-dir lang)))
+             for p = (expand-file-name name d)
+             when (file-exists-p p) return p)))
 
 (defun blueprint--template (name)
   "Return the contents of template NAME as a string."

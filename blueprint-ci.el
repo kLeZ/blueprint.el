@@ -1,7 +1,7 @@
 ;;; blueprint-ci.el --- CI/headless mode for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -171,18 +171,27 @@ hash tree is unambiguous where an alist value that is a list is not
                (cdr pair) table))
     table))
 
+(defconst blueprint--ci-report-marker-names
+  `((,blueprint--to-validate-regexp . "to-validate")
+    (,blueprint--to-review-regexp . "to-review"))
+  "JSON keys of the markers whose regexp is not a plain name.
+The English and the legacy Italian form of a marker count together,
+under the English name (ADR-003).")
+
 (defun blueprint--ci-report--marker-name (regexp)
   "Turn a marker REGEXP of `blueprint--health-weights' into a JSON key.
-\"\\\\<QUESTION\\\\>\" becomes \"question\" and
-\"\\\\[DA VALIDARE\\\\]\" becomes \"da-validare\": the markers are
+The name of `blueprint--ci-report-marker-names' when it has one.
+Otherwise \"\\\\<QUESTION\\\\>\" becomes \"question\" and
+\"\\\\[FINDING\\\\]\" becomes \"finding\": the markers are
 delimited by the two-character escapes \\\\< / \\\\> and \\\\[ / \\\\],
 so the name between them is enough and the report keys stay stable
 wherever the weights are reordered."
-  (let ((name (if (and (> (length regexp) 4)
+  (or (cdr (assoc regexp blueprint--ci-report-marker-names))
+      (let ((name (if (and (> (length regexp) 4)
                        (member (substring regexp 0 2) '("\\<" "\\[")))
                   (substring regexp 2 -2)
-                regexp)))
-    (downcase (replace-regexp-in-string "[ \t]+" "-" name))))
+                    regexp)))
+        (downcase (replace-regexp-in-string "[ \t]+" "-" name)))))
 
 (defun blueprint--ci-report--marker-table (counts)
   "Return the marker COUNTS as a hash table keyed by marker name.

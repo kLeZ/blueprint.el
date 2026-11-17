@@ -1,0 +1,16 @@
+name: Feature request
+description: A command, option or template change that Blueprint does not have.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The assessment task you are working on and where Blueprint gets in the way. Use invented examples.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+      description: The command, option or template change you have in mind, if any.

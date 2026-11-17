@@ -1,0 +1,206 @@
+#+TITLE: orders -- Functional specifications
+#+VERSION: 0.1
+#+STATUS: [APPROVED 2026-11-16]
+#+COMPONENT: orders
+#+UPDATED: 2026-11-16
+
+* Filling-in guide — Functional specifications                     :noexport:
+
+This file describes the component in business terms, without assumptions about the underlying technology.  The intended reader is the /domain expert/ or the /product owner/, not the engineer.
+
+Structure:
+- *Functional areas*: the main capabilities of the component (e.g. "Payment management")
+- *Features*: a single function with input, output and business rules
+- *Domain entities*: the objects the component works with
+- *Integration points*: what comes in and what goes out, in business language
+
+** Example: functional area and feature                            :noexport:
+
+*** Payment authorization
+
+**** Purpose
+Checks that a payment can be processed and starts its authorization with the provider.  Returns the outcome (authorized / declined) to the caller within the latency limits set by the contract.
+
+**** Input
+| Name (business) | Type (business) | Constraints                   | Origin        |
+|-----------------+-----------------+-------------------------------+---------------|
+| Amount          | Money value     | > 0.01 €; max 9,999.99 €      | order-service |
+| Currency        | ISO 4217 code   | Only EUR and USD supported    | order-service |
+| Payment method  | Identifier      | Stripe token; never card data | order-service |
+| Idempotency key | UUID string     | Unique per request; 24 h TTL  | order-service |
+
+**** Output
+| Name (business) | Type (business) | Format         | Destination   |
+|-----------------+-----------------+----------------+---------------|
+| Outcome         | Enum            | authorized /   | order-service |
+|                 |                 | declined /     |               |
+|                 |                 | error          |               |
+| Response code   | Descriptive     | Stripe decline | order-service |
+|                 | string          | codes (e.g.    |               |
+|                 |                 | insufficient_  |               |
+|                 |                 | funds)         |               |
+
+**** Business rules
+1. A payment with an idempotency key already processed in the last 24 h returns the original outcome without authorizing again.
+2. When Stripe answers with a transient error (=HTTP 500/503=), the system makes at most 3 attempts with exponential backoff (1 s, 2 s, 4 s).
+3. Amounts above 1,000 € require mandatory 3DS2 verification.
+
+**** Calculation logic
+No calculation: the authorization decision is delegated entirely to the provider (Stripe).  The system is an orchestrator.
+
+**** Validation rules
+| Condition               | Behavior / Error                        |
+|-------------------------+-----------------------------------------|
+| Amount ≤ 0              | =HTTP 400= — "invalid amount"           |
+| Unsupported currency    | =HTTP 422= — "unsupported currency"     |
+| Missing idempotency key | =HTTP 400= — "idempotency key required" |
+
+**** Edge cases and exceptions
+- Stripe timeout (> 30 s): return =error= to the caller; record the transaction as =pending= for an asynchronous check through the webhook.
+- Provider unreachable (circuit breaker open): return =error= with reason =provider_unavailable=; no retry beyond the 3 attempts.
+
+** Example: domain entity                                          :noexport:
+
+*** Transaction
+
+Immutable record of a payment attempt, whatever its outcome.  It matches a single call to the provider.
+
+| Attribute       | Type (business) | Constraints          | Relation | Notes                   |
+|-----------------+-----------------+----------------------+----------+-------------------------|
+| Transaction ID  | UUID            | Generated internally |          |                         |
+| Idempotency key | String          | Given by the caller  |          |                         |
+| Amount          | Money value     | > 0                  |          |                         |
+| Currency        | ISO 4217 code   |                      |          |                         |
+| State           | Enum            | authorized/declined/ |          | Immutable once assigned |
+|                 |                 | pending/error        |          |                         |
+| Order reference | UUID            |                      | → Order  | Logical foreign key     |
+| Timestamp       | UTC date/time   |                      |          |                         |
+
+** Example: integration point                                      :noexport:
+
+*** Request received from order-service
+
+Description: =order-service= calls =payment-service= synchronously to request the authorization of a payment tied to a confirmed order.
+
+| Field          | Value                                        |
+|----------------+----------------------------------------------|
+| Direction      | IN                                           |
+| Counterpart    | order-service                                |
+| Protocol       | REST / HTTPS / HTTP 2                        |
+| Authentication | mTLS (client certificate of the caller)      |
+| Frequency      | Synchronous — one call per confirmed order   |
+| SLA            | Answer within 5 s; client timeout set to 8 s |
+|                | to include the internal retries              |
+
+**** Exchange format
+
+Structure of the incoming payload.
+
+#+begin_src json
+  {
+  "idempotency_key": "ord-20240215-78fa3c",
+  "amount": 4950,
+  "currency": "EUR",
+  "payment_method_token": "pm_1OdXXXXX",
+  "order_reference": "ORD-2024-001847"
+  }
+#+end_src
+
+** What to write in each section                                   :noexport:
+
+The sections start empty.  When you write their content, mark it =[TO VALIDATE]= until a reliable source confirms it.
+
+- /Component overview/: purpose of the component in business terms, which problem it solves, which functional domain it belongs to.
+- /Functional areas/: one subsection per area (=blueprint-functional-add-area=), with its features inside (=blueprint-functional-add-feature=): purpose, input, output, business rules, calculation logic (mathematical notation with variables in domain language, e.g. =Net_Amount = Gross_Amount * (1 - VAT_Rate)=), validation rules, edge cases and exceptions.
+- /Domain entities/: domain objects with attributes in business language, not database tables (=blueprint-functional-add-entity=).  The /Relation/ column gives the target entity of the attributes that are foreign keys (e.g.: ~→ Order~).  At the end, an overall ER diagram of the component.
+- /Integration points/: what the component receives from and sends to other systems, in business terms: a summary table and one subsection per integration (=blueprint-functional-add-integration=).
+- /Data flows/: Data Flow Diagram (Yourdon/DeMarco notation) for the data lineage: where the data comes from, which processes transform it, where it is stored and to which systems it goes out.  It complements the table of the integration points with the path of the data.
+- /Open questions/: things the code cannot tell, which need validation with the domain expert.
+
+** Models                                                          :noexport:
+
+To copy into the target section.  In the PlantUML blocks remove =:eval never=, which here keeps Babel from generating the files at every export (Babel also evaluates the blocks of =:noexport:= subtrees).
+
+Summary table of the integration points (the /Data/ column links to the detail subsection):
+
+| Direction | Counterpart | Data | Protocol | Frequency | Notes |
+|-----------+-------------+------+----------+-----------+-------|
+
+Overall ER diagram (Domain entities):
+
+#+begin_src plantuml :file orders-er-general.svg :eval never
+  @startuml
+  ' Add the entities of the component and their relations
+  entity "Entity1" as e1 {
+  ,* id : type <<PK>>
+  --
+  attribute : type
+  }
+  entity "Entity2" as e2 {
+  ,* id : type <<PK>>
+  --
+  attribute : type
+  ,* fk_e1 : type <<FK>>
+  }
+  e1 ||--o{ e2 : "relation"
+  @enduml
+#+end_src
+
+Data Flow Diagram (Data flows).  PlantUML has no dedicated DFD library: external entities as ~rectangle~, processes as ~circle~, data stores as ~database~.
+
+#+begin_src plantuml :file orders-data-flows.svg :eval never
+  @startuml
+  left to right direction
+  rectangle "[External entity, e.g. Customer]" as ext1
+  circle "[Process, e.g. Process order]" as p1
+  database "[Data store, e.g. Orders DB]" as ds1
+  rectangle "[External system, e.g. Payment system]" as ext2
+
+  ext1 --> p1 : [incoming data]
+  p1 --> ds1 : [stored data]
+  p1 --> ext2 : [outgoing data]
+  ext2 --> p1 : [reply data]
+  @enduml
+#+end_src
+
+* Component overview
+:PROPERTIES:
+:BLUEPRINT_SECTION: functional-overview
+:END:
+<<orders-func-overview>>
+
+Manages the life cycle of the customer order, from the arrival of the SAP CSV to fulfillment. There are five states: imported, confirmed, in preparation, fulfilled, cancelled. Only a warehouse operator can move an order forward, and a fulfilled order never goes back.
+
+* Functional areas
+:PROPERTIES:
+:BLUEPRINT_SECTION: functional-areas
+:END:
+
+* Domain entities
+:PROPERTIES:
+:BLUEPRINT_SECTION: domain-entities
+:END:
+<<orders-entities>>
+
+Order (header with customer, date and state), order line (item, quantity requested and quantity picked), delivery note (yearly progressive number, created at fulfillment). The delivery note number is computed with a =SELECT MAX()= without a lock, and two fulfillments in the same second can get the same number. [FINDING]
+
+* Integration points
+:PROPERTIES:
+:BLUEPRINT_SECTION: integration-points
+:END:
+<<orders-func-integrations>>
+
+SAP Business One in (CSV, manual import), BRT and FatturaPA out through the shipping and invoicing modules, confirmation e-mails through the notifications module.
+
+* Data flows
+:PROPERTIES:
+:BLUEPRINT_SECTION: data-flows
+:END:
+<<orders-data-flows>>
+
+The CSV goes into a staging table, is validated row by row and only the valid rows become orders. The rejected rows end up in a log file nobody reads, and the operator finds out when a customer calls.
+
+* Open questions
+:PROPERTIES:
+:BLUEPRINT_SECTION: open-questions
+:END:

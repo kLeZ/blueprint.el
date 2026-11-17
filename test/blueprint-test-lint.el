@@ -248,7 +248,9 @@ project."
 (defun blueprint-test--full-arc42 (name)
   "Return an arc42.org body for NAME with every expected heading and text."
   (concat "#+TITLE: " name "\n#+BLUEPRINT_DEPENDS:\n\n"
-          (mapconcat (lambda (h) (format "* %s\n\nText of %s.\n\n" h h))
+          (mapconcat (lambda (id)
+                       (let ((h (blueprint--section-title id "it")))
+                         (format "* %s\n\nText of %s.\n\n" h h)))
                      blueprint--lint-expected-headings "")))
 
 (ert-deftest blueprint-test-lint/project-checks-included-files ()

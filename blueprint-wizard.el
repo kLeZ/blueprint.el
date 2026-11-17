@@ -1,7 +1,7 @@
 ;;; blueprint-wizard.el --- Guided wizards for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:

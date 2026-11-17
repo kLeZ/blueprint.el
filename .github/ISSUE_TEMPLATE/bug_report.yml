@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in Blueprint does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste content from a real assessment: reproduce the problem on an invented project (for example `examples/demo/`). Security problems go through SECURITY.org, not here.
+  - type: input
+    id: blueprint-version
+    attributes:
+      label: Blueprint version
+      description: "`M-x describe-package RET blueprint`, or the `Version:` header of blueprint.el, or the commit."
+    validations:
+      required: true
+  - type: input
+    id: emacs-version
+    attributes:
+      label: Emacs and Org versions
+      description: "`M-x emacs-version` and `M-x org-version`."
+    validations:
+      required: true
+  - type: input
+    id: project-version
+    attributes:
+      label: Project version and language
+      description: What the dashboard shows for the project (version, pending migrations), and the document language.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: From a fresh project if possible (`blueprint-init`, then the commands you ran).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+      description: What you expected, and what happened instead. Include the full error message, or a backtrace with `M-x toggle-debug-on-error`.
+    validations:
+      required: true

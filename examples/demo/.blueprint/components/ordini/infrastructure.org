@@ -66,14 +66,14 @@ Ambienti:
 Deployment view:
 
 #+begin_src plantuml :file ordini-infra.svg :eval never
-node "Ambiente: [nome]" {
+  node "Ambiente: [nome]" {
   node "Host: [nome]" {
-    artifact "ordini vX.Y"
+  artifact "ordini vX.Y"
   }
   database "DB: [nome]" {
   }
-}
-@enduml
+  }
+  @enduml
 #+end_src
 
 * Inventario

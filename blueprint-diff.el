@@ -1,7 +1,7 @@
 ;;; blueprint-diff.el --- Semantic component diff for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -78,24 +78,24 @@ not, whatever an added or removed content line starts with."
 (defun blueprint--diff-summary-text (summary)
   "Return the header lines describing SUMMARY."
   (concat
-   (format "File toccati: %s\n"
+   (format "Files touched: %s\n"
            (if (plist-get summary :files)
                (mapconcat #'identity (plist-get summary :files) ", ")
-             "nessuno"))
-   (format "Heading toccati: %s\n"
+             "none"))
+   (format "Headings touched: %s\n"
            (if (plist-get summary :headings)
                (mapconcat (lambda (h)
                             (format "%s %s"
                                     (make-string (car h) ?*) (cadr h)))
                           (plist-get summary :headings)
                           "; ")
-             "nessuno"))
-   "Marker nel diff:\n"
+             "none"))
+   "Markers in the diff:\n"
    (mapconcat (lambda (d)
                 (format "  %s: +%d/-%d\n" (car d) (nth 1 d) (nth 2 d)))
               (plist-get summary :deltas)
               "")
-   (format "Domande risolte (righe ANSWERED nette aggiunte): %d\n"
+   (format "Questions answered (net ANSWERED rows added): %d\n"
            (plist-get summary :resolved))))
 
 (defcustom blueprint-diff-default-base 'head
@@ -184,7 +184,7 @@ a git repository."
       (with-current-buffer buf
         (let ((inhibit-read-only t))
           (erase-buffer)
-          (insert (format "Diff di %s%s\n\n" component
+          (insert (format "Diff of %s%s\n\n" component
                           (if revision (format " (vs %s)" revision) "")))
           (insert (blueprint--diff-summary-text summary))
           (insert "\n" diff-text))

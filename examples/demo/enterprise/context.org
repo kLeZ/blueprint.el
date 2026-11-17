@@ -33,36 +33,36 @@ nel PlantUML deve avere una riga nella tabella corrispondente.
 GestioneMagazzino visto da fuori: chi lo usa, quali componenti lo compongono e con quali sistemi esterni parla. I componenti e le loro dipendenze sono generati da Blueprint, il resto è scritto a mano.
 
 #+begin_src plantuml :file enterprise-context.svg
-!include <C4/C4_Context>
-' @@blueprint-enterprise-start@@
-System(database, "database", "")
-System(fatturazione, "fatturazione", "")
-System(notifiche, "notifiche", "")
-System(ordini, "ordini", "")
-System(scorte, "scorte", "")
-System(spedizioni, "spedizioni", "")
-Rel(ordini, database, "uses")
-Rel(ordini, spedizioni, "uses")
-Rel(ordini, fatturazione, "uses")
-Rel(ordini, notifiche, "uses")
-Rel(scorte, database, "uses")
-Rel(scorte, notifiche, "uses")
-' @@blueprint-enterprise-end@@
-' Sistemi esterni, utenti e relazioni verso l'esterno: scritti a mano,
-' sempre fuori dai marker, mai toccati dalla rigenerazione.
-Person(operatore, "Operatore di magazzino", "Importa gli ordini, prepara ed evade")
-Person(responsabile, "Responsabile di magazzino", "Riceve gli allarmi di scorta")
-System_Ext(sap, "SAP Business One", "ERP: esporta gli ordini in CSV")
-System_Ext(brt, "API BRT", "Corriere: spedizioni e tracking")
-System_Ext(fpa, "FatturaPA", "Invio delle fatture al Sistema di Interscambio")
-System_Ext(smtp, "Relay SMTP", "Posta interna")
-Rel(operatore, ordini, "Evade gli ordini")
-Rel(sap, ordini, "CSV degli ordini", "share di rete")
-Rel(spedizioni, brt, "Spedizione e tracking", "HTTPS")
-Rel(fatturazione, fpa, "Fatture", "SOAP")
-Rel(notifiche, smtp, "Email", "SMTP")
-Rel(smtp, responsabile, "Allarme scorte")
-@enduml
+  !include <C4/C4_Context>
+  ' @@blueprint-enterprise-start@@
+  System(database, "database", "")
+  System(fatturazione, "fatturazione", "")
+  System(notifiche, "notifiche", "")
+  System(ordini, "ordini", "")
+  System(scorte, "scorte", "")
+  System(spedizioni, "spedizioni", "")
+  Rel(ordini, database, "uses")
+  Rel(ordini, spedizioni, "uses")
+  Rel(ordini, fatturazione, "uses")
+  Rel(ordini, notifiche, "uses")
+  Rel(scorte, database, "uses")
+  Rel(scorte, notifiche, "uses")
+  ' @@blueprint-enterprise-end@@
+  ' Sistemi esterni, utenti e relazioni verso l'esterno: scritti a mano,
+  ' sempre fuori dai marker, mai toccati dalla rigenerazione.
+  Person(operatore, "Operatore di magazzino", "Importa gli ordini, prepara ed evade")
+  Person(responsabile, "Responsabile di magazzino", "Riceve gli allarmi di scorta")
+  System_Ext(sap, "SAP Business One", "ERP: esporta gli ordini in CSV")
+  System_Ext(brt, "API BRT", "Corriere: spedizioni e tracking")
+  System_Ext(fpa, "FatturaPA", "Invio delle fatture al Sistema di Interscambio")
+  System_Ext(smtp, "Relay SMTP", "Posta interna")
+  Rel(operatore, ordini, "Evade gli ordini")
+  Rel(sap, ordini, "CSV degli ordini", "share di rete")
+  Rel(spedizioni, brt, "Spedizione e tracking", "HTTPS")
+  Rel(fatturazione, fpa, "Fatture", "SOAP")
+  Rel(notifiche, smtp, "Email", "SMTP")
+  Rel(smtp, responsabile, "Allarme scorte")
+  @enduml
 #+end_src
 
 ** Sistemi nel perimetro

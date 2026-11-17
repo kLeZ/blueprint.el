@@ -1,0 +1,25 @@
+** {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Descrizione dell'integrazione in termini di business.  Cosa viene scambiato, perché, e in quale contesto operativo.
+
+| Campo          | Valore                                          |
+|----------------+-------------------------------------------------|
+| Direzione      | {{DIRECTION}}                                   |
+| Controparte    |                                                 |
+| Protocollo     | REST / SOAP / Kafka / gRPC / file / batch / ... |
+| Autenticazione | OAuth2 / API key / mTLS / nessuna / ...         |
+| Frequenza      | sincrona / asincrona / batch / ...              |
+| SLA            |                                                 |
+
+*** Formato scambio
+<<{{FORMAT_ANCHOR}}>>
+
+Struttura del payload o del file scambiato.  Includere un esempio realistico con tutti i campi obbligatori valorizzati.
+
+#+begin_src json
+  {
+  "attr1": ""
+  }
+#+end_src

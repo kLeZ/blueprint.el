@@ -1,51 +1,25 @@
 ;;; blueprint-references.el --- Reference tracking for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
 
 ;; Tracks references in references.org, routed by type into the
-;; "Documenti" or "Interviste" section the template already defines
-;; (see templates/references.org).  "Sistemi e strumenti" and
-;; "Ambienti analizzati", the other two template sections, stay
-;; manually compiled -- no command targets them.
+;; documents or interviews section the template already defines (see
+;; templates/<lang>/references.org).  The other two template sections
+;; (systems and tools, environments analyzed) stay manually compiled
+;; -- no command targets them.
 
 ;;; Code:
 
 (require 'blueprint-core)
 
-(defun blueprint--references-insert-row-in-section (section-heading row)
-  "Append ROW after the last org-table line under SECTION-HEADING.
-Works on the current buffer.  If the section is absent, appends both
-the heading and the row at the end of the buffer.  Mirrors
-`blueprint--nfr-insert-row-in-section' in blueprint-nfr.el.
-
-SECTION-HEADING is matched anchored to the start of a line: the
-:noexport: compilation guide in references.org has subheadings like
-\"** Documenti (esempio)\", and an unanchored search for \"* Documenti\"
-matches inside that text too (starting at its second `*'), finding
-the guide's example section instead of the real one."
-  (goto-char (point-min))
-  (let ((last-pipe-pos nil)
-        (heading-re (concat "^" (regexp-quote section-heading))))
-    (when (re-search-forward heading-re nil t)
-      (let ((section-end (save-excursion
-                           (if (re-search-forward "^\\*" nil t)
-                               (match-beginning 0)
-                             (point-max)))))
-        (while (re-search-forward "^|" section-end t)
-          (setq last-pipe-pos (line-end-position)))))
-    (if last-pipe-pos
-        (progn (goto-char last-pipe-pos) (insert "\n" row))
-      (goto-char (point-max))
-      (unless (bolp) (insert "\n"))
-      (insert row))))
-
-(defun blueprint--references-next-id (prefix section-heading)
+(defun blueprint--references-next-id (prefix section)
   "Return the next PREFIX-NN reference ID based on existing entries.
-Scans only within SECTION-HEADING (e.g. \"* Documenti\"), not the
+Scans only within SECTION (a section id such as
+`references-documents', see `blueprint--section-find'), not the
 whole file: the :noexport: compilation guide above it shows D-01/D-02
 and I-01/I-02 as worked examples, and without this boundary a fresh
 project's first real reference would collide with them (the same
@@ -55,14 +29,11 @@ class of bug `blueprint--nfr-next-risk-id' had -- see its docstring)."
     (when (file-exists-p file)
       (with-temp-buffer
         (insert-file-contents file)
-        (goto-char (point-min))
-        (when (re-search-forward (concat "^" (regexp-quote section-heading)) nil t)
-          (let ((section-end (save-excursion
-                               (if (re-search-forward "^\\*" nil t)
-                                   (match-beginning 0)
-                                 (point-max)))))
+        (let ((bounds (blueprint--section-bounds section 1)))
+          (when bounds
+            (goto-char (car bounds))
             (while (re-search-forward
-                    (format "| %s-\\([0-9]+\\) " (regexp-quote prefix)) section-end t)
+                    (format "| %s-\\([0-9]+\\) " (regexp-quote prefix)) (cdr bounds) t)
               (let ((n (string-to-number (match-string 1))))
                 (when (> n max-num) (setq max-num n))))))))
     (format "%s-%02d" prefix (1+ max-num))))
@@ -90,12 +61,12 @@ guidance a `blueprint-init'-created one has."
 ;;;###autoload
 (defun blueprint-reference-add (title type notes)
   "Add a reference with TITLE, TYPE, and NOTES.
-TYPE is one of \"interview\" (routed to the `* Interviste' table) or
+TYPE is one of \"interview\" (routed to the interviews table) or
 \"document\", \"codebase\", \"ticket\", \"monitoring\" (routed to the
-`* Documenti' table, where TYPE becomes that table's own \"Tipo\"
-column).  Columns this command has no dedicated argument for (Ruolo
-for an interview, Autore / Owner for a document) are filled with
-[DA VALIDARE] rather than left blank, so they surface in
+documents table, where TYPE becomes that table's own type column).
+Columns this command has no dedicated argument for (role for an
+interview, author / owner for a document) are filled with
+[TO VALIDATE] rather than left blank, so they surface in
 `blueprint-list-unvalidated' like any other pending detail."
   (interactive
    (list (read-string "Reference title: ")
@@ -107,8 +78,8 @@ for an interview, Autore / Owner for a document) are filled with
 
 (defun blueprint--references-add-row (title type notes &optional date)
   "Add the reference TITLE of TYPE with NOTES to references.org.
-The row goes to the `* Interviste' table for TYPE \"interview\" and to
-the `* Documenti' table otherwise, with the next I-NN/D-NN id.  DATE
+The row goes to the interviews table for TYPE \"interview\" and to
+the documents table otherwise, with the next I-NN/D-NN id.  DATE
 defaults to today: the migration of the older formats passes the
 date the reference was recorded with."
   (let ((file (blueprint--ensure-references))
@@ -121,17 +92,18 @@ date the reference was recorded with."
                   (replace-regexp-in-string "|" "/" (or text "")))))))
     (with-current-buffer (find-file-noselect file)
       (if (string= type "interview")
-          (let ((id (blueprint--references-next-id "I" "* Interviste")))
-            (blueprint--references-insert-row-in-section
-             "* Interviste"
-             (format "| %s | %s | [DA VALIDARE] | %s | %s | |\n"
-                     id (funcall cell title) date (funcall cell notes))))
-        (let ((id (blueprint--references-next-id "D" "* Documenti")))
-          (blueprint--references-insert-row-in-section
-           "* Documenti"
-           (format "| %s | %s | [DA VALIDARE] | %s | %s | %s |\n"
-                   id (funcall cell title) date (funcall cell type)
-                   (funcall cell notes)))))
+          (let ((id (blueprint--references-next-id "I" 'references-interviews)))
+            (blueprint--section-append-row
+             'references-interviews
+             (format "| %s | %s | %s | %s | %s | |\n"
+                     id (funcall cell title) blueprint-marker-to-validate
+                     date (funcall cell notes))))
+        (let ((id (blueprint--references-next-id "D" 'references-documents)))
+          (blueprint--section-append-row
+           'references-documents
+           (format "| %s | %s | %s | %s | %s | %s |\n"
+                   id (funcall cell title) blueprint-marker-to-validate
+                   date (funcall cell type) (funcall cell notes)))))
       (save-buffer))
     file))
 

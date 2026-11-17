@@ -1,0 +1,35 @@
+** Flusso: {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Descrizione del flusso: obiettivo, precondizioni, attori coinvolti e vincoli di contesto rilevanti.
+
+*** Casi d'uso
+
+Panoramica degli attori e delle funzionalità coinvolte nel flusso.  Questa vista è utile per comunicare con stakeholder non tecnici.
+
+#+begin_src plantuml :file {{UC_FILE}}
+  @startuml
+  left to right direction
+  actor "Utente" as u
+  rectangle "{{COMPONENT}}" {
+  usecase "Caso d'uso 1" as uc1
+  usecase "Caso d'uso 2" as uc2
+  }
+  u --> uc1
+  u --> uc2
+  @enduml
+#+end_src
+
+*** Sequenza
+
+Dettaglio temporale degli scambi di messaggi per il flusso.  Questa vista è utile per i team tecnici e per la documentazione delle API.
+
+#+begin_src plantuml :file {{SEQ_FILE}}
+  @startuml
+  participant "A" as a
+  participant "B" as b
+  a -> b : messaggio
+  b --> a : risposta
+  @enduml
+#+end_src

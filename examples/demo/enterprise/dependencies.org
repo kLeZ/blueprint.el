@@ -25,24 +25,24 @@ Legenda: IN = riceve da, OUT = invia a, BI = bidirezionale, -- = nessuna relazio
 L'ordine nasce in SAP Business One e ne esce come file. Tutto il resto succede in GestioneMagazzino, dentro una sola richiesta dell'operatore: se il corriere o FatturaPA rispondono lentamente, l'operatore aspetta.
 
 #+begin_src plantuml :file enterprise-flow-01.svg
-actor "Operatore" as op
-participant "SAP B1" as sap
-participant "GestioneMagazzino" as gm
-participant "API BRT" as brt
-participant "FatturaPA" as fpa
-participant "Relay SMTP" as smtp
-sap -> gm : CSV degli ordini (share di rete)
-op -> gm : import manuale
-op -> gm : conferma picking
-activate gm
-gm -> gm : genera il DDT
-gm -> brt : POST /shipment
-brt --> gm : numero di tracking
-gm -> fpa : inviaFattura (SOAP)
-fpa --> gm : id fattura
-gm -> smtp : conferma al cliente
-deactivate gm
-@enduml
+  actor "Operatore" as op
+  participant "SAP B1" as sap
+  participant "GestioneMagazzino" as gm
+  participant "API BRT" as brt
+  participant "FatturaPA" as fpa
+  participant "Relay SMTP" as smtp
+  sap -> gm : CSV degli ordini (share di rete)
+  op -> gm : import manuale
+  op -> gm : conferma picking
+  activate gm
+  gm -> gm : genera il DDT
+  gm -> brt : POST /shipment
+  brt --> gm : numero di tracking
+  gm -> fpa : inviaFattura (SOAP)
+  fpa --> gm : id fattura
+  gm -> smtp : conferma al cliente
+  deactivate gm
+  @enduml
 #+end_src
 
 ** Data lineage
@@ -50,12 +50,12 @@ deactivate gm
 Gli ordini cambiano forma tre volte: righe CSV, righe di una tabella di appoggio, ordini veri. Le righe scartate dalla validazione finiscono solo in un file di log. [FINDING]
 
 #+begin_src plantuml :file enterprise-dfd.svg
-[SAP Business One] --> (Import CSV) : righe d'ordine
-(Import CSV) --> [Tabella di appoggio] : righe grezze
-[Tabella di appoggio] --> (Validazione) : righe da controllare
-(Validazione) --> [Ordini] : righe valide
-(Validazione) --> [Log degli scarti] : righe scartate
-[Ordini] --> (Evasione) : ordine confermato
-(Evasione) --> [DDT e fatture] : documenti
-@enduml
+  [SAP Business One] --> (Import CSV) : righe d'ordine
+  (Import CSV) --> [Tabella di appoggio] : righe grezze
+  [Tabella di appoggio] --> (Validazione) : righe da controllare
+  (Validazione) --> [Ordini] : righe valide
+  (Validazione) --> [Log degli scarti] : righe scartate
+  [Ordini] --> (Evasione) : ordine confermato
+  (Evasione) --> [DDT e fatture] : documenti
+  @enduml
 #+end_src

@@ -56,7 +56,7 @@
       (insert "# @@blueprint-sync-start@@\n# @@blueprint-sync-end@@\n"))
     (blueprint-pre-delivery-check)
     (with-current-buffer "*Blueprint Pre-Delivery Check*"
-      (should (string-match-p "PRONTO" (buffer-string))))))
+      (should (string-match-p "READY" (buffer-string))))))
 
 (ert-deftest blueprint-test-delivery/check-warns-on-da-validare ()
   "Report shows ATTENZIONE when [DA VALIDARE] markers are present."
@@ -66,7 +66,7 @@
      "#+TITLE: svc\n#+BLUEPRINT_DEPENDS:\n\n[DA VALIDARE]\n* Introduction\n\n* Context and Scope\n\n* Constraints\n\n* Solution Strategy\n\n* Building Blocks\n\n* Runtime Behavior\n\n* Deployment\n\n* Responsibility\n\n* Risks\n\n* Open Questions\n\n* Diagrams\n")
     (blueprint-pre-delivery-check)
     (with-current-buffer "*Blueprint Pre-Delivery Check*"
-      (should (string-match-p "ATTENZIONE" (buffer-string))))))
+      (should (string-match-p "\\[WARNING\\]" (buffer-string))))))
 
 (ert-deftest blueprint-test-delivery/check-warns-on-missing-master ()
   "Report shows ATTENZIONE when master.org lacks sync markers."
@@ -74,7 +74,7 @@
     (blueprint-pre-delivery-check)
     (with-current-buffer "*Blueprint Pre-Delivery Check*"
       ;; master.org doesn't exist → master sync check fails
-      (should (string-match-p "ATTENZIONE" (buffer-string))))))
+      (should (string-match-p "\\[WARNING\\]" (buffer-string))))))
 
 (ert-deftest blueprint-test-delivery/findings-do-not-warn ()
   "[FINDING] markers are reported for information, never as a warning.
@@ -90,7 +90,9 @@ master.org includes both documents: only included files count."
     (blueprint-test--write-component
      "svc"
      (concat "#+TITLE: svc\n#+BLUEPRINT_DEPENDS:\n\n"
-             (mapconcat (lambda (h) (format "* %s\n\nText of %s.\n\n" h h))
+             (mapconcat (lambda (id)
+                       (let ((h (blueprint--section-title id "it")))
+                         (format "* %s\n\nText of %s.\n\n" h h)))
                         blueprint--lint-expected-headings "")
              "[FINDING] the batch runs twice.\n"))
     (blueprint-test--write-document
@@ -99,8 +101,8 @@ master.org includes both documents: only included files count."
     (with-current-buffer "*Blueprint Pre-Delivery Check*"
       (let ((report (buffer-string)))
         (should (string-match-p "\\[FINDING\\].* 2  \\[INFO\\]" report))
-        (should-not (string-match-p "ATTENZIONE" report))
-        (should (string-match-p "PRONTO PER LA CONSEGNA" report))))))
+        (should-not (string-match-p "\\[WARNING\\]" report))
+        (should (string-match-p "READY FOR DELIVERY" report))))))
 
 (ert-deftest blueprint-test-delivery/findings-do-not-add-to-warn-count ()
   "With other warnings, findings are not counted among them."
@@ -109,12 +111,14 @@ master.org includes both documents: only included files count."
     (blueprint-test--write-component
      "svc"
      (concat "#+TITLE: svc\n#+BLUEPRINT_DEPENDS:\n\n"
-             (mapconcat (lambda (h) (format "* %s\n\nText of %s.\n\n" h h))
+             (mapconcat (lambda (id)
+                       (let ((h (blueprint--section-title id "it")))
+                         (format "* %s\n\nText of %s.\n\n" h h)))
                         blueprint--lint-expected-headings "")
              "[FINDING] one.\n"))
     (blueprint-pre-delivery-check)
     (with-current-buffer "*Blueprint Pre-Delivery Check*"
-      (should (string-match-p "Risultato: 1 verifica/he" (buffer-string))))))
+      (should (string-match-p "Result: 1 check(s)" (buffer-string))))))
 
 (ert-deftest blueprint-test-delivery/counts-included-files-only ()
   "Markers in files master.org does not include are not counted.
@@ -142,7 +146,7 @@ file under the root, knowledge base and interview notes included."
                                       (blueprint--dashboard-entries))))))
     (blueprint-pre-delivery-check)
     (with-current-buffer "*Blueprint Pre-Delivery Check*"
-      (should (string-match-p "\\[DA VALIDARE\\] residui +2 " (buffer-string))))))
+      (should (string-match-p "\\[TO VALIDATE\\] left +2 " (buffer-string))))))
 
 (provide 'blueprint-test-delivery)
 ;;; blueprint-test-delivery.el ends here

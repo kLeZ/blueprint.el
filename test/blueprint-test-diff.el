@@ -55,7 +55,7 @@ their level."
     (should (null (plist-get s :files)))
     (should (null (plist-get s :headings)))
     (should (= (plist-get s :resolved) 0))
-    (should (string-match-p "nessuno" (blueprint--diff-summary-text s)))))
+    (should (string-match-p "none" (blueprint--diff-summary-text s)))))
 
 (ert-deftest blueprint-test-diff/e2e-with-real-repo ()
   "End-to-end: commit, modify, diff — the buffer carries the semantic
@@ -87,7 +87,7 @@ summary and the diff body."
             (should (string-match-p "QUESTION: \\+0/-1" text))
             (should (string-match-p "ANSWERED: \\+1/-0" text))
             (should (string-match-p "FIXME: \\+1/-0" text))
-            (should (string-match-p "Domande risolte (righe ANSWERED nette aggiunte): 1" text))
+            (should (string-match-p "Questions answered (net ANSWERED rows added): 1" text))
             (should (string-match-p "^diff --git a/" text))))))))
 
 (ert-deftest blueprint-test-diff/staged-changes-and-empty-revision ()

@@ -161,13 +161,13 @@ Three levels are enough in practice:
 - level 3, components: modules inside a container, only when the complexity calls for it.
 
 #+begin_src plantuml :file example-c4-l1.svg :eval never
-!include <C4/C4_Context>
-System(sys, "System A", "Short description")
-Person(user, "User")
-System_Ext(ext, "External system")
-Rel(user, sys, "Uses")
-Rel(sys, ext, "Calls", "REST/HTTPS")
-@enduml
+  !include <C4/C4_Context>
+  System(sys, "System A", "Short description")
+  Person(user, "User")
+  System_Ext(ext, "External system")
+  Rel(user, sys, "Uses")
+  Rel(sys, ext, "Calls", "REST/HTTPS")
+  @enduml
 #+end_src
 
 Blueprint generates the container diagram and the dependency graph from the =#+BLUEPRINT_DEPENDS:= line of each component, so those two are never drawn by hand.
@@ -181,21 +181,21 @@ For calls between components when the order of operations matters. Every runtime
 An approximation of BPMN for processes with several actors, decisions and loops. =blueprint-runtime-add-process= creates the section.
 
 #+begin_src plantuml :file example-activity.svg :eval never
-| User |
-start
-:Send request;
-| System |
-:Validate input;
-if (valid?) then (yes)
+  | User |
+  start
+  :Send request;
+  | System |
+  :Validate input;
+  if (valid?) then (yes)
   :Process;
   :Return result;
-else (no)
+  else (no)
   :Return error;
-endif
-| User |
-:Receive response;
-stop
-@enduml
+  endif
+  | User |
+  :Receive response;
+  stop
+  @enduml
 #+end_src
 
 ** Data flow diagrams for data lineage
@@ -203,10 +203,10 @@ stop
 Where data is born, where it goes and how it is transformed. Level 0 (context) and level 1 (decomposition) are enough for an assessment. PlantUML has no DFD notation, so a component diagram stands in for it:
 
 #+begin_src plantuml :file example-dfd.svg :eval never
-[Data source A] --> (Transformation T1) : raw data
-(Transformation T1) --> [System B] : normalized data
-(Transformation T1) --> [Archive C] : historical copy
-@enduml
+  [Data source A] --> (Transformation T1) : raw data
+  (Transformation T1) --> [System B] : normalized data
+  (Transformation T1) --> [Archive C] : historical copy
+  @enduml
 #+end_src
 
 ** UML deployment diagrams for the infrastructure

@@ -1,0 +1,8 @@
+** {{NAME}}
+- *Quality attribute*: {{ATTRIBUTE}}
+- *Context*: [TO VALIDATE]
+- *Stimulus*: [TO VALIDATE]
+- *Expected response*: [TO VALIDATE]
+- *Measure*: [TO VALIDATE]
+- *Priority*: [High / Medium / Low]
+- *Source*: [TO VALIDATE]

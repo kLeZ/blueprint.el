@@ -1,14 +1,10 @@
 # AGENTS.md
 
-This file provides guidance to coding agents (Claude Code, opencode and other
-AGENTS.md-aware tools) when working with code in this repository.
-`CLAUDE.md` only imports this file (`@AGENTS.md`): edit this one.
+This file provides guidance to coding agents (Claude Code, opencode and other AGENTS.md-aware tools) when working with code in this repository. `CLAUDE.md` only imports this file (`@AGENTS.md`): edit this one.
 
 ## What this project is
 
-Blueprint.el is an Emacs Lisp package for text-first architectural assessment
-using Org-mode and Arc42 methodology. It generates C4 diagrams (PlantUML) and
-dependency graphs (Graphviz), managed through a Transient menu at `C-c b`.
+Blueprint.el is an Emacs Lisp package for text-first architectural assessment using Org-mode and Arc42 methodology. It generates C4 diagrams (PlantUML) and dependency graphs (Graphviz), managed through a Transient menu at `C-c b`.
 
 ## No data from real engagements
 
@@ -20,74 +16,24 @@ The package is piloted on real client work, but nothing from that work belongs i
 
 ## Commands
 
-### Run tests
+### Tests and lint
+
+The `Makefile` runs every check the CI runs, each in a clean `emacs -Q --batch`:
 
 ```sh
-# Full test suite (ERT)
-emacs -Q --batch \
-  --eval "(push default-directory load-path)" \
-  --eval "(push (expand-file-name \"test\" default-directory) load-path)" \
-  -l blueprint-core.el -l blueprint-c4.el -l blueprint-health.el \
-  -l blueprint-lint.el -l blueprint-adr.el -l blueprint-sync.el \
-  -l blueprint-glossary.el -l blueprint-references.el -l blueprint-questions.el \
-  -l blueprint-risks.el -l blueprint-ai.el -l blueprint-migrate.el \
-  -l blueprint-functional.el -l blueprint-runtime.el \
-  -l blueprint-nfr.el -l blueprint-delivery.el -l blueprint-export.el \
-  -l blueprint-dashboard.el -l blueprint-watch.el -l blueprint-capture.el \
-  -l blueprint-history.el -l blueprint-agenda.el -l blueprint-changelog.el \
-  -l blueprint-diff.el -l blueprint-preview.el -l blueprint-upgrade.el \
-  -l test/blueprint-test-helpers.el \
-  -l test/blueprint-test-core.el -l test/blueprint-test-health.el \
-  -l test/blueprint-test-lint.el -l test/blueprint-test-c4.el \
-  -l test/blueprint-test-adr.el -l test/blueprint-test-sync.el \
-  -l test/blueprint-test-content.el -l test/blueprint-test-risks.el \
-  -l test/blueprint-test-ai.el -l test/blueprint-test-functional.el \
-  -l test/blueprint-test-runtime.el \
-  -l test/blueprint-test-nfr.el -l test/blueprint-test-delivery.el \
-  -l test/blueprint-test-dashboard.el -l test/blueprint-test-migrate.el \
-  -l test/blueprint-test-watch.el -l test/blueprint-test-capture.el \
-  -l test/blueprint-test-e2e.el -l test/blueprint-test-export.el \
-  -l test/blueprint-test-keys.el -l test/blueprint-test-ci.el \
-  -l test/blueprint-test-history.el -l test/blueprint-test-agenda.el \
-  -l test/blueprint-test-changelog.el -l test/blueprint-test-diff.el \
-  -l test/blueprint-test-roam.el -l test/blueprint-test-preview.el \
-  -l test/blueprint-test-upgrade.el \
-  -f ert-run-tests-batch-and-exit
-
-# Single test by name pattern
-emacs -Q --batch \
-  --eval "(push default-directory load-path)" \
-  --eval "(push (expand-file-name \"test\" default-directory) load-path)" \
-  -l blueprint-core.el -l blueprint-health.el \
-  -l test/blueprint-test-helpers.el -l test/blueprint-test-health.el \
-  --eval "(ert-run-tests-batch \"blueprint-test-health\")"
+make test                  # whole ERT suite (loads every test/blueprint-test-*.el)
+make test SELECTOR=health  # only the tests whose name matches the regexp
+make compile               # byte-compile, warnings are errors (.elc removed after)
+make checkdoc              # checkdoc on every module
+make package-lint          # package-lint on blueprint.el (package-lint must be installed)
+make lint                  # compile + checkdoc
 ```
 
-### Lint
+A new test file needs no registration anywhere: `make test` picks it up.
 
-```sh
-# Byte-compile all files (treats warnings as errors)
-emacs -Q --batch \
-  --eval "(setq byte-compile-error-on-warn t)" \
-  --eval "(push default-directory load-path)" \
-  -f batch-byte-compile *.el
+### Before every commit
 
-# Checkdoc a single file
-emacs -Q --batch \
-  --eval "(require 'checkdoc)" \
-  --eval "(setq checkdoc-force-docstrings-flag nil)" \
-  --eval "(with-current-buffer (find-file-noselect \"blueprint-core.el\")
-            (let ((warnings (checkdoc-file \"blueprint-core.el\")))
-              (when (stringp warnings)
-                (message \"%s\" warnings)
-                (kill-emacs 1))))"
-
-# Package-lint on entry point only
-emacs -Q --batch \
-  --eval "(require 'package-lint)" \
-  --eval "(push default-directory load-path)" \
-  -f package-lint-batch-and-exit blueprint.el
-```
+Run `scripts/fmt-docs.sh` before every commit (user rule, 2026-11-16): it formats every Org file (tables, src block indentation, `,#+` escapes) and the Markdown files, so a commit never carries the reformatting of files it did not touch. It also rewrites the templates: when it changes a file under `templates/`, run `scripts/gen-template-history.sh` afterwards, then `make test`.
 
 ### CI headless commands (from `blueprint-ci.el`)
 
@@ -99,58 +45,37 @@ emacs -Q --batch -l blueprint.el -f blueprint-ci-export    # exit 0=ok, 2=error
 
 ### Releasing
 
-Bump `;;  Version: X.Y.Z` in `blueprint.el` header and push to `main` — the
-release workflow creates the git tag and GitHub release automatically.
-Before the bump, run `scripts/gen-template-history.sh` and commit
-`blueprint-template-history.el` (MD5 of every version of every system
-template; `blueprint-test-upgrade/current-templates-are-in-history` fails
-when a template changed and the table was not regenerated).
+Bump `;;  Version: X.Y.Z` in `blueprint.el` header and push to `main` — the release workflow creates the git tag and GitHub release automatically. Before the bump, run `scripts/gen-template-history.sh` and commit `blueprint-template-history.el` (MD5 of every version of every system template; `blueprint-test-upgrade/current-templates-are-in-history` fails when a template changed and the table was not regenerated).
+
+Never push the `vX.Y.Z` tag together with `main`: the workflow skips the release when the tag already exists. The release asset is an uncompressed `.tar` with a `blueprint-pkg.el` generated from the header of `blueprint.el`, because `package-install-file` accepts neither a `.tar.gz` nor a tarball without the package description file. Package managers that build from the repository (straight.el, elpaca, Doom) copy only the `.el` files unless the recipe has `:files (:defaults "templates")`: every recipe in the README and any future MELPA recipe need it.
 
 ### Format changes: read the old, offer the migration
 
-A project must never have to migrate before work goes on (user rule,
-2026-11-02, docs/adr/ADR-002): every change to what Blueprint writes on
-disk (file location, keyword, heading layout, ID scheme) must
+A project must never have to migrate before work goes on (user rule, 2026-11-02, docs/adr/ADR-002): every change to what Blueprint writes on disk (file location, keyword, heading layout, ID scheme) must
 
-1. keep reading the previous format, with a test on a fixture written as
-   the old code wrote it;
-2. add a step to `blueprint-upgrade-steps` (`blueprint-upgrade.el`), in
-   chronological order, with `:era` (the versions that wrote the old
-   format), a read-only detector and an idempotent apply function, plus a
-   test of both;
-3. never run the migration on its own: `blueprint-project-upgrade` applies
-   it when the user asks, after the backup.
+1. keep reading the previous format, with a test on a fixture written as the old code wrote it;
+2. add a step to `blueprint-upgrade-steps` (`blueprint-upgrade.el`), in chronological order, with `:era` (the versions that wrote the old format), a read-only detector and an idempotent apply function, plus a test of both;
+3. never run the migration on its own: `blueprint-project-upgrade` applies it when the user asks, after the backup.
 
-Projects from every era back to the initial commit exist; the initial
-commit itself (`8b44775`) does not even load, its layout is in
-`blueprint-test-upgrade/pre-010-layout-step`.
+Projects from every era back to the initial commit exist; the initial commit itself (`8b44775`) does not even load, its layout is in `blueprint-test-upgrade/pre-010-layout-step`.
 
 ## Architecture
 
 All modules depend on `blueprint-core.el`, which provides:
 
-- `blueprint--root` — walks up the tree to the nearest directory holding the
-  data directory: `blueprint-directory-name` (defcustom, default
-  `.blueprint`, may be a nested relative path) or the legacy `.blueprint`
-  (fallback, warned once per root per session)
-- `blueprint--data-dir` / `blueprint--data-path` — the data directory
-  actually in use and paths inside it. Never hardcode `".blueprint"`:
-  always go through these (sync writes `#+INCLUDE` paths relative to
-  `master.org` for the same reason)
-- `blueprint--org-file-regexp` — filter for `directory-files-recursively`
-  over Org files; excludes Emacs lock files (`.#x.org`, dangling symlinks)
-- `blueprint--components` — returns a hash table `{name → dir}` of all
-  components
-- `blueprint--cached-metrics` / `blueprint--invalidate-cache` — MD5-based cache
-  for component metrics
-- `blueprint--resolve-template` — three-tier template lookup (project → user →
-  system)
+- `blueprint--root` — walks up the tree to the nearest directory holding the data directory: `blueprint-directory-name` (defcustom, default `.blueprint`, may be a nested relative path) or the legacy `.blueprint` (fallback, warned once per root per session)
+- `blueprint--data-dir` / `blueprint--data-path` — the data directory actually in use and paths inside it. Never hardcode `".blueprint"`: always go through these (sync writes `#+INCLUDE` paths relative to `master.org` for the same reason)
+- `blueprint--org-file-regexp` — filter for `directory-files-recursively` over Org files; excludes Emacs lock files (`.#x.org`, dangling symlinks)
+- `blueprint--components` — returns a hash table `{name → dir}` of all components
+- `blueprint--cached-metrics` / `blueprint--invalidate-cache` — MD5-based cache for component metrics
+- `blueprint--resolve-template` — three-tier template lookup (project → user → system), in the document language
+- `blueprint--project-language`, `blueprint--l10n`, `blueprint--section-find` and the marker constants — see "Document language" below
 
-The entry point `blueprint.el` only wires the Transient menu and `require`s all
-modules; no logic lives there.
+`blueprint-l10n.el` is the one place of the language code (it holds no translated text). The core requires it; it calls the core functions it needs at run time (`declare-function`).
 
-`blueprint-roam.el` is a soft dependency loaded with
-`(require 'blueprint-roam nil t)` in `blueprint.el`.
+The entry point `blueprint.el` only wires the Transient menu and `require`s all modules; no logic lives there.
+
+`blueprint-roam.el` is a soft dependency loaded with `(require 'blueprint-roam nil t)` in `blueprint.el`.
 
 ### Data flow for a typical command
 
@@ -162,41 +87,34 @@ modules; no logic lives there.
 
 ### Template system (three-tier resolution)
 
-| Priority | Path                             | Purpose                 |
-| -------- | -------------------------------- | ----------------------- |
-| 1        | `.blueprint/templates/`          | Project-local overrides |
-| 2        | `~/.config/blueprint/templates/` | User defaults           |
-| 3        | `templates/` in package dir      | System fallback         |
+| Priority | Path                                                                           | Purpose                 |
+| -------- | ------------------------------------------------------------------------------ | ----------------------- |
+| 1        | `.blueprint/templates/`                                                        | Project-local overrides |
+| 2        | `~/.config/blueprint/templates/<lang>/`, then the directory itself for Italian | User defaults           |
+| 3        | `templates/<lang>/` in package dir                                             | System fallback         |
 
-Template files: `component.org`, `arc42-enterprise.org` (component.org plus
-the enterprise sections, chosen with `C-u` on `blueprint-add-component`),
-`adr.org`, `master.org`, `functional.org`,
-`infrastructure.org`, `glossary.org`, `references.org`,
-`enterprise-context.org`, `enterprise-dependencies.org`, `nfr-quality.org`,
-`nfr-constraints.org`, `nfr-risks.org`.
+`<lang>` is the document language of the project (`blueprint--project-language`). Use `blueprint--system-template-dir` and `blueprint--user-template-dirs`, never `blueprint-template-dir` directly: it is the root that holds the language folders.
 
-Placeholders: `{{NAME}}` (component name), `{{ID}}` (slugified, for directory
-names and PlantUML IDs), `{{PROJECT}}`, `{{AUTHOR}}`, `{{DATE}}`.
+Template files: `component.org`, `arc42-enterprise.org` (component.org plus the enterprise sections, chosen with `C-u` on `blueprint-add-component`), `adr.org`, `master.org`, `functional.org`, `infrastructure.org`, `glossary.org`, `references.org`, `enterprise-context.org`, `enterprise-dependencies.org`, `nfr-quality.org`, `nfr-constraints.org`, `nfr-risks.org`.
 
-**Template provisioning**: When `blueprint-init` is called interactively, it
-checks `~/.config/blueprint/templates/`. If any template is missing, it copies
-the system templates there and shows a prominent message listing every file
-written to the user's home. This ONLY happens interactively (not in batch/tests
-— uses `(called-interactively-p 'interactive)`).
+Placeholders: `{{NAME}}` (component name), `{{ID}}` (slugified, for directory names and PlantUML IDs), `{{PROJECT}}`, `{{AUTHOR}}`, `{{DATE}}`.
+
+**Template provisioning**: When `blueprint-init` is called interactively, it checks `~/.config/blueprint/templates/<lang>/` for the language of the new project. If any template is missing (and is not in the flat legacy directory, for Italian), it copies the system templates of that language there and shows a prominent message listing every file written to the user's home. This ONLY happens interactively (not in batch/tests — uses `(called-interactively-p 'interactive)`).
+
+### Document language (docs/adr/ADR-003-localized-templates.org)
+
+The language of the document belongs to the project: `#+BLUEPRINT_LANGUAGE:` in `.blueprint/blueprint-version.org`, written by `blueprint-init` from `blueprint-default-language` (default `en`). No keyword means Italian (`blueprint--legacy-language`): every project created before languages existed. `blueprint--project-language` reads it; `blueprint--language` overrides it (bound by `blueprint-init`).
+
+- A language is a folder: `templates/<lang>/` (templates), `templates/<lang>/snippets/` (skeletons inserted by the commands, `blueprint--snippet` + `blueprint--insert-aligned`, placeholders `{{X}}`), `templates/<lang>/strings.org` (short texts, `blueprint--l10n` / `blueprint--l10n-list`, looked up key by key: project, user, system, English). Languages are discovered from the folders (`blueprint--languages`). Never write a localized literal in a module: add a snippet or a key. The user interface (prompts, messages, buffers) is English and is not in the catalog.
+- Sections are found with `blueprint--section-find` (and `-goto-end`, `-ensure-end`, `-bounds`, `-append-row`) by section id: first the `:BLUEPRINT_SECTION:` property, then, ignoring case, the title the templates of the project language give that section (`blueprint--section-map`) or its 0.4.x title (`blueprint--legacy-section-titles`, a frozen list: documents written since have the property, so it never grows; ADR-003 option C), outside `:noexport:` and COMMENT subtrees. Never match a heading by its literal title. A section the code creates gets the title of the project language and the property (`blueprint--section-heading`). The sections the lint expects are a fixed list of ids in `blueprint-lint.el`.
+- Markers: the code writes `blueprint-marker-to-validate` / `blueprint-marker-to-review` and `[SOURCE: x]`; it reads with `blueprint--to-validate-regexp`, `blueprint--to-review-regexp`, `blueprint--source-regexp`, which also match the Italian forms.
+- Every language folder has the same files, the same `:BLUEPRINT_SECTION:` set per template, the same `strings.org` keys and the same placeholders per snippet (`blueprint-test-l10n/language-folders-match`, `.../every-language-has-the-same-templates`). Change every language. Regenerate `blueprint-template-history.el` after any change to a file of `templates/`.
 
 ### Key Org keywords
 
-`#+BLUEPRINT_DEPENDS: comp1 comp2` in a component's `arc42.org` is the sole
-mechanism for declaring inter-component dependencies. C4 diagram generation and
-the dependency graph both parse this keyword.
+`#+BLUEPRINT_DEPENDS: comp1 comp2` in a component's `arc42.org` is the sole mechanism for declaring inter-component dependencies. C4 diagram generation and the dependency graph both parse this keyword.
 
-`#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd` (default `in-scope` when
-absent or unrecognized, via `blueprint--component-scope-status` in
-`blueprint-c4.el`) marks a component's assessment perimeter status.
-`blueprint-lint` warns when an in-scope component depends on an
-out-of-scope one; the dashboard's Scope column and out-of-scope filter
-(`blueprint-out-of-scope-view`, or `O` inside the dashboard buffer) read
-the same keyword.
+`#+BLUEPRINT_STATUS: in-scope|out-of-scope|tbd` (default `in-scope` when absent or unrecognized, via `blueprint--component-scope-status` in `blueprint-c4.el`) marks a component's assessment perimeter status. `blueprint-lint` warns when an in-scope component depends on an out-of-scope one; the dashboard's Scope column and out-of-scope filter (`blueprint-out-of-scope-view`, or `O` inside the dashboard buffer) read the same keyword.
 
 ## Code conventions
 
@@ -206,75 +124,55 @@ the same keyword.
 - `defcustom` for all user-facing settings, group `blueprint`
 - Parse Org files with `org-element`, never with regex
 - Optional integrations: `(require 'feature nil t)`
-- New documentation and project files are Org (`.org`), e.g. ADRs in
-  `docs/adr/`, `CONTEXT.org`. The only Markdown exceptions are `AGENTS.md`
-  (required by the tools that read it) and `CLAUDE.md`, which imports it
+- New documentation and project files are Org (`.org`), e.g. ADRs in `docs/adr/`, `CONTEXT.org`. The only Markdown exceptions are `AGENTS.md` (required by the tools that read it) and `CLAUDE.md`, which imports it
 
 ### Other autoloaded modules
 
-`blueprint.el` also `require`s several single-purpose modules that still have
-no dedicated ERT suite and are not part of the test commands above:
+`blueprint.el` also `require`s several single-purpose modules that still have no dedicated ERT suite and are not part of the test commands above:
 
 - `blueprint-daily.el` — one-key daily triage (dashboard -> focus -> component -> document)
 - `blueprint-search.el` — project-wide search via ripgrep, with a fallback
 - `blueprint-wizard.el` — interactive onboarding/component-creation wizards
 - `blueprint-async.el` — background processing for long-running ops (export, tangle)
 
-Treat diffs touching these as untested until a suite is added.
-`blueprint-dashboard.el`, `blueprint-migrate.el`, `blueprint-watch.el`, and
-`blueprint-capture.el` (one regression test, not full coverage) are covered
-(see the Test structure table below). `blueprint-daily.el` has a few tests in
-`test/blueprint-test-dashboard.el` (daily candidates and document choice,
-loaded through `require`); `blueprint-graph.el` has node-color tests there and
-the pure cluster logic in `test/blueprint-test-roam.el` (the Graphviz/PlantUML
-file output is still untested). The modules added with the 2026-11 roadmap
-have their own suites: `blueprint-history.el`, `blueprint-agenda.el`,
-`blueprint-changelog.el` (git + ADRs), `blueprint-diff.el` (semantic component
-diff; always requests plain unified diffs with `--no-ext-diff`, because a
-`diff.external` in the user's git config would otherwise feed a format the
-summary cannot parse), `blueprint-preview.el` (live graph preview),
-`blueprint-upgrade.el` (project version, optional migrations, template
-status; `blueprint-template-history.el` is generated) and the
-JSON report in `blueprint-ci.el` (`blueprint-ci-export-json`, hash tables
-with string keys because an alist value that is a list is not serializable
-without ambiguity).
+Treat diffs touching these as untested until a suite is added. `blueprint-dashboard.el`, `blueprint-migrate.el`, `blueprint-watch.el`, and `blueprint-capture.el` (one regression test, not full coverage) are covered (see the Test structure table below). `blueprint-daily.el` has a few tests in `test/blueprint-test-dashboard.el` (daily candidates and document choice, loaded through `require`); `blueprint-graph.el` has node-color tests there and the pure cluster logic in `test/blueprint-test-roam.el` (the Graphviz/PlantUML file output is still untested). The modules added with the 2026-11 roadmap have their own suites: `blueprint-history.el`, `blueprint-agenda.el`, `blueprint-changelog.el` (git + ADRs), `blueprint-diff.el` (semantic component diff; always requests plain unified diffs with `--no-ext-diff`, because a `diff.external` in the user's git config would otherwise feed a format the summary cannot parse), `blueprint-preview.el` (live graph preview), `blueprint-upgrade.el` (project version, optional migrations, template status; `blueprint-template-history.el` is generated) and the JSON report in `blueprint-ci.el` (`blueprint-ci-export-json`, hash tables with string keys because an alist value that is a list is not serializable without ambiguity).
 
 ## Test structure
 
-Tests in `test/` usano ERT. Il macro `blueprint-test--with-project` crea una
-directory temporanea con struttura `.blueprint/` e la pulisce dopo ogni test.
+Tests in `test/` use ERT. The macro `blueprint-test--with-project` creates a temporary directory with a `.blueprint/` structure and removes it after each test. The project has no version file, so it is Italian; the helpers also set `blueprint-default-language` to `"it"`, because the suites were written against the Italian templates. A test of another language declares it (`blueprint-test-l10n--with-project`).
 
-| File                           | Scope                                         |
-| ------------------------------ | --------------------------------------------- |
-| `blueprint-test-helpers.el`    | Macro e utility condivise                     |
-| `blueprint-test-core.el`       | Root, cache (incl. KIND keys), CRUD, navigation to the three documents, document files from master.org includes (nested, missing, cycles, non-exported), document rows |
-| `blueprint-test-health.el`     | Metriche e health score (solo il documento: master.org e inclusi) |
-| `blueprint-test-lint.el`       | Linter (incluso fix file mancante), lint di progetto su tutti i file inclusi, include mancanti |
-| `blueprint-test-c4.el`         | Keyword extraction, C4 gen                    |
-| `blueprint-test-adr.el`        | ADR numerazione e creazione                   |
-| `blueprint-test-sync.el`       | Master sync e marker                          |
-| `blueprint-test-content.el`    | Glossario, riferimenti, domande (anche da functional/infrastructure) |
-| `blueprint-test-risks.el`      | Pattern matching (solo testo esportato dei documenti inclusi) e check strutturali |
-| `blueprint-test-ai.el`         | Sanitizzazione e clamping (no Ollama)         |
-| `blueprint-test-functional.el` | Area/feature/entità/integrazione incrementale |
-| `blueprint-test-runtime.el`    | Flussi runtime e diagrammi UC/sequenza        |
-| `blueprint-test-nfr.el`        | Quality scenarios, vincoli, registro rischi   |
-| `blueprint-test-delivery.el`   | Pre-delivery check e master sync, [FINDING] solo informativi, conteggi solo sui file inclusi |
-| `blueprint-test-dashboard.el`  | Entry, status, focus mode, colonne Owner/Tech, marker sommati su tutti i documenti, titoli delle colonne visibili, righe dei file non di componente, NOT-INCLUDED, colori del grafo, candidati del daily |
-| `blueprint-test-migrate.el`    | Template diff/migrazione non distruttiva, rename directory dati |
-| `blueprint-test-watch.el`      | Minor mode hook install/remove, invalidazione cache |
-| `blueprint-test-capture.el`    | Target del template org-capture glossario (regression, non full coverage) |
-| `blueprint-test-e2e.el`        | Lifecycle completo di un progetto             |
-| `blueprint-test-export.el`     | Titolo duplicato multi-file, config PlantUML headless, check stili ODT, didascalie dei diagrammi, note a piè di pagina in ODT (9.16) |
-| `blueprint-test-keys.el`       | Transient e command map con gli stessi tasti, tasti e comandi citati in USAGE.org/README.org reali (richiede `blueprint.el`) |
-| `blueprint-test-ci.el`         | Report JSON per CI (`blueprint--ci-report-object`, scrittura del file) |
-| `blueprint-test-history.el`    | Registro metriche: record, deduplica, parsing righe, grafico SVG, integrazione col sync |
-| `blueprint-test-agenda.el`     | Agenda org: voci TODO dai marker, ID stabili, preservazione di DEADLINE/stato al refresh |
-| `blueprint-test-changelog.el`  | Changelog: parsing git log, sezione ADR accettate, assemblaggio, conferma su file esistente, repo temporaneo reale |
-| `blueprint-test-diff.el`       | Diff semantico del componente: sintesi pura, delta marker, e2e con repository git temporaneo |
-| `blueprint-test-roam.el`       | Logica pura roam (cluster, similarità); i comandi con database sono skip senza org-roam |
-| `blueprint-test-preview.el`    | Preview dal vivo: hook, debounce, aggiornamento buffer, warning unico senza Graphviz |
-| `blueprint-test-upgrade.el`    | Versione di progetto, passi di migrazione (fixture per ogni formato storico), backup, controllo git, stato dei template, dashboard e CI |
+| File                           | Scope                                                                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `blueprint-test-helpers.el`    | Shared macros and utilities                                                                                                                                                                      |
+| `blueprint-test-core.el`       | Root, cache (incl. KIND keys), CRUD, navigation to the three documents, document files from master.org includes (nested, missing, cycles, non-exported), document rows                           |
+| `blueprint-test-health.el`     | Metrics and health score (document only: master.org and its includes)                                                                                                                            |
+| `blueprint-test-lint.el`       | Linter (incl. missing-file fix), project lint over every included file, missing includes                                                                                                         |
+| `blueprint-test-c4.el`         | Keyword extraction, C4 generation                                                                                                                                                                |
+| `blueprint-test-adr.el`        | ADR numbering and creation                                                                                                                                                                       |
+| `blueprint-test-sync.el`       | Master sync and markers                                                                                                                                                                          |
+| `blueprint-test-content.el`    | Glossary, references, questions (also from functional/infrastructure)                                                                                                                            |
+| `blueprint-test-risks.el`      | Pattern matching (exported text of included documents only) and structural checks                                                                                                                |
+| `blueprint-test-ai.el`         | Sanitization and clamping (no Ollama)                                                                                                                                                            |
+| `blueprint-test-functional.el` | Incremental area/feature/entity/integration                                                                                                                                                      |
+| `blueprint-test-runtime.el`    | Runtime flows and UC/sequence diagrams                                                                                                                                                           |
+| `blueprint-test-nfr.el`        | Quality scenarios, constraints, risk register                                                                                                                                                    |
+| `blueprint-test-delivery.el`   | Pre-delivery check and master sync, [FINDING] informative only, counts on included files only                                                                                                    |
+| `blueprint-test-dashboard.el`  | Entry, status, focus mode, Owner/Tech columns, markers summed over every document, visible column titles, rows of non-component files, NOT-INCLUDED, graph colors, daily candidates              |
+| `blueprint-test-migrate.el`    | Non-destructive template diff/migration, data directory rename                                                                                                                                   |
+| `blueprint-test-watch.el`      | Minor mode hook install/remove, cache invalidation                                                                                                                                               |
+| `blueprint-test-capture.el`    | Target of the glossary org-capture template (regression, not full coverage)                                                                                                                      |
+| `blueprint-test-e2e.el`        | Full project lifecycle                                                                                                                                                                           |
+| `blueprint-test-export.el`     | Duplicate title in multi-file export, headless PlantUML config, ODT style check, diagram captions, footnotes in ODT (9.16)                                                                       |
+| `blueprint-test-keys.el`       | Transient and command map with the same keys, keys and commands cited in the real USAGE.org/README.org (requires `blueprint.el`)                                                                 |
+| `blueprint-test-ci.el`         | JSON report for CI (`blueprint--ci-report-object`, file writing)                                                                                                                                 |
+| `blueprint-test-history.el`    | Metrics history: record, dedup, line parsing, SVG chart, sync integration                                                                                                                        |
+| `blueprint-test-agenda.el`     | Org agenda: TODO entries from markers, stable IDs, DEADLINE/state preserved on refresh                                                                                                           |
+| `blueprint-test-changelog.el`  | Changelog: git log parsing, accepted ADR section, assembly, confirmation on existing file, real temporary repository                                                                             |
+| `blueprint-test-diff.el`       | Semantic component diff: pure summary, marker deltas, e2e with a temporary git repository                                                                                                        |
+| `blueprint-test-roam.el`       | Pure roam logic (clusters, similarity); database commands skipped without org-roam                                                                                                               |
+| `blueprint-test-preview.el`    | Live preview: hook, debounce, buffer update, single warning without Graphviz                                                                                                                     |
+| `blueprint-test-l10n.el`       | Project language, init per language, sections by property or title, English commands, legacy markers, templates per language, provisioning, upgrade steps section-properties and english-markers |
+| `blueprint-test-upgrade.el`    | Project version, migration steps (a fixture for every historical format), backup, git check, template status, dashboard and CI                                                                   |
 
 ## Blueprint init: full project structure
 
@@ -298,12 +196,7 @@ references.org
 master.org                 # six-part assessment deliverable
 ```
 
-`.blueprint/blueprint-version.org` (Blueprint version of the layout and
-migrations applied, see `blueprint-upgrade.el`) is written by
-`blueprint-init` too, never overwritten by a re-run.  Generated later, in
-the data directory and never included in master.org: `adr.org`
-(`blueprint-adr-new`), `metrics-history.org` (every `blueprint-sync`),
-`agenda.org` (`blueprint-agenda-refresh`), `notes.org` (org-capture).
+`.blueprint/blueprint-version.org` (Blueprint version of the layout and migrations applied, see `blueprint-upgrade.el`) is written by `blueprint-init` too, never overwritten by a re-run. Generated later, in the data directory and never included in master.org: `adr.org` (`blueprint-adr-new`), `metrics-history.org` (every `blueprint-sync`), `agenda.org` (`blueprint-agenda-refresh`), `notes.org` (org-capture).
 
 `blueprint-add-component` creates three files per component:
 
@@ -311,13 +204,11 @@ the data directory and never included in master.org: `adr.org`
 - `functional.org` — technology-agnostic functional spec
 - `infrastructure.org` — infrastructure census
 
-Only `arc42.org` is required; the other two are created only when their
-templates exist (graceful degradation).
+Only `arc42.org` is required; the other two are created only when their templates exist (graceful degradation).
 
 ## Master sync: three sections
 
-`blueprint-sync` manages three independent `#+INCLUDE:` sections in
-`master.org`:
+`blueprint-sync` manages three independent `#+INCLUDE:` sections in `master.org`:
 
 | Marker pair                                           | File synced          |
 | ----------------------------------------------------- | -------------------- |
@@ -325,346 +216,90 @@ templates exist (graceful degradation).
 | `@@blueprint-sync-functional-start@@` / `-end@@`      | `functional.org`     |
 | `@@blueprint-sync-infra-start@@` / `-end@@`           | `infrastructure.org` |
 
-Missing marker pairs are silently skipped (backward compatible).
-`blueprint--generate-includes-for` only emits includes for components that
-actually have the file (prevents spurious includes for partially migrated
-projects).
+Missing marker pairs are silently skipped (backward compatible). `blueprint--generate-includes-for` only emits includes for components that actually have the file (prevents spurious includes for partially migrated projects).
 
 ## ODT styles check
 
-`blueprint-check-odt-styles` (`blueprint-export.el`) exports master.org to
-ODT, then diffs every style `content.xml` references against what
-`#+ODT_STYLES_FILE:` (styles.xml) and content.xml's own automatic-styles
-define. Only a style also present in the bundled `OrgOdtStyles.xml`
-(`org-odt-styles-dir`) is reported, to avoid false positives from
-references that have no explicit definition even in a stock export (e.g.
-`Sect1`, part of Org's own table-of-contents scaffolding). The pure
-computation lives in `blueprint--check-odt-styles-missing` (no
-message/buffer/`kill-emacs`); `blueprint-check-odt-styles` (interactive
-buffer) and `blueprint-ci-check-odt-styles` (`blueprint-ci.el`, batch exit
-code) both build on it, the same split as `blueprint--lint-component` vs.
-`blueprint-lint`/`blueprint-ci-lint`. Requires `unzip`. Not part of
-`blueprint-ci-validate`: opt-in, since it needs a real ODT export and only
-applies to a project with a corporate `#+ODT_STYLES_FILE:`.
+`blueprint-check-odt-styles` (`blueprint-export.el`) exports master.org to ODT, then diffs every style `content.xml` references against what `#+ODT_STYLES_FILE:` (styles.xml) and content.xml's own automatic-styles define. Only a style also present in the bundled `OrgOdtStyles.xml` (`org-odt-styles-dir`) is reported, to avoid false positives from references that have no explicit definition even in a stock export (e.g. `Sect1`, part of Org's own table-of-contents scaffolding). The pure computation lives in `blueprint--check-odt-styles-missing` (no message/buffer/`kill-emacs`); `blueprint-check-odt-styles` (interactive buffer) and `blueprint-ci-check-odt-styles` (`blueprint-ci.el`, batch exit code) both build on it, the same split as `blueprint--lint-component` vs. `blueprint-lint`/`blueprint-ci-lint`. Requires `unzip`. Not part of `blueprint-ci-validate`: opt-in, since it needs a real ODT export and only applies to a project with a corporate `#+ODT_STYLES_FILE:`.
 
 ## Assessment methodology
 
 Templates follow the method in `docs/method/method.org`:
 
-- **Information source hierarchy**: code > tests > logs > monitoring >
-  interviews > docs
-- **Marking conventions** (Italian, used in templates):
-  - `[DA VALIDARE]` — information not yet confirmed
+- **Information source hierarchy**: code > tests > logs > monitoring > interviews > docs
+- **Marking conventions** (English in every language; the Italian forms of 0.4.x documents are still read):
+  - `[TO VALIDATE]` (`[DA VALIDARE]`) — information not yet confirmed
+  - `[TO REVIEW]` (`[DA REVISIONARE]`) — produced automatically, not reviewed
   - `[FINDING]` — confirmed observation
-  - `[APPROVATO YYYY-MM-DD]` — stakeholder-approved
-  - `[FONTE: X]` — information source attribution
-- **Master document structure** (six parts, Italian):
-  - Parte 0 — Premesse (methodology, sources, conventions)
-  - Parte I — Architettura enterprise (context, dependencies)
-  - Parte II — Architettura per componente (arc42, auto-synced)
-  - Parte III — Specifiche funzionali (functional, auto-synced)
-  - Parte IV — Censimento infrastrutturale (infra, auto-synced)
-  - Parte V — Requisiti non funzionali e rischi (NFR, quality)
+  - `[APPROVED YYYY-MM-DD]` (`[APPROVATO ...]`) — stakeholder-approved
+  - `[SOURCE: X]` (`[FONTE: X]`) — information source attribution
+- **Master document structure** (six parts; Italian names in an Italian document):
+  - Part 0 — Preliminaries (methodology, sources, conventions)
+  - Part I — Enterprise architecture (context, dependencies)
+  - Part II — Architecture by component (arc42, auto-synced)
+  - Part III — Functional specifications (functional, auto-synced)
+  - Part IV — Infrastructure census (infra, auto-synced)
+  - Part V — Non-functional requirements and constraints (NFR, quality)
 
-## Bug noti e fix
+## Known bugs and fixes
 
-- **`blueprint-core.el` — `blueprint-add-component` sovrascriveva un
-  componente esistente in silenzio**: `(make-directory dir t)` non segnala
-  errore se `dir` esiste già (il flag `PARENTS` sopprime quel controllo).
-  Aggiungere un componente il cui id slugificato collide con uno esistente
-  (stesso nome digitato due volte, o due nomi che slugificano allo stesso
-  id, es. "Order Service" e "order-service") sovrascriveva quindi
-  arc42.org/functional.org/infrastructure.org tornando al template vuoto
-  — nessun errore, nessuna conferma, nessun modo di recuperare il
-  contenuto perso. **Fix**: `user-error` se l'id esiste già in
-  `blueprint--components`, prima di creare qualunque file. Test di
-  regressione: `blueprint-test-add-component/duplicate-name-errors`,
-  `blueprint-test-add-component/slugify-collision-errors`.
+Defects already fixed, kept because each one explains a constraint the code still respects.
 
-- **Lock file di Emacs nelle scansioni ricorsive**: `.#file.org` (symlink
-  pendente creato mentre `file.org` ha modifiche non salvate) passava il
-  filtro `"\\.org\\'"`; `blueprint-list-findings`/`blueprint-list-unvalidated`
-  fallivano con `file-missing`. **Fix**: `blueprint--org-file-regexp`
-  (`blueprint-core.el`) in health, async e migrate. Test di regressione:
-  `blueprint-test-list-findings/ignores-lock-files`.
+- **`blueprint-core.el`: `blueprint-add-component` silently overwrote an existing component.** `(make-directory dir t)` signals no error when `dir` exists (the `PARENTS` flag suppresses that check). Adding a component whose slugified id collided with an existing one (the same name typed twice, or two names with the same slug, e.g. "Order Service" and "order-service") overwrote arc42.org/functional.org/infrastructure.org with the empty template: no error, no confirmation, no way to recover the lost content. **Fix**: `user-error` if the id already exists in `blueprint--components`, before any file is created. Regression tests: `blueprint-test-add-component/duplicate-name-errors`, `blueprint-test-add-component/slugify-collision-errors`.
 
-- **`blueprint-lint.el`**: `blueprint--lint-component` restituiva lista vuota
-  quando `file` era nil o mancante (il `(list ...)` nella branch `then`
-  dell'`if` veniva scartato; `(nreverse warnings)` era sempre l'ultima
-  espressione). **Fix**: struttura `if` riscritta con l'intera logica nella
-  branch `else`.
+- **Emacs lock files in recursive scans**: `.#file.org` (a dangling symlink created while `file.org` has unsaved changes) passed the `"\\.org\\'"` filter; `blueprint-list-findings`/`blueprint-list-unvalidated` failed with `file-missing`. **Fix**: `blueprint--org-file-regexp` (`blueprint-core.el`) in health, async and migrate. Regression test: `blueprint-test-list-findings/ignores-lock-files`.
 
-- **`BLUEPRINT_DEPENDS` regex**: `\\s-*` in Elisp include i newline (tramite la
-  syntax class whitespace). In `"^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)"` il
-  pattern poteva catturare testo dalla riga successiva (es. `"* Introduction"`),
-  causando falsi positivi nel controllo dipendenze isolate. **Fix**: sostituito
-  con `[[:blank:]]*` (solo spazi/tab orizzontali) in `blueprint-risks.el`,
-  `blueprint-dashboard.el`, `blueprint-ci.el`, `blueprint-lint.el`.
-  **Fix incompleto, poi sostituito**: `blueprint--org-keyword` (c4) aveva
-  ancora `\\s-*` (un `#+BLUEPRINT_DEPENDS:` vuoto restituiva
-  `"#+BLUEPRINT_OWNER:"`, finito come dipendenza nel C4 e come Owner nella
-  dashboard), e la versione `[[:blank:]]*` saltava la riga vuota e
-  catturava l'esempio `#+BLUEPRINT_DEPENDS: order-service
-  notification-service` dentro il `#+BEGIN_SRC org` della guida
-  `:noexport:` del template: ogni componente nuovo "dipendeva" da due
-  componenti inesistenti e `blueprint-ci-validate` falliva su ogni
-  progetto nuovo. **Fix definitivo**: `blueprint--org-keyword` spostata in
-  `blueprint-core.el` e riscritta con `org-element` (valore vuoto = nil,
-  keyword dentro blocchi ignorate); lint, ci, dashboard e risks la usano
-  al posto delle regex. Test di regressione:
-  `blueprint-test-org-keyword/empty-does-not-read-next-line`,
-  `.../ignores-src-block-examples`, `.../fresh-component-has-no-deps`,
-  `blueprint-test-lint/fresh-template-component-no-dangling-dep`.
+- **`blueprint-lint.el`**: `blueprint--lint-component` returned an empty list when `file` was nil or missing (the `(list ...)` in the `then` branch of the `if` was discarded; `(nreverse warnings)` was always the last expression). **Fix**: `if` rewritten with the whole logic in the `else` branch.
 
-- **`blueprint-rename-component` corrompeva dipendenze con trattino**: la
-  sostituzione in `#+BLUEPRINT_DEPENDS:` usava `\\b%s\\b`, e `\\b` considera
-  `-` un confine di parola: rinominare `auth` in `identity` trasformava
-  `auth-db` in `identity-db` (componente inesistente); riscriveva anche le
-  righe d'esempio nei blocchi src. **Fix**: `blueprint--rename-dependency`
-  confronta token interi separati da spazi, su keyword trovate via
-  `org-element`. Test: `blueprint-test-rename-component/hyphenated-dep-untouched`,
-  `.../src-block-example-untouched`.
+- **`BLUEPRINT_DEPENDS` regex**: in Elisp `\\s-*` includes newlines (through the whitespace syntax class). In `"^#\\+BLUEPRINT_DEPENDS:\\s-*\\(.*\\S-\\)"` the pattern could capture text from the next line (e.g. `"* Introduction"`), causing false positives in the isolated-dependency check. **Fix**: replaced by `[[:blank:]]*` (horizontal spaces/tabs only) in `blueprint-risks.el`, `blueprint-dashboard.el`, `blueprint-ci.el`, `blueprint-lint.el`. **Incomplete fix, later replaced**: `blueprint--org-keyword` (c4) still had `\\s-*` (an empty `#+BLUEPRINT_DEPENDS:` returned `"#+BLUEPRINT_OWNER:"`, which ended up as a dependency in the C4 and as Owner in the dashboard), and the `[[:blank:]]*` version skipped the empty line and captured the example `#+BLUEPRINT_DEPENDS: order-service notification-service` inside the `#+BEGIN_SRC org` of the template's `:noexport:` guide: every new component "depended" on two nonexistent components and `blueprint-ci-validate` failed on every new project. **Final fix**: `blueprint--org-keyword` moved to `blueprint-core.el` and rewritten with `org-element` (empty value = nil, keywords inside blocks ignored); lint, ci, dashboard and risks use it instead of regexes. Regression tests: `blueprint-test-org-keyword/empty-does-not-read-next-line`, `.../ignores-src-block-examples`, `.../fresh-component-has-no-deps`, `blueprint-test-lint/fresh-template-component-no-dangling-dep`.
 
-- **`test/blueprint-test-e2e.el`**: parentesi sbilanciata nell'`ert-deftest`
-  `multi-component-c4` — mancava un `)` finale. **Fix**: aggiunto `)` alla fine
-  della riga 143.
+- **`blueprint-rename-component` corrupted hyphenated dependencies**: the substitution in `#+BLUEPRINT_DEPENDS:` used `\\b%s\\b`, and `\\b` treats `-` as a word boundary: renaming `auth` to `identity` turned `auth-db` into `identity-db` (a nonexistent component); it also rewrote the example lines in src blocks. **Fix**: `blueprint--rename-dependency` compares whole space-separated tokens, on keywords found through `org-element`. Tests: `blueprint-test-rename-component/hyphenated-dep-untouched`, `.../src-block-example-untouched`.
 
-- **ADR — modello single-file**: gli ADR sono ora in un unico file
-  `adr.org` nella data directory (`.blueprint/adr.org`, via
-  `blueprint--data-path`; la directory `adr/` creata da `blueprint-init`
-  resta vuota). Ogni ADR è un heading di livello 1 con formato
-  `* ADR 0001: Titolo` e status nel `:PROPERTIES:` drawer
-  (`:STATUS: proposed|accepted|deprecated|superseded`).
-  `blueprint--adr-next-number` scansiona i heading in `adr.org` anziché contare
-  file. `blueprint-adr-list` usa `org-element-property :STATUS` dal drawer. Il
-  vecchio modello (un file per ADR) è stato rimosso completamente.
+- **`test/blueprint-test-e2e.el`**: unbalanced parenthesis in the `ert-deftest` `multi-component-c4`, a final `)` was missing. **Fix**: `)` added at the end of line 143.
 
-- **`blueprint-sync.el` — `blueprint--sync-section`**: la ricerca del
-  `end-marker` partiva da `(point-min)` invece che dalla posizione corrente
-  (dopo il `start-marker`). Se il `end-marker` appariva nel buffer prima del
-  `start-marker` (file malformato o marker duplicato), `delete-region` riceveva
-  gli argomenti invertiti (`start > end`) e segnalava un errore. **Fix**:
-  rimosso `(goto-char (point-min))` prima della ricerca del `end-marker`; la
-  ricerca parte ora dalla posizione già avanzata dopo il `start-marker`. Test di
-  regressione: `blueprint-test-sync/sync-section-end-must-follow-start`.
+- **ADR, single-file model**: ADRs live in one file, `adr.org` in the data directory (`.blueprint/adr.org`, through `blueprint--data-path`; the `adr/` directory created by `blueprint-init` stays empty). Each ADR is a level-1 heading `* ADR 0001: Title` with the status in the `:PROPERTIES:` drawer (`:STATUS: proposed|accepted|deprecated|superseded`). `blueprint--adr-next-number` scans the headings of `adr.org` instead of counting files. `blueprint-adr-list` reads `org-element-property :STATUS` from the drawer. The old one-file-per-ADR model is still read (ADR-002) and the upgrade offers its migration.
 
-- **`blueprint-export.el` — titolo duplicato nell'export multi-file**:
-  `#+TITLE` ha comportamento `parse` in `org-export-options-alist` (concatena
-  valori multipli). Ogni file satellite incluso in `master.org` via
-  `#+INCLUDE` porta il proprio `#+TITLE` (per essere leggibile standalone), e
-  org lo mantiene nel buffer espanso: il titolo del documento esportato
-  diventava la concatenazione di tutti i titoli inclusi. **Fix**: nuova
-  `blueprint--strip-duplicate-titles` agganciata a
-  `org-export-before-parsing-functions` al caricamento del pacchetto — rimuove
-  ogni `#+TITLE` tranne il primo dopo l'espansione degli `#+INCLUDE` e prima
-  che org raccolga le keyword del documento. Essendo una variabile hook
-  globale, vale anche per l'export ODT nativo di org (che
-  `blueprint-export.el` non gestisce direttamente). Implementata con
-  `org-element` (non regex): individua solo i nodi keyword reali, per non
-  toccare un `#+TITLE:` mostrato come testo di esempio dentro un blocco
-  `example`/`src` (pattern comune nei file org tutorial-style, verificato su
-  un config.org reale con blocchi `EXAMPLE`). Test di regressione:
-  `test/blueprint-test-export.el`.
+- **`blueprint-sync.el`, `blueprint--sync-section`**: the search for the `end-marker` started from `(point-min)` instead of the current position (after the `start-marker`). If the `end-marker` appeared before the `start-marker` (malformed file or duplicated marker), `delete-region` got inverted arguments (`start > end`) and signaled an error. **Fix**: removed the `(goto-char (point-min))` before the `end-marker` search; it now starts from the position already past the `start-marker`. Regression test: `blueprint-test-sync/sync-section-end-must-follow-start`.
 
-- **`blueprint-health.el` — `blueprint--display-marker-list`**:
-  `(blueprint--root)` veniva chiamato dentro
-  `(with-current-buffer (get-buffer-create bufname) ...)`. Se il buffer esisteva
-  già da un test precedente (con `default-directory` di un progetto temporaneo
-  già eliminato), `blueprint--root` non trovava `.blueprint/` e la funzione
-  falliva. **Fix**: `root` catturato fuori da `with-current-buffer`, prima dello
-  switch di buffer. Sintomo: `blueprint-test-list-findings/finds-marker` passava
-  in isolamento ma falliva in suite completa.
+- **`blueprint-export.el`, duplicate title in the multi-file export**: `#+TITLE` has `parse` behavior in `org-export-options-alist` (multiple values are concatenated). Every satellite file included in `master.org` through `#+INCLUDE` carries its own `#+TITLE` (to be readable standalone), and Org keeps it in the expanded buffer: the title of the exported document became the concatenation of all the included titles. **Fix**: `blueprint--strip-duplicate-titles`, hooked on `org-export-before-parsing-functions` when the package loads, removes every `#+TITLE` but the first after the `#+INCLUDE` expansion and before Org collects the document keywords. Being a global hook variable, it also applies to Org's native ODT export (which `blueprint-export.el` does not drive directly). Implemented with `org-element` (no regex): it only touches real keyword nodes, so a `#+TITLE:` shown as example text inside an `example`/`src` block is left alone (a common pattern in tutorial-style Org files, verified on a real config.org with `EXAMPLE` blocks). Regression test: `test/blueprint-test-export.el`.
 
-- **`blueprint-questions.el` — riga vuota persa prima dell'heading successivo**:
-  `blueprint-add-question` inserisce la nuova QUESTION alla posizione
-  dell'heading successivo (`next-heading`, trovato via
-  `re-search-forward "^\\* "`), consumando così la riga vuota che separava la
-  sezione "Open Questions" dall'heading successivo. Il presunto bug collegato
-  a heading con TODO keyword/tag (`:raw-value` non gestirebbe questi casi) è
-  stato verificato come infondato: `:raw-value` esclude già correttamente sia
-  il TODO keyword sia i tag. **Fix**: dopo l'insert, se il carattere
-  immediatamente successivo è `*` (nessuna riga vuota residua), viene
-  reinserita. Test di regressione:
-  `blueprint-test-questions/preserves-blank-line-before-next-heading`.
+- **`blueprint-health.el`, `blueprint--display-marker-list`**: `(blueprint--root)` was called inside `(with-current-buffer (get-buffer-create bufname) ...)`. If the buffer already existed from a previous test (with the `default-directory` of an already deleted temporary project), `blueprint--root` did not find `.blueprint/` and the function failed. **Fix**: `root` captured outside `with-current-buffer`, before switching buffer. Symptom: `blueprint-test-list-findings/finds-marker` passed alone but failed in the full suite.
 
-- **`blueprint-export.el` — diagrammi PlantUML persi in silenzio nell'export
-  headless**: `emacs -Q --batch` (necessario per CI/riproducibilità) parte
-  con `org-confirm-babel-evaluate` a `t` e `org-plantuml-exec-mode` a
-  `'jar`; senza disattivare il primo e passare il secondo all'eseguibile,
-  ogni blocco `#+begin_src plantuml` viene esportato come listato di
-  codice al posto dell'immagine, senza errori né warning — funziona solo
-  per caso in sessione interattiva perché l'`init.el` dell'utente già
-  imposta questi valori. **Fix**: macro `blueprint--with-plantuml-export`,
-  usata da tutte e quattro le funzioni di export; `let`-binding (non
-  `setq`) e solo quando la variabile è ancora al default di libreria, così
-  non tocca mai una configurazione utente già presente. `ob-plantuml` va
-  richiesto a livello di file, non dentro la macro: altrimenti
-  `org-plantuml-exec-mode` non è ancora dichiarata "special" quando il
-  primo `let` la binda, e si ottiene `void-variable` o
-  `"Defining as dynamic an already lexical var"` a runtime. Test di
-  regressione: `blueprint-test-export/plantuml-export-*`.
+- **`blueprint-questions.el`, blank line lost before the next heading**: `blueprint-add-question` inserts the new QUESTION at the position of the next heading (`next-heading`, found through `re-search-forward "^\\* "`), consuming the blank line that separated the "Open Questions" section from the next heading. The supposed related bug with headings carrying a TODO keyword or tags (`:raw-value` would not handle them) was verified as unfounded: `:raw-value` already excludes both. **Fix**: after the insert, if the next character is `*` (no blank line left), the blank line is reinserted. Regression test: `blueprint-test-questions/preserves-blank-line-before-next-heading`.
 
-- **`blueprint-export.el` — didascalie dei diagrammi perse nell'export**:
-  Babel sostituisce un blocco `:exports results` (default di
-  ob-plantuml) con il suo `#+RESULTS:` e cancella le keyword affiliate
-  del blocco, `#+CAPTION:` compreso. Nessun hook di export cade fra
-  l'espansione degli `#+INCLUDE:` e Babel. **Fix**:
-  `blueprint--move-result-captions`, advice `:around` su
-  `org-babel-exp-process-buffer`: prima di Babel una riga-sentinella dopo
-  i risultati (o dopo il blocco, se non ne ha), dopo Babel
-  `#+CAPTION:`/`#+NAME:`/`#+ATTR_*:` sul paragrafo `#+RESULTS:` che
-  precede la sentinella. Copre anche i blocchi valutati per la prima volta
-  durante l'export. Test: `blueprint-test-export/caption-*`,
-  `.../odt-caption-reaches-content-xml`.
+- **`blueprint-export.el`, PlantUML diagrams silently lost in the headless export**: `emacs -Q --batch` (needed for CI and reproducibility) starts with `org-confirm-babel-evaluate` set to `t` and `org-plantuml-exec-mode` set to `'jar`; without disabling the first and switching the second to the executable, every `#+begin_src plantuml` block is exported as a code listing instead of the image, with no error or warning. It works by chance in an interactive session, because the user's `init.el` already sets those values. **Fix**: macro `blueprint--with-plantuml-export`, used by all four export functions; `let` binding (not `setq`) and only while the variable still has the library default, so it never touches a user configuration. `ob-plantuml` must be required at file level, not inside the macro: otherwise `org-plantuml-exec-mode` is not yet declared special when the first `let` binds it, and you get `void-variable` or `"Defining as dynamic an already lexical var"` at run time. Regression tests: `blueprint-test-export/plantuml-export-*`.
 
-- **`blueprint-sync.el` — riga vuota spuria a ogni sync**:
-  `blueprint--sync-section` inseriva `(insert "\n" content "\n")`, ma il punto
-  di inserimento (`(1+ start)`) è già a inizio riga subito dopo lo
-  start-marker: il `\n` iniziale produceva quindi una riga vuota extra fra
-  marker e contenuto sincronizzato a ogni chiamata di `blueprint-sync`.
-  **Fix**: rimosso il `\n` iniziale ridondante. Test di regressione:
-  `blueprint-test-sync/sync-section-no-spurious-blank-line`.
+- **`blueprint-export.el`, diagram captions lost in the export**: Babel replaces a `:exports results` block (the ob-plantuml default) with its `#+RESULTS:` and deletes the block's affiliated keywords, `#+CAPTION:` included. No export hook falls between the `#+INCLUDE:` expansion and Babel. **Fix**: `blueprint--move-result-captions`, an `:around` advice on `org-babel-exp-process-buffer`: before Babel, a sentinel line after the results (or after the block, if it has none); after Babel, `#+CAPTION:`/`#+NAME:`/`#+ATTR_*:` go on the `#+RESULTS:` paragraph that precedes the sentinel. It also covers blocks evaluated for the first time during the export. Tests: `blueprint-test-export/caption-*`, `.../odt-caption-reaches-content-xml`.
 
-- **`templates/nfr-risks.org` — riga placeholder**: il template conteneva
-  `| R-001 | |...|` come esempio, causando `blueprint--nfr-next-risk-id` →
-  `R-002` invece di `R-001` dopo `blueprint-init`. **Fix**: esempio spostato in
-  sezione `* Guida… :noexport:` separata; la tabella reale parte vuota. Pattern
-  applicato a tutti i template.
+- **`blueprint-sync.el`, spurious blank line at every sync**: `blueprint--sync-section` did `(insert "\n" content "\n")`, but the insertion point (`(1+ start)`) is already at the start of the line right after the start marker: the leading `\n` added an extra blank line between marker and synced content at every `blueprint-sync`. **Fix**: removed the redundant leading `\n`. Regression test: `blueprint-test-sync/sync-section-no-spurious-blank-line`.
 
-- **Template `:noexport:` pattern**: tutti i template ora contengono una sezione
-  `* Guida alla compilazione :noexport:` con dati realistici (progetto fittizio
-  "PiattaformaPagamenti"). Le sezioni `:noexport:` sono visibili in Emacs e
-  nella revisione del file Org grezzo, ma escluse dall'export HTML/PDF. Il
-  codice non le raggiunge mai perché cerca heading specifici (es.
-  `"* Registro dei rischi"`) che vengono dopo la guida.
+- **`templates/nfr-risks.org`, placeholder row**: the template had `| R-001 | |...|` as an example, so `blueprint--nfr-next-risk-id` returned `R-002` instead of `R-001` after `blueprint-init`. **Fix**: example moved to a separate `:noexport:` guide section; the real table starts empty. Pattern applied to every template.
 
-- **`blueprint-health.el` — gauge SVG mai visibile in Emacs**:
-  `blueprint-health-svg` apriva `health.svg` con `find-file`, cioè in
-  `image-mode`. Con Emacs compilato con ImageMagick,
-  `image--imagemagick-wanted-p` passa ogni file a ImageMagick (salvo le
-  estensioni in `imagemagick-types-inhibit`), e la security policy di
-  ImageMagick di molte distribuzioni vieta SVG: restava un riquadro vuoto.
-  Il file inoltre non dichiarava `xmlns` (browser e LibreOffice non lo
-  riconoscono come SVG) e aveva sfondo trasparente con tratti neri
-  (invisibili con un tema scuro). **Fix**: il file si scrive ancora, ma si
-  mostra nel buffer `*Blueprint Health*` con `create-image` di tipo `svg`
-  (librsvg nativo); `blueprint--health-svg-string` produce un documento con
-  namespace e sfondo bianco. Verificato con screenshot sotto Xvfb (per una
-  build PGTK serve `env -u WAYLAND_DISPLAY GDK_BACKEND=x11 DISPLAY=:N`,
-  altrimenti la finestra si apre sulla sessione Wayland). Test:
-  `blueprint-test-health-svg/*`.
+- **Template `:noexport:` pattern**: every template has a `:noexport:` compilation guide with realistic data (invented project "PiattaformaPagamenti"). `:noexport:` sections are visible in Emacs and when reviewing the raw Org file, but excluded from the HTML/PDF export. The code never reaches them, because it looks for specific sections (e.g. the risk register) that come after the guide.
 
-- **Copie in sola lettura da un'installazione read-only (CI rossa da
-  settembre)**: `copy-file` conserva i permessi della sorgente. Con Org o
-  Blueprint installati in uno store in sola lettura (in CI
-  `purcell/setup-emacs` usa Nix, file 0444) le copie restavano 0444:
-  `blueprint-test--odt-styles-copy` apriva `styles.xml` in un buffer
-  read-only e il test `odt-styles-check-detects-missing-style` falliva su
-  tutte le versioni (in locale passava, file 0644). Lo stesso colpiva il
-  pacchetto: `blueprint--provision-user-templates` e
-  `blueprint-template-migrate` producevano template "modificabili" non
-  scrivibili. **Fix**: `blueprint--copy-file-writable` (`blueprint-core.el`)
-  aggiunge il bit di scrittura del proprietario dopo la copia; il fixture
-  di test scrive il file da un buffer. La matrice CI ora ha
-  `fail-fast: false`, perché un fallimento su una versione cancellava le
-  altre. Per provare in locale Emacs 29:
-  `docker run --rm -v "$PWD":/src:ro silex/emacs:29.1 ...`. Test:
-  `blueprint-test-migrate/copies-are-writable-from-read-only-source`,
-  `.../provisioned-user-templates-writable`.
+- **`blueprint-health.el`, SVG gauge never visible in Emacs**: `blueprint-health-svg` opened `health.svg` with `find-file`, i.e. in `image-mode`. With Emacs built with ImageMagick, `image--imagemagick-wanted-p` hands every file to ImageMagick (except the extensions in `imagemagick-types-inhibit`), and the ImageMagick security policy of many distributions forbids SVG: an empty box was left. The file also did not declare `xmlns` (browsers and LibreOffice do not recognize it as SVG) and had a transparent background with black strokes (invisible with a dark theme). **Fix**: the file is still written, but shown in the `*Blueprint Health*` buffer with `create-image` of type `svg` (native librsvg); `blueprint--health-svg-string` produces a document with namespace and white background. Verified with a screenshot under Xvfb (a PGTK build needs `env -u WAYLAND_DISPLAY GDK_BACKEND=x11 DISPLAY=:N`, otherwise the window opens on the Wayland session). Tests: `blueprint-test-health-svg/*`.
 
-- **Template di componente senza scheletro**: `component.org`,
-  `functional.org` e `infrastructure.org` avevano, fuori dalla guida, prosa
-  segnaposto, tabelle vuote, diagrammi PlantUML d'esempio e un
-  `[DA VALIDARE]` per sezione: tutto testo esportato, per cui il lint non
-  segnalava mai un componente mai compilato. Ora il corpo contiene solo
-  heading e ancore `<<{{ID}}-...>>`; descrizioni delle sezioni e modelli
-  (tabelle, diagrammi) stanno nella guida `:noexport:`. I blocchi PlantUML
-  della guida hanno `:eval never`: Babel valuta anche i blocchi dei
-  sottoalberi `:noexport:` (verificato: senza, ogni export genera gli svg).
-  Il lint non conta come contenuto le righe con sola ancora. Non toccati:
-  gli altri template (master, enterprise, nfr, glossary, references, adr) e
-  lo scheletro che i comandi `blueprint-functional-add-*` /
-  `blueprint-runtime-add-*` inseriscono per le sezioni che creano.
+- **Read-only copies from a read-only installation (CI red since September)**: `copy-file` keeps the permissions of the source. With Org or Blueprint installed in a read-only store (in CI `purcell/setup-emacs` uses Nix, files 0444) the copies stayed 0444: `blueprint-test--odt-styles-copy` opened `styles.xml` in a read-only buffer and `odt-styles-check-detects-missing-style` failed on every version (it passed locally, files 0644). The same hit the package: `blueprint--provision-user-templates` and `blueprint-template-migrate` produced "editable" templates that could not be written. **Fix**: `blueprint--copy-file-writable` (`blueprint-core.el`) adds the owner write bit after the copy; the test fixture writes the file from a buffer. The CI matrix now has `fail-fast: false`, because a failure on one version cancelled the others. To try Emacs 29 locally: `docker run --rm -v "$PWD":/src:ro silex/emacs:29.1 ...`. Tests: `blueprint-test-migrate/copies-are-writable-from-read-only-source`, `.../provisioned-user-templates-writable`.
 
-- **Revisione della 0.3.0 (CI rossa e difetti dei moduli nuovi)**: il
-  byte-compile falliva perché `blueprint-sync.el` leggeva
-  `blueprint-history-on-sync` con un `require` soft (variabile void se
-  `blueprint-history` non era caricato) e `blueprint-roam.el` chiamava
-  `blueprint--dependency-clusters` senza `require 'blueprint-graph`;
-  ora sono `require` normali (nessun ciclo: history -> health -> core).
-  Il test `blueprint-test-preview/update-refreshes-preview-buffer`
-  richiede `dot`: il workflow installa Graphviz e il test ha
-  `skip-unless`. Altri difetti corretti, con test di regressione:
-  `;;;###autoload` spostato per errore sul `defconst` dei template
-  (`blueprint-add-component` non più autoload); `:ORIGIN:` dell'agenda
-  relativo alla root ma scritto in un file della data directory (link
-  rotto) e ID basati sul path assoluto; il changelog elencava l'ADR
-  d'esempio `:noexport:` del template; `json-serialize` scrive `nil`
-  come `{}` (usare `:null`/`:false`); in org-roam `links.source` è un
-  ID di nodo, non un file; il timer del preview risolveva la root dal
-  buffer corrente allo scatto; `blueprint-component-diff` senza
-  revisione ignorava le modifiche in stage e passava `""` a git;
-  `blueprint-roam-clusters` falliva alla seconda chiamata (buffer
-  read-only); il lint del ciclo di vita contava i FIXME del solo
-  arc42.org; lo stato delle domande veniva dal prefisso della riga e
-  non dal marker; `blueprint-glossary-add` su sezione vuota faceva
-  `goto-char nil`.
+- **Component templates without a skeleton**: `component.org`, `functional.org` and `infrastructure.org` had, outside the guide, placeholder prose, empty tables, example PlantUML diagrams and one `[DA VALIDARE]` per section: all exported text, so the lint never reported a component that was never filled in. Now the body has only headings and `<<{{ID}}-...>>` anchors; section descriptions and models (tables, diagrams) are in the `:noexport:` guide. The guide's PlantUML blocks have `:eval never`: Babel also evaluates blocks in `:noexport:` subtrees (verified: without it, every export generates the svgs). The lint does not count anchor-only lines as content. Not touched: the other templates (master, enterprise, nfr, glossary, references, adr) and the skeleton that the `blueprint-functional-add-*` / `blueprint-runtime-add-*` commands insert for the sections they create.
 
-- **Seconda passata sulla 0.3.0 (dichiarato ma non funzionante)**:
-  gli id dei componenti sono slug con trattini e un id DOT non quotato
-  ammette solo lettere, cifre e `_`: `dot` usciva con errore di sintassi e
-  dashboard SVG, preview e backend Graphviz non producevano nulla.
-  **Fix**: `blueprint--dot-id` (quota) e `blueprint--dot-render` (errore
-  se `dot` fallisce), in `blueprint-core.el`. `blueprint-agenda` usava
-  `org-agenda-list`, che mostra solo voci datate: ora è una vista a
-  blocchi agenda + `alltodo` con `org-agenda-files` nelle impostazioni del
-  comando (valgono anche per `g`). Org legge come planning solo la riga
-  subito dopo l'heading: DEADLINE/SCHEDULED/CLOSED vanno su una riga sola
-  (`blueprint--agenda-planning-line`). Schema org-roam: la tabella `tags`
-  ha `node-id`, non `node`; `links.source` è un ID di nodo; il nodo di
-  file ha `level` 0. Il parser del diff legge il contenuto solo dentro gli
-  hunk (`@@`). Test: `blueprint-test-graph/dot-ids-are-quoted`,
-  `blueprint-test-agenda/agenda-view-lists-undated-entries`,
-  `.../planning-line-survives-two-refreshes`,
-  `blueprint-test-roam/similar-uses-roam-schema`,
-  `blueprint-test-diff/summary-only-hunk-content`,
-  `.../untracked-files-shown`,
-  `blueprint-test-delete-component/first-component-no-stray-break`.
+- **0.3.0 review (red CI and defects of the new modules)**: the byte-compile failed because `blueprint-sync.el` read `blueprint-history-on-sync` through a soft `require` (variable void when `blueprint-history` was not loaded) and `blueprint-roam.el` called `blueprint--dependency-clusters` without `require 'blueprint-graph`; both are now plain `require`s (no cycle: history -> health -> core). The test `blueprint-test-preview/update-refreshes-preview-buffer` needs `dot`: the workflow installs Graphviz and the test has `skip-unless`. Other defects fixed, with regression tests: `;;;###autoload` moved by mistake onto the templates `defconst` (`blueprint-add-component` no longer autoloaded); the agenda's `:ORIGIN:` relative to the root but written in a file of the data directory (broken link) and IDs based on the absolute path; the changelog listed the template's `:noexport:` example ADR; `json-serialize` writes `nil` as `{}` (use `:null`/`:false`); in org-roam `links.source` is a node ID, not a file; the preview timer resolved the root from the current buffer when it fired; `blueprint-component-diff` without a revision ignored staged changes and passed `""` to git; `blueprint-roam-clusters` failed on the second call (read-only buffer); the lifecycle lint counted the FIXMEs of arc42.org only; the state of questions came from the line prefix and not from the marker; `blueprint-glossary-add` on an empty section did `goto-char nil`.
+
+- **Second pass on 0.3.0 (declared but not working)**: component ids are hyphenated slugs and an unquoted DOT id only allows letters, digits and `_`: `dot` exited with a syntax error and the SVG dashboard, the preview and the Graphviz backend produced nothing. **Fix**: `blueprint--dot-id` (quotes) and `blueprint--dot-render` (error if `dot` fails), in `blueprint-core.el`. `blueprint-agenda` used `org-agenda-list`, which only shows dated entries: it is now a block view agenda + `alltodo` with `org-agenda-files` in the command settings (they also apply to `g`). Org reads as planning only the line right after the heading: DEADLINE/SCHEDULED/CLOSED go on a single line (`blueprint--agenda-planning-line`). org-roam schema: the `tags` table has `node-id`, not `node`; `links.source` is a node ID; the file node has `level` 0. The diff parser reads content only inside hunks (`@@`). Tests: `blueprint-test-graph/dot-ids-are-quoted`, `blueprint-test-agenda/agenda-view-lists-undated-entries`, `.../planning-line-survives-two-refreshes`, `blueprint-test-roam/similar-uses-roam-schema`, `blueprint-test-diff/summary-only-hunk-content`, `.../untracked-files-shown`, `blueprint-test-delete-component/first-component-no-stray-break`.
+
+- **`blueprint.el`, autoloads failing before Transient (0.5.0)**: a bare `;;;###autoload` on `transient-define-prefix` copies the whole form into the autoloads file; a package manager that loads the autoloads before Transient (package.el, straight, Doom) gets `void-function transient-define-prefix`. **Fix**: `;;;###autoload (autoload 'blueprint-menu "blueprint" nil t)`, the form Magit uses. Any new Transient prefix needs the same. Test: `blueprint-test-keys/menu-autoload-needs-no-transient`.
 
 ## Health scoring
 
-The score covers the document only (`blueprint--document-files`: master.org
-and everything it includes). Markers add weighted penalty points P
-(`blueprint--health-weights`):
+The score covers the document only (`blueprint--document-files`: master.org and everything it includes). Markers add weighted penalty points P (`blueprint--health-weights`):
 
 - **Technical markers**: `QUESTION` = 3, `TBD` = 2, `FIXME` = 4
-- **Methodology markers**: `[DA VALIDARE]` = 1, `[DA REVISIONARE]` = 1,
-  `[FINDING]` = 0 (a result the assessment delivers, still counted by the
-  metrics and the lists)
+- **Methodology markers**: `[TO VALIDATE]` = 1, `[TO REVIEW]` = 1 (each with its Italian legacy form), `[FINDING]` = 0 (a result the assessment delivers, still counted by the metrics and the lists)
 
-P is set against the W words of exported text of the same files:
-`score = round(100 * W / (W + N * P))` with N =
-`blueprint-health-words-per-point` (default 100), 100 when P is 0
-(`blueprint--health-score-from`).
+P is set against the W words of exported text of the same files: `score = round(100 * W / (W + N * P))` with N = `blueprint-health-words-per-point` (default 100), 100 when P is 0 (`blueprint--health-score-from`).
 
-Only markers in exported text count: `blueprint--uncounted-regions`
-(`blueprint-core.el`) excludes export-excluded subtrees (`:noexport:`,
-`#+EXCLUDE_TAGS:`), COMMENT subtrees, src/example/export/comment blocks,
-comments and verbatim/code objects; matching is case-sensitive. Use
-`blueprint--count-file-markers` / `blueprint--marker-positions` for any new
-marker scan instead of `count-matches` on raw text. Keywords
-(`#+STATUS: [DA VALIDARE]`) still count. The lint "no content" check
-ignores lines in non-exported subtrees (`blueprint--non-exported-subtrees`)
-but, unlike marker counting, still treats src blocks and verbatim as
-content.
+Only markers in exported text count: `blueprint--uncounted-regions` (`blueprint-core.el`) excludes export-excluded subtrees (`:noexport:`, `#+EXCLUDE_TAGS:`), COMMENT subtrees, src/example/export/comment blocks, comments, verbatim/code objects and property drawers; matching is case-sensitive. Use `blueprint--count-file-markers` / `blueprint--marker-positions` for any new marker scan instead of `count-matches` on raw text. Keywords (`#+STATUS: [TO VALIDATE]`) still count. The lint "no content" check ignores lines in non-exported subtrees (`blueprint--non-exported-subtrees`) and in property drawers but, unlike marker counting, still treats src blocks and verbatim as content.
 
-Per-file counts and words are cached via `blueprint--cached-metrics` under
-the kind `document-stats` (keys are `(FILE . KIND)`, so they never collide
-with the technical counts cached for arc42.org).
+Per-file counts and words are cached via `blueprint--cached-metrics` under the kind `document-stats` (keys are `(FILE . KIND)`, so they never collide with the technical counts cached for arc42.org).
 
-`blueprint-list-findings` and `blueprint-list-unvalidated` scan the document
-files (master.org and its includes) and display results in a read-only
-buffer.
-`blueprint--display-marker-list` captures `(blueprint--root)` **before**
-`(with-current-buffer ...)` to avoid stale `default-directory` from pre-existing
-result buffers (isolation-critical for tests).
+`blueprint-list-findings` and `blueprint-list-unvalidated` scan the document files (master.org and its includes) and display results in a read-only buffer. `blueprint--display-marker-list` captures `(blueprint--root)` **before** `(with-current-buffer ...)` to avoid stale `default-directory` from pre-existing result buffers (isolation-critical for tests).

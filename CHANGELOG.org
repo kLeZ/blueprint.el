@@ -5,14 +5,52 @@
 
 All notable changes to this project are documented in this file. Versions follow [[https://semver.org][Semantic Versioning]].
 
-* Unreleased
+* 0.5.0 — 2026-11-17
 
+Documents in English or Italian, and the repository ready for outside contributors. ERT suite from 567 to 602 tests.
+
+** Installation
+- The straight.el, elpaca and use-package + straight recipes in the README now have =:files (:defaults "templates")=, and the README has a Doom Emacs recipe. Without it these package managers copy only the =.el= files, and =blueprint-init= finds no template (issue #1).
+- The release asset is a =.tar= with a =blueprint-pkg.el= generated from the header of =blueprint.el=: =package-install-file= cannot install the =.tar.gz= of the previous releases, which had no package description file.
+- The autoload of =blueprint-menu= is an explicit =autoload= form: the bare cookie copied the whole =transient-define-prefix= into the autoloads file, which failed with =void-function= when a package manager loaded it before Transient.
+
+** Other changes
 - Fix: =blueprint-generate-enterprise-c4= wrote each component's =Rel(...)= right after its =System(...)=, so a dependency on a component that sorts later made PlantUML fail with "This element is already defined" and the diagram came out as an error image. Every =System(...)= now comes first.
 - The methodology moved from =assessment-framework/= (Italian, with the old Python scaffolder) to =docs/method/= in English: =method.org=, =rationale.org=, =kickoff.org=.
 - USAGE.org and CHANGELOG.org translated into English; PLAN.org translated into English.
 - README: screenshots of the dashboard, the menu, a component, the master document, the graph, the gauge and the ODT export; a short note on languages and MELPA.
-- =examples/demo/=: an invented project (a warehouse management system) to try the package on, in Italian like the templates.
-- PLAN.org phase 11 and ADR-003 (proposed): localized templates.
+- =examples/demo/= and =examples/demo-en/=: an invented project (a warehouse management system) to try the package on, in English and in Italian.  The Italian one is a 0.4.x project.
+- PLAN.org phase 11 and ADR-003 (accepted): localized templates.
+
+** Document languages (ADR-003)
+- A document can be written in English or in Italian.  The language belongs to the project: =blueprint-init= records it in =.blueprint/blueprint-version.org= as =#+BLUEPRINT_LANGUAGE:=, from the new option =blueprint-default-language= (default =en=; =C-u M-x blueprint-init= asks).  A project that declares no language, which includes every existing project, is Italian: nothing changes for it.
+- Templates in one folder per language: =templates/en/= and =templates/it/=, and =~/.config/blueprint/templates/<lang>/= for the user's copies.  Italian templates customized in =~/.config/blueprint/templates/= itself are still used, and provisioning never shadows them.  =blueprint-template-dir= is still the root of the system templates.
+- A language is a folder of files and nothing else: the document templates, =snippets/= (the skeletons the commands insert, one file each, customizable in the project or user templates like any template) and =strings.org= (the short texts).  The languages are the folders found in the package and in the user directory, so a user can add one without touching the package.  All the language code is in =blueprint-l10n.el=.
+- The Italian templates have Italian arc42 headings (=Introduzione=, =Contesto e perimetro=, ...).  Documents written by 0.4.x keep their English ones, still recognized.
+- The headings the commands look up carry a =:BLUEPRINT_SECTION:= property in the templates: a heading can be renamed or translated and the commands still find it.  A heading without the property is found by its title in any supported language, as before.
+- The text the commands insert (feature, entity, integration, flow, process, quality scenario, ADR skeletons; risk register values; glossary source line; headers of =agenda.org=, =metrics-history.org=, =blueprint-version.org=, =CHANGELOG.org= and the migration report) is written in the project language.  Fixes PLAN 9.37 (English words in the Italian header of the metrics history).
+- New option values: =blueprint-nfr-quality-attributes= now defaults to nil, the list of the document language; =blueprint-nfr-add-constraint= takes =technical=, =organizational=, =regulatory= (the Italian names are still accepted).
+- Property drawers no longer count as words of the health score, nor as content for the lint "no content" check: the export does not show them.  The lint still accepts a heading that starts with the expected title (=* Introduction and goals=), as before.
+
+** Markers
+- The methodology markers are English in every language: =[TO VALIDATE]=, =[TO REVIEW]=, =[APPROVED YYYY-MM-DD]=, =[SOURCE: X]=.  The commands and the templates write them; the Italian =[DA VALIDARE]=, =[DA REVISIONARE]=, =[APPROVATO ...]= and =[FONTE: ...]= are still read everywhere and count the same.
+- *Visible change for CI*: the JSON report (=blueprint-ci-export-json=) names the two markers =to-validate= and =to-review= instead of =da-validare= and =da-revisionare=.
+- Dashboard columns =TO VAL= and =TO REV= (were =DA VAL= and =DA REV=).
+
+** Optional migrations
+- =section-properties=: gives the known headings of an older project their =:BLUEPRINT_SECTION:= property.
+- =english-markers=: rewrites the Italian markers in their English form.
+- Neither is needed: =blueprint-project-upgrade= offers them, =blueprint-ci-pending-migrations= decides whether CI cares (default: it does not).
+
+** User interface
+- The Italian strings left in the interface are English now: pre-delivery check report, migration plan and step titles, diff summary, dashboard summary line, marker lists, history chart.
+
+** Development
+- =Makefile= with =make test=, =make lint=, =make compile=, =make checkdoc=, =make package-lint=; CI uses it.  =make test= loads every =test/blueprint-test-*.el=: the command documented before ran 531 of the 568 tests.
+- =CONTRIBUTING.org=, =CODE_OF_CONDUCT.org=, =SECURITY.org=, issue forms and a pull request template.
+- =orgfmt.el= and =fmt-docs.sh= moved to =scripts/=; =.prettierrc= removed.
+- =AGENTS.md=: the Italian sections translated; commands through the Makefile.
+- PLAN.org: state as Org TODO keywords instead of strikethrough and emoji.
 
 * 0.4.1 — 2026-11-02
 

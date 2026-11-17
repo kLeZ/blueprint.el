@@ -1,0 +1,6 @@
+#+TITLE: Blueprint version of the project
+#+BLUEPRINT_VERSION: 0.5.0
+#+BLUEPRINT_MIGRATIONS:
+#+BLUEPRINT_LANGUAGE: en
+
+File managed by Blueprint: the package version the project was created or upgraded with, the migrations applied by `blueprint-project-upgrade', and the language of the document.  It is not included in master.org and not mandatory: without it the version is inferred from the files and the language is Italian.

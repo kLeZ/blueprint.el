@@ -474,7 +474,7 @@ produced findings and lowered the health score of empty components."
     (blueprint-test--write-component
      "comp" "#+TITLE: comp\n\n[DA VALIDARE]\n")
     (blueprint-list-unvalidated)
-    (with-current-buffer "*Blueprint: Blueprint Sezioni da validare*"
+    (with-current-buffer "*Blueprint: Blueprint To Validate*"
       (should (string-match-p "DA VALIDARE" (buffer-string))))))
 
 ;;; --- Health gauge SVG ---

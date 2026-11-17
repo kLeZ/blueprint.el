@@ -96,7 +96,8 @@
       (blueprint-adr-new "Adopt CQRS")
       (let ((content (blueprint-test--read-file
                       (expand-file-name ".blueprint/adr.org" proj))))
-        (should (string-match-p ":STATUS: proposed" content))))))
+        ;; The snippet's drawer is aligned by the Org formatter.
+        (should (string-match-p ":STATUS:[ \t]+proposed" content))))))
 
 (ert-deftest blueprint-test-adr-new/has-date-property ()
   "New ADR has DATE property with today's year in its PROPERTIES drawer."

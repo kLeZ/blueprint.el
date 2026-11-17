@@ -562,7 +562,7 @@ as every pre-9.5 call and script expects."
     (let ((content (blueprint-test--read-file
                     (expand-file-name ".blueprint/components/standard/arc42.org"
                                       default-directory))))
-      (should (string-match-p "^\\* Introduction$" content))
+      (should (string-match-p "^\\* Introduzione$" content))
       (should-not (string-match-p "Contesto enterprise" content)))))
 
 (ert-deftest blueprint-test-add-component/enterprise-template ()
@@ -580,8 +580,8 @@ standard arc42 ones the lint expects."
       (should (string-match-p "^\\* Conformità e compliance$" content))
       ;; The standard arc42 headings are still there, so the lint sees
       ;; an enterprise component like any other.
-      (should (string-match-p "^\\* Introduction$" content))
-      (should (string-match-p "^\\* Building Blocks$" content))
+      (should (string-match-p "^\\* Introduzione$" content))
+      (should (string-match-p "^\\* Building block$" content))
       (should (string-match-p "<<servizio-critico-stakeholders>>" content))
       (should-not (string-match-p "{{" content)))))
 
@@ -591,9 +591,9 @@ its :noexport: guide carries every section of the standard guide (so
 also the diagram models, never evaluated) plus the enterprise examples,
 and every body heading of component.org is in the enterprise body."
   (let* ((std (blueprint-test--read-file
-               (expand-file-name "component.org" blueprint-template-dir)))
+               (expand-file-name "component.org" (blueprint--system-template-dir "it"))))
          (ent (blueprint-test--read-file
-               (expand-file-name "arc42-enterprise.org" blueprint-template-dir)))
+               (expand-file-name "arc42-enterprise.org" (blueprint--system-template-dir "it"))))
          (headings (lambda (text re)
                      (let ((found '()) (start 0))
                        (while (string-match re text start)

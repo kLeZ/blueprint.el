@@ -1,0 +1,35 @@
+** Flow: {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Description of the flow: objective, preconditions, actors involved and relevant context constraints.
+
+*** Use cases
+
+Overview of the actors and of the functions involved in the flow.  This view helps to communicate with non-technical stakeholders.
+
+#+begin_src plantuml :file {{UC_FILE}}
+  @startuml
+  left to right direction
+  actor "User" as u
+  rectangle "{{COMPONENT}}" {
+  usecase "Use case 1" as uc1
+  usecase "Use case 2" as uc2
+  }
+  u --> uc1
+  u --> uc2
+  @enduml
+#+end_src
+
+*** Sequence
+
+Time detail of the messages exchanged in the flow.  This view helps technical teams and the API documentation.
+
+#+begin_src plantuml :file {{SEQ_FILE}}
+  @startuml
+  participant "A" as a
+  participant "B" as b
+  a -> b : message
+  b --> a : reply
+  @enduml
+#+end_src

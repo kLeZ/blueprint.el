@@ -1,7 +1,7 @@
 ;;; blueprint-agenda.el --- org-agenda integration for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -105,7 +105,7 @@ of `blueprint-agenda-marker-types', then by position."
               (push (list :type type
                           :component (or (blueprint--component-of-file
                                           file comps)
-                                         "progetto")
+                                         "project")
                           :text text
                           :file file
                           :line (line-number-at-pos)
@@ -171,15 +171,13 @@ Returns the file path."
                        (make-hash-table :test 'equal)))
          ;; Links are resolved against the directory of the agenda
          ;; file (the data directory), not against the project root.
-         (link-dir (file-name-directory file)))
+         (link-dir (file-name-directory file))
+         (header (format "#+TITLE: %s\n\n%s\n\n"
+                         (blueprint--l10n 'agenda-file-title)
+                         (blueprint--l10n 'agenda-file-intro))))
     (make-directory (file-name-directory file) t)
     (with-temp-file file
-      (insert "#+TITLE: Blueprint — punti aperti del documento\n\n"
-              "File generato da `blueprint-agenda-refresh': le righe del\n"
-              "documento (QUESTION, FIXME...) come TODO per org-agenda.\n"
-              "DEADLINE, SCHEDULED, CLOSED e stato vengono preservati al\n"
-              "refresh (gli ID sono stabili); il resto della voce viene\n"
-              "rigenerato.  Non è incluso in master.org.\n\n")
+      (insert header)
       (dolist (type blueprint-agenda-marker-types)
         (let ((of-type (cl-remove-if-not
                         (lambda (e) (string= (plist-get e :type) type))
@@ -247,7 +245,7 @@ as in any Org agenda; `g' in the agenda buffer keeps the restriction."
   (let ((file (expand-file-name (blueprint-agenda-refresh))))
     (require 'org-agenda)
     (let ((org-agenda-custom-commands
-           `(("B" "Blueprint: scadenze e punti aperti"
+           `(("B" "Blueprint: deadlines and open points"
               ,(pcase blueprint-agenda-view
                  ('agenda '((agenda "")))
                  ('todo '((alltodo "")))

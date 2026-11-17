@@ -66,14 +66,14 @@ Ambienti:
 Deployment view:
 
 #+begin_src plantuml :file fatturazione-infra.svg :eval never
-node "Ambiente: [nome]" {
+  node "Ambiente: [nome]" {
   node "Host: [nome]" {
-    artifact "fatturazione vX.Y"
+  artifact "fatturazione vX.Y"
   }
   database "DB: [nome]" {
   }
-}
-@enduml
+  }
+  @enduml
 #+end_src
 
 * Inventario

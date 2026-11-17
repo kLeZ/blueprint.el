@@ -1,0 +1,167 @@
+#+TITLE: Architecture Assessment -- WarehouseManager
+#+AUTHOR: Alessandro Accardo
+#+DATE: 2026-11-16
+#+VERSION: 0.1-draft
+#+OPTIONS: toc:3 num:t H:4
+#+LANGUAGE: en
+
+# Master document.  Do not edit the sections included with #+INCLUDE
+# here: edit the satellite files in their directory.  The component
+# sections are updated automatically by blueprint-sync (C-c b S).
+
+* Part 0 -- Preliminaries
+<<part0>>
+
+** Purpose of the document
+<<part0-scope>>
+Rebuild the architecture of WarehouseManager from the code, to decide whether to modernize or replace it.
+
+** Scope of the assessment
+<<part0-perimeter>>
+The PHP application, its database and the integrations with SAP Business One, BRT, FatturaPA and the SMTP relay.
+
+Systems in scope:
+- WarehouseManager, with its MySQL database and the crontab jobs
+
+Systems out of scope:
+- SAP Business One, of which only the file exchange is documented
+
+Reference period: 2026-10-01 -- 2026-11-16.  Versions analyzed: main branch of the repository on 2026-11-10, production database on 2026-11-12.  Access limitations: no access to the SAP Business One server, of which only the exported files were seen.
+
+** How the information was gathered
+<<part0-method>>
+
+The information in this document was gathered from the following sources, in decreasing order of reliability:
+
+1. Analysis of the source code
+2. Observation of the production and test environments
+3. Interviews with the technical contacts (see [[file:references.org::references-interviews][References -- Interviews]])
+4. Existing documentation (see [[file:references.org::references-documents][References -- Documents]])
+
+Every statement not verified in the code is marked =[TO VALIDATE]=.  The discrepancies found between actual and expected behavior are marked =[FINDING]=.
+
+** How to read this document
+<<part0-reading>>
+
+The document has six parts, for different readers:
+
+| Part | Content                    | Read it if you are...         |
+|------+----------------------------+-------------------------------|
+| 0    | Preliminaries and glossary | Everyone                      |
+| I    | Enterprise view            | Executives, senior architects |
+| II   | Architecture by component  | Architects, developers        |
+| III  | Functional specifications  | Analysts, product owners, BU  |
+| IV   | Infrastructure census      | IT operations, sysadmins      |
+| V    | NFR and constraints        | Architects, IT management     |
+
+Marking conventions used in the document:
+- =[TO VALIDATE]= -- statement not verified with the customer
+- =[TO REVIEW]= -- produced by an automatic process, not reviewed
+- =[FINDING]= -- discrepancy between actual and expected behavior
+- =[APPROVED YYYY-MM-DD]= -- section validated by the customer on that date
+- =[SOURCE: X]= -- specific origin of the information
+
+Graphical notations:
+- C4 diagrams (L1-L3): static structure of the systems
+- UML sequence diagrams: interaction flows at run time
+- UML activity diagrams with swimlanes: business processes
+- DFD: data flows and integrations
+- UML deployment diagrams: infrastructure topology
+
+** Glossary
+<<part0-glossary>>
+
+#+INCLUDE: "glossary.org" :minlevel 3
+
+-----
+
+* Part I -- Enterprise architecture
+<<part1>>
+
+#+INCLUDE: "enterprise/context.org" :minlevel 2
+#+INCLUDE: "enterprise/dependencies.org" :minlevel 2
+
+-----
+
+* Part II -- Architecture by component
+<<part2>>
+
+# This section is updated automatically by `blueprint-sync'.
+# Do not edit the content between the markers by hand.
+
+# @@blueprint-sync-start@@
+** database
+#+INCLUDE: ".blueprint/components/database/arc42.org" :minlevel 3
+** invoicing
+#+INCLUDE: ".blueprint/components/invoicing/arc42.org" :minlevel 3
+** notifications
+#+INCLUDE: ".blueprint/components/notifications/arc42.org" :minlevel 3
+** orders
+#+INCLUDE: ".blueprint/components/orders/arc42.org" :minlevel 3
+** shipping
+#+INCLUDE: ".blueprint/components/shipping/arc42.org" :minlevel 3
+** stock
+#+INCLUDE: ".blueprint/components/stock/arc42.org" :minlevel 3
+# @@blueprint-sync-end@@
+
+-----
+
+* Part III -- Functional specifications
+<<part3>>
+
+# This section is updated automatically by `blueprint-sync'.
+# Do not edit the content between the markers by hand.
+
+# @@blueprint-sync-functional-start@@
+** database
+#+INCLUDE: ".blueprint/components/database/functional.org" :minlevel 3
+** invoicing
+#+INCLUDE: ".blueprint/components/invoicing/functional.org" :minlevel 3
+** notifications
+#+INCLUDE: ".blueprint/components/notifications/functional.org" :minlevel 3
+** orders
+#+INCLUDE: ".blueprint/components/orders/functional.org" :minlevel 3
+** shipping
+#+INCLUDE: ".blueprint/components/shipping/functional.org" :minlevel 3
+** stock
+#+INCLUDE: ".blueprint/components/stock/functional.org" :minlevel 3
+# @@blueprint-sync-functional-end@@
+
+-----
+
+* Part IV -- Infrastructure census
+<<part4>>
+
+# This section is updated automatically by `blueprint-sync'.
+# Do not edit the content between the markers by hand.
+
+# @@blueprint-sync-infra-start@@
+** database
+#+INCLUDE: ".blueprint/components/database/infrastructure.org" :minlevel 3
+** invoicing
+#+INCLUDE: ".blueprint/components/invoicing/infrastructure.org" :minlevel 3
+** notifications
+#+INCLUDE: ".blueprint/components/notifications/infrastructure.org" :minlevel 3
+** orders
+#+INCLUDE: ".blueprint/components/orders/infrastructure.org" :minlevel 3
+** shipping
+#+INCLUDE: ".blueprint/components/shipping/infrastructure.org" :minlevel 3
+** stock
+#+INCLUDE: ".blueprint/components/stock/infrastructure.org" :minlevel 3
+# @@blueprint-sync-infra-end@@
+
+-----
+
+* Part V -- Non-functional requirements and constraints
+<<part5>>
+
+#+INCLUDE: "nfr/quality-scenarios.org" :minlevel 2
+#+INCLUDE: "nfr/constraints.org" :minlevel 2
+#+INCLUDE: "nfr/risks.org" :minlevel 2
+
+-----
+
+* References
+<<references>>
+
+#+INCLUDE: "references.org" :minlevel 2

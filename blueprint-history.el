@@ -1,7 +1,7 @@
 ;;; blueprint-history.el --- Metrics history for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -38,20 +38,21 @@ Returns the file path."
   (let ((file (blueprint--history-file)))
     (unless (file-exists-p file)
       (make-directory (file-name-directory file) t)
-      (with-temp-file file
-        (insert (concat
-                 "#+TITLE: Metriche nel tempo\n\n"
-                 "Una riga per ogni registrazione: `blueprint-sync' ne aggiunge\n"
-                 "una quando i valori cambiano (see `blueprint-history-on-sync').\n"
-                 "Grafico: `blueprint-metrics-history'.\n\n"
-                 "* Registro\n\n"
-                 "| Data | Score | Penalty | Words | QUESTION | TBD | FIXME | DA VAL | DA REV |\n"
-                 "|------+-------+---------+-------+----------+-----+-------+--------+--------|\n"))))
+      (let ((header (format "#+TITLE: %s\n\n%s\n\n* %s\n\n"
+                            (blueprint--l10n 'history-file-title)
+                            (blueprint--l10n 'history-file-intro)
+                            (blueprint--l10n 'history-log-heading)))
+            (date (blueprint--l10n 'date)))
+       (with-temp-file file
+        (insert header
+                (format "| %s | Score | Penalty | Words | QUESTION | TBD | FIXME | TO VAL | TO REV |\n"
+                        date)
+                "|------+-------+---------+-------+----------+-----+-------+--------+--------|\n"))))
     file))
 
 (defun blueprint--history-counts (counts)
   "Return the COUNTS relevant to a history row, in its column order.
-QUESTION, TBD, FIXME, DA VALIDARE and DA REVISIONARE: the order of
+QUESTION, TBD, FIXME, TO VALIDATE and TO REVIEW: the order of
 `blueprint--health-weights' without [FINDING], whose weight is 0."
   (list (nth 0 counts) (nth 1 counts) (nth 2 counts)
         (nth 3 counts) (nth 5 counts)))
@@ -88,7 +89,7 @@ rows do not match."
 ;;;###autoload
 (defun blueprint-history-record ()
   "Record the current document metrics in the metrics history file.
-One row per call, appended to the `* Registro' table; a row with the
+One row per call, appended to the table of the file; a row with the
 same values as the last one is skipped, so a project that did not
 change does not grow the history.  Called by `blueprint-sync' when
 `blueprint-history-on-sync' is non-nil."
@@ -116,7 +117,7 @@ change does not grow the history.  Called by `blueprint-sync' when
 (defun blueprint--history-rows (file)
   "Parse the history FILE into rows of numbers.
 One list per data row: (DATE SCORE PENALTY WORDS QUESTION TBD FIXME
-DA-VAL DA-REV), oldest first.  Rows that do not parse (a hand-edited
+TO-VAL TO-REV), oldest first.  Rows that do not parse (a hand-edited
 line) are left out."
   (let ((rows '()))
     (with-temp-buffer
@@ -163,7 +164,7 @@ scale.  The SVG has an explicit namespace and a white background, as
      (concat "<svg xmlns='http://www.w3.org/2000/svg' width='%d' height='%d'>"
              "<rect x='0' y='0' width='%d' height='%d' fill='white'/>"
              "<text x='%d' y='24' font-size='14' fill='#333333'>"
-             "Health score nel tempo (%d registrazioni)</text>"
+             "Health score over time (%d records)</text>"
              "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#cccccc'/>"
              "<line x1='%d' y1='%d' x2='%d' y2='%d' stroke='#cccccc'/>"
              "<polyline points='%s' fill='none' stroke='#2b6cb0' stroke-width='2'/>"

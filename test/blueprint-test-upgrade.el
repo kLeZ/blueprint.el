@@ -80,7 +80,7 @@ named as typed is older than 0.1.0."
     (blueprint-test--write-component
      "Order Service" "* Component\n#+BLUEPRINT_DEPENDS:\n\n** Responsibility\n")
     (should (equal (blueprint--project-version)
-                   '("precedente a 0.1.0" . inferred)))))
+                   '("before 0.1.0" . inferred)))))
 
 (ert-deftest blueprint-test-upgrade/missing-version-file-is-not-a-step ()
   "A project in the current format without blueprint-version.org has no
@@ -214,8 +214,8 @@ become table rows with their type and date."
       (blueprint-upgrade-apply '("references-table-rows" "orphan-references"))
       (let ((content (blueprint-test--read-file file)))
         (should-not (string-match-p ":TYPE:" content))
-        (should (string-match-p "| I-01 | Intervista CTO | \\[DA VALIDARE\\] | 2026-03-01 | Note / utili |" content))
-        (should (string-match-p "| D-01 | Manuale operativo | \\[DA VALIDARE\\] | 2026-02-28 | document | v2 |" content)))
+        (should (string-match-p "| I-01 | Intervista CTO | \\[TO VALIDATE\\] | 2026-03-01 | Note / utili |" content))
+        (should (string-match-p "| D-01 | Manuale operativo | \\[TO VALIDATE\\] | 2026-02-28 | document | v2 |" content)))
       (should-not (file-exists-p (blueprint--data-path "references.org"))))))
 
 (ert-deftest blueprint-test-upgrade/lifecycle-keyword-step ()
@@ -263,7 +263,15 @@ headings added; the text stays."
         (should-not (string-match-p "^\\* Component" content))
         (should (string-match-p "^\\* Responsibility\n\nPaga\\." content))
         (should (string-match-p "^\\* Open Questions\n\n- QUESTION chi\\?" content))
-        (should (string-match-p "^\\* Building Blocks\n<<old-static>>" content))
+        ;; Missing sections come from the current Italian template, with
+        ;; the property; those the file has under their 0.4.x title
+        ;; (Responsibility, Risks, Open Questions) are not added again.
+        (should (string-match-p
+                 "^\\* Building block\n:PROPERTIES:\n:BLUEPRINT_SECTION: building-blocks\n:END:\n<<old-static>>"
+                 content))
+        (should-not (string-match-p "^\\* Responsabilità" content))
+        (should-not (string-match-p "^\\* Rischi" content))
+        (should-not (string-match-p "^\\* Domande aperte" content))
         (should (string-match-p "^#\\+TITLE: old" content)))
       (should (null (blueprint--lint-component "old" file t))))))
 
@@ -418,10 +426,10 @@ older version stale, anything else customized."
          (custom (expand-file-name "adr.org" dir)))
     (unwind-protect
         (progn
-          (copy-file (expand-file-name "component.org" blueprint-template-dir) current)
+          (copy-file (expand-file-name "component.org" (blueprint--system-template-dir "it")) current)
           (with-temp-file custom (insert "my own ADR template\n"))
           ;; An older glossary.org: any history hash that is not current.
-          (should (> (length (cdr (assoc "glossary.org" blueprint--template-history))) 1))
+          (should (> (length (cdr (assoc "it/glossary.org" blueprint--template-history))) 1))
           (should (eq (blueprint--template-status current) 'current))
           (should (eq (blueprint--template-status custom) 'customized))
           (cl-letf (((symbol-function 'blueprint--file-md5)
@@ -429,8 +437,8 @@ older version stale, anything else customized."
                        (lambda (f)
                          (if (equal f old)
                              (car (cl-remove (funcall orig (expand-file-name
-                                                            "glossary.org" blueprint-template-dir))
-                                             (cdr (assoc "glossary.org" blueprint--template-history))
+                                                            "glossary.org" (blueprint--system-template-dir "it")))
+                                             (cdr (assoc "it/glossary.org" blueprint--template-history))
                                              :test #'equal))
                            (funcall orig f))))))
             (with-temp-file old (insert "placeholder\n"))
@@ -441,10 +449,11 @@ older version stale, anything else customized."
   "Every system template is in the generated history table: a release
 without scripts/gen-template-history.sh would classify the copies of
 the new templates as customized."
-  (dolist (f (directory-files blueprint-template-dir t "\\.org\\'"))
-    (should (member (blueprint--file-md5 f)
-                    (cdr (assoc (file-name-nondirectory f)
-                                blueprint--template-history))))))
+  (dolist (lang (blueprint--languages))
+    (dolist (f (blueprint--template-files (expand-file-name lang blueprint-template-dir)))
+      (should (member (blueprint--file-md5 f)
+                      (cdr (assoc (concat lang "/" (blueprint--template-relative-name f))
+                                  blueprint--template-history)))))))
 
 (ert-deftest blueprint-test-upgrade/stale-template-updated-with-backup ()
   "Updating a stale copy backs it up and installs the system template;
@@ -463,7 +472,7 @@ a customized copy is refused."
           (should-error (blueprint--template-update custom) :type 'user-error)))
       (should (equal (blueprint--file-md5 file)
                      (blueprint--file-md5 (expand-file-name "component.org"
-                                                            blueprint-template-dir)))))))
+                                                            (blueprint--system-template-dir "it"))))))))
 
 ;;; --- Summary, dashboard, CI ---
 
@@ -475,7 +484,7 @@ a customized copy is refused."
     (let ((u (blueprint--upgrade-summary)))
       (should (equal (plist-get u :pending) '("adr-single-file")))
       (should (eq (plist-get u :source) 'declared)))
-    (should (string-match-p "Migrazioni disponibili: 1"
+    (should (string-match-p "Migrations available: 1"
                             (blueprint--dashboard-version-part)))
     (let ((blueprint-dashboard-show-version nil))
       (should-not (blueprint--dashboard-version-part)))

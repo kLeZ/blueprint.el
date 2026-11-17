@@ -1,0 +1,56 @@
+#+TITLE: Quality scenarios and non-functional requirements
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: {{DATE}}
+
+* Filling-in guide — Quality scenarios                             :noexport:
+
+Each scenario ties a quality attribute to a measurable threshold.  The structure (context → stimulus → expected response → measure) follows the arc42 / ISO 25010 model.  Use =blueprint-nfr-add-quality-scenario= (=C-c b p=) to add scenarios interactively.
+
+** Payment API latency under load                                  :noexport:
+- *Quality attribute*: Performance
+- *Context*: System in production during the afternoon peak (Friday 17:00–19:00, ~500 requests/s).
+- *Stimulus*: A client sends a =POST /payments= request with a standard payload (amount, method, order reference).
+- *Expected response*: The service returns =HTTP 200= with the outcome of the authorization within the defined latency limits.
+- *Measure*: p95 latency ≤ 300 ms; p99 ≤ 800 ms; timeouts (=HTTP 504=) for less than 0.1% of the requests.
+- *Priority*: High
+- *Source*: Contractual SLA with the main customer (contract 2024-Q3)
+
+** Availability of the order service                               :noexport:
+- *Quality attribute*: Availability
+- *Context*: Business hours (Monday–Saturday 06:00–23:00 CET).
+- *Stimulus*: Any request to =order-service=, including the restart of a single node.
+- *Expected response*: The service stays reachable and answers correctly; restarts cause no error visible to the user.
+- *Measure*: Monthly uptime ≥ 99.5% (at most ~3.6 h of downtime per month); RTO ≤ 2 min for a single node; RPO = 0 (no data loss).
+- *Priority*: High
+- *Source*: Internal operational level agreement (OLA 2024)
+
+* Quality scenarios
+:PROPERTIES:
+:BLUEPRINT_SECTION: quality-scenarios
+:END:
+<<nfr-quality-scenarios>> [TO VALIDATE]
+
+Each scenario follows the structure: context, stimulus, expected response, measure.
+
+** [Scenario name]
+- *Quality attribute*: [Performance / Security / Reliability / Maintainability / ...]
+- *Context*: [when it happens]
+- *Stimulus*: [what triggers the scenario]
+- *Expected response*: [behavior of the system]
+- *Measure*: [quantifiable criterion of success or failure]
+- *Priority*: [High / Medium / Low]
+- *Source*: [where this requirement comes from]
+
+* Service level
+:PROPERTIES:
+:BLUEPRINT_SECTION: service-level
+:END:
+<<nfr-sla>> [TO VALIDATE]
+
+| Service / Component | Metric      | Measured value | Expected value | Source |
+|---------------------+-------------+----------------+----------------+--------|
+|                     | Uptime      |                |                |        |
+|                     | RTO         |                |                |        |
+|                     | RPO         |                |                |        |
+|                     | Latency p95 |                |                |        |

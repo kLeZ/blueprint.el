@@ -1,0 +1,10 @@
+#+TITLE: Metrics over time
+
+One row per record: `blueprint-sync' adds one when the values change (see `blueprint-history-on-sync').  Chart: `blueprint-metrics-history'.
+
+* Log
+
+| Date             | Score | Penalty | Words | QUESTION | TBD | FIXME | TO VAL | TO REV |
+|------------------+-------+---------+-------+----------+-----+-------+--------+--------|
+| 2026-11-16 20:57 |    32 |      66 |  3098 |        4 |   4 |     1 |     42 |      0 |
+| 2026-11-16 20:58 |    42 |      50 |  3554 |        4 |   4 |     1 |     26 |      0 |

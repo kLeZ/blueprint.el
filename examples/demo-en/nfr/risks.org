@@ -1,0 +1,35 @@
+#+TITLE: Technical risks
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: 2026-11-16
+
+* Filling-in guide — Risk register                                 :noexport:
+
+Each row documents a technical, organizational or regulatory risk.  The level is computed by the command =blueprint-nfr-add-risk= (=C-c b t=) from the Probability × Impact matrix.
+
+For the risks local to a single component, use the =* Risks= section of =arc42.org=; this register collects the cross-cutting risks.
+
+| ID    | Risk                                | Component(s)    | Probability | Impact | Level    | Mitigation                               | Owner     | Notes         |
+|-------+-------------------------------------+-----------------+-------------+--------+----------+------------------------------------------+-----------+---------------|
+| R-001 | No contractual SLA with the payment | payment-service | High        | High   | Critical | Renegotiate the contract by Q2; circuit  | arch-team | [FINDING]     |
+|       | provider (no uptime guarantee)      |                 |             |        |          | breaker meanwhile to degrade gracefully  |           | verified      |
+| R-002 | No disaster recovery plan for the   | database        | Medium      | High   | High     | Define RTO/RPO, set up synchronous       | ops-team  | [TO VALIDATE] |
+|       | primary database                    |                 |             |        |          | standby replication with tested failover |           |               |
+
+* Risk register
+:PROPERTIES:
+:BLUEPRINT_SECTION: risk-register
+:END:
+<<nfr-risks>> [TO VALIDATE]
+
+| ID    | Risk                                                                                                          | Component(s) | Probability | Impact | Level    | Mitigation                                               | Owner          | Notes |
+|-------+---------------------------------------------------------------------------------------------------------------+--------------+-------------+--------+----------+----------------------------------------------------------+----------------+-------|
+| R-001 | Order fulfillment blocked by courier timeouts: the calls to BRT are synchronous inside the operator's request | orders       | High        | High   | Critical | Move the external calls out of the request, into a queue | warehouse-team |       |
+| R-002 | No database restore ever tested: the nightly backup may not be usable                                         | database     | Medium      | High   | High     | Try a restore on a copy, then every quarter              | systems        |       |
+| R-003 | BRT token in clear text in a versioned file                                                                   | shipping     | High        | Medium | High     | Token in an environment variable, and rotation           | warehouse-team |       |
+
+Level = combination of Probability x Impact:
+- *Critical*: High prob. x High impact
+- *High*: High prob. x Medium impact, or Medium prob. x High impact
+- *Medium*: intermediate combinations
+- *Low*: Low prob. x Low impact

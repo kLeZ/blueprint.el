@@ -1,0 +1,252 @@
+#+TITLE: stock -- Architecture (arc42)
+#+BLUEPRINT_DEPENDS: database notifications
+#+BLUEPRINT_OWNER: warehouse-team
+#+BLUEPRINT_TECH: PHP 7.4 / crontab
+#+BLUEPRINT_STATUS: in-scope
+#+BLUEPRINT_LIFECYCLE: active
+#+CREATED: 2026-11-16
+#+STATUS: [TO VALIDATE]
+
+* Filling-in guide — arc42                                         :noexport:
+
+This file documents the architecture of the component following the arc42 structure.  The sections start empty: when you write their content, mark it =[TO VALIDATE]= until a reliable source (code, logs, interview or document) confirms it, then replace the marker with =[APPROVED YYYY-MM-DD]= or =[FINDING]= depending on the outcome of the check.  While a section is empty, =blueprint-lint= reports the file as having no content.
+
+Hierarchy of sources (most reliable first): code → tests → logs → monitoring → interviews → existing documentation.
+
+** Example: header and dependencies
+
+#+BEGIN_SRC org
+  ,#+BLUEPRINT_DEPENDS: order-service notification-service
+  ,#+BLUEPRINT_OWNER: team-payments
+  ,#+BLUEPRINT_TECH: Java 17 / Spring Boot 3 / PostgreSQL 15
+  ,#+BLUEPRINT_STATUS: in-scope
+  ,#+BLUEPRINT_LIFECYCLE: active
+#+END_SRC
+
+=#+BLUEPRINT_STATUS:= is =in-scope= (default), =out-of-scope= or =tbd=.  An =out-of-scope= component is left out of the assessment but stays tracked (the reason goes in Part 0 of the master document); =blueprint-lint= reports an =in-scope= component that depends on an =out-of-scope= one.
+
+=#+BLUEPRINT_LIFECYCLE:= is the life cycle of the component, an axis distinct from the scope: =draft=, =active= (default), =deprecated= or =archived=.  The dashboard shows it in the =Life= column; =blueprint-lint= reports an =active= component with open FIXMEs or depending on a =deprecated= one.
+
+** Example: users and roles table
+
+| Role          | Description                               | Type (human/system) |
+|---------------+-------------------------------------------+---------------------|
+| Cashier       | Starts POS payment transactions           | human               |
+| order-service | Calls the authorization API synchronously | system              |
+| Stripe        | External provider — processes the charge  | external system     |
+
+** Example: neighboring systems
+
+| System           | Direction | Interaction type          | Notes                                        |
+|------------------+-----------+---------------------------+----------------------------------------------|
+| order-service    | IN        | Synchronous REST (HTTP/2) | Sends the authorization request              |
+| notification-svc | OUT       | Kafka (asynchronous)      | =PaymentAuthorized= event after success      |
+| Stripe API v3    | OUT       | HTTPS REST                | Delegates card authorization to the provider |
+
+** Example: constraints
+
+| Constraint   | Type (technical/org/regulatory) | Impact                           | Source     |
+|--------------+---------------------------------+----------------------------------+------------|
+| PCI-DSS v4.0 | regulatory                      | No card data in clear text       | audit 2023 |
+| Java 17 LTS  | technical                       | Libraries incompatible < Java 17 | ADR 0001   |
+
+** Example: Responsibility table
+
+| Aspect         | Approach found                                 | Notes              |
+|----------------+------------------------------------------------+--------------------|
+| Security       | TLS 1.3 inbound; no card data in clear text    | [APPROVED 2024-02] |
+| Authentication | JWT Bearer validated by the API Gateway        | [TO VALIDATE]      |
+| Authorization  | Roles in the JWT =scope= claim                 | [TO VALIDATE]      |
+| Logging        | Structured JSON on stdout → Datadog            | [FINDING]          |
+| Error handling | Resilience4j circuit breaker on Stripe calls   | [TO VALIDATE]      |
+| Transactions   | Orchestrated saga: compensation through events | [TO VALIDATE]      |
+
+** Example: risks local to the component
+
+| Risk                             | Probability | Impact | Level | Mitigation                     |
+|----------------------------------+-------------+--------+-------+--------------------------------|
+| Stripe timeout not handled in an | Medium      | High   | High  | Add retries with exponential   |
+| idempotent way → double charge   |             |        |       | backoff and an idempotency key |
+
+** What to write in each section
+
+- /Introduction/: what the component does, whom it serves, its role in the architecture of the system.
+- /Context and scope/: users and roles, neighboring systems (tables as in the examples above), boundaries of the component; C4 context diagram.
+- /Constraints/: technical, organizational and regulatory constraints that affect the architectural choices (table as in the example above).
+- /Solution strategy/: architectural principles, patterns adopted, relevant technology choices with their reasons (when they can be reconstructed).
+- /Building blocks/: static view of the internal building blocks (C4 containers; C4 L3 if the complexity calls for it).
+- /Runtime behavior/: the main flows at run time; for each flow the actors involved (use cases) and the detail of the messages exchanged (sequence).  =blueprint-runtime-add-flow= creates the subsection of a flow.
+- /Business processes/: multi-actor processes relevant to the component, as a UML activity diagram with one swimlane per actor.  =blueprint-runtime-add-process= creates the subsection of a process.
+- /Deployment/: environments, hosts, configuration; the detail goes in the infrastructure census (=infrastructure.org= next to this file).
+- /Responsibility/: cross-cutting aspects (security, authentication, authorization, logging, error handling, transactions), table as in the example above.
+- /Risks/: technical risks specific to the component; the cross-cutting ones go in the risk register of the project (=nfr/risks.org=).
+- /Open questions/: questions raised during the analysis that need validation (=blueprint-add-question=).
+- /Diagrams/: additional diagrams that fit none of the sections above.
+
+** Diagram models
+
+To copy into the target section, removing =:eval never=, which here keeps Babel from generating the files at every export (Babel also evaluates the blocks of =:noexport:= subtrees).
+
+Context (Context and scope):
+
+#+begin_src plantuml :file stock-context.svg :eval never
+  !include <C4/C4_Context>
+  System(stock, "stock", "")
+  Person(user, "User")
+  ' Add external systems with System_Ext(id, "Name", "Description")
+  Rel(user, stock, "Uses")
+  @enduml
+#+end_src
+
+Containers (Building blocks):
+
+#+begin_src plantuml :file stock-containers.svg :eval never
+  !include <C4/C4_Container>
+  System_Boundary(stock, "stock") {
+  Container(app, "Application", "Technology", "Description")
+  ContainerDb(db, "Database", "Technology", "Description")
+  }
+  @enduml
+#+end_src
+
+Use cases of a flow (Runtime behavior), the view for non-technical stakeholders:
+
+#+begin_src plantuml :file stock-uc-main.svg :eval never
+  @startuml
+  left to right direction
+  actor "User" as u
+  rectangle "stock" {
+  usecase "Use case 1" as uc1
+  usecase "Use case 2" as uc2
+  }
+  u --> uc1
+  u --> uc2
+  @enduml
+#+end_src
+
+Sequence of a flow (Runtime behavior), the view for technical teams and the API documentation:
+
+#+begin_src plantuml :file stock-seq-main.svg :eval never
+  @startuml
+  participant "A" as a
+  participant "B" as b
+  a -> b : message
+  b --> a : reply
+  @enduml
+#+end_src
+
+Business process with swimlanes (Business processes):
+
+#+begin_src plantuml :file stock-process-main.svg :eval never
+  @startuml
+  |Actor 1|
+  start
+  :Activity 1;
+  |Actor 2|
+  :Activity 2;
+  if (Condition?) then (yes)
+  :Activity 3a;
+  else (no)
+  :Activity 3b;
+  endif
+  |Actor 1|
+  :Activity 4;
+  stop
+  @enduml
+#+end_src
+
+Deployment:
+
+#+begin_src plantuml :file stock-deployment.svg :eval never
+  node "Environment: [name]" {
+  node "Host: [name]" {
+  artifact "stock"
+  }
+  database "DB: [name]" {
+  }
+  }
+  @enduml
+#+end_src
+
+* Introduction
+:PROPERTIES:
+:BLUEPRINT_SECTION: introduction
+:END:
+<<stock-intro>>
+
+Keeps the stock levels per item and location and, with a nightly job, reports the items below the minimum stock.
+
+* Context and scope
+:PROPERTIES:
+:BLUEPRINT_SECTION: context-scope
+:END:
+<<stock-context>>
+
+Reads the movements created by the orders module and sends the stock alarm through the notifications module. [TO VALIDATE]
+
+* Constraints
+:PROPERTIES:
+:BLUEPRINT_SECTION: constraints
+:END:
+<<stock-constraints>>
+
+* Solution strategy
+:PROPERTIES:
+:BLUEPRINT_SECTION: solution-strategy
+:END:
+<<stock-strategy>>
+
+TBD
+
+* Building blocks
+:PROPERTIES:
+:BLUEPRINT_SECTION: building-blocks
+:END:
+<<stock-static>>
+
+* Runtime behavior
+:PROPERTIES:
+:BLUEPRINT_SECTION: runtime
+:END:
+<<stock-runtime>>
+
+The job starts at 2:00 from crontab, recomputes the stock levels by adding up the movements and compares the result with the threshold of each item.
+
+* Business processes
+:PROPERTIES:
+:BLUEPRINT_SECTION: business-processes
+:END:
+<<stock-business-processes>>
+
+* Deployment
+:PROPERTIES:
+:BLUEPRINT_SECTION: deployment
+:END:
+<<stock-deployment>>
+
+* Responsibility
+:PROPERTIES:
+:BLUEPRINT_SECTION: responsibility
+:END:
+<<stock-responsibility>>
+
+* Risks
+:PROPERTIES:
+:BLUEPRINT_SECTION: risks
+:END:
+<<stock-risks>>
+
+* Open questions
+:PROPERTIES:
+:BLUEPRINT_SECTION: open-questions
+:END:
+<<stock-questions>>
+
+- QUESTION Who updates the minimum stock thresholds, and how often?
+
+- QUESTION Does the nightly recomputation overwrite the inventory adjustments made by hand?
+
+* Diagrams
+:PROPERTIES:
+:BLUEPRINT_SECTION: diagrams
+:END:

@@ -1,0 +1,11 @@
+#+TITLE: Security policy
+
+* Supported versions
+
+Fixes are released on the latest version only. Check the [[https://github.com/kLeZ/blueprint.el/releases][releases]] page and update before reporting.
+
+* Reporting a vulnerability
+
+Do not open a public issue. Use GitHub's private vulnerability reporting: on the repository page, /Security/, then /Report a vulnerability/. Describe the problem, the version, and the steps to reproduce it on an invented project.
+
+Blueprint runs code in a few places that deserve attention: Org Babel blocks during export (PlantUML), external programs (=dot=, =plantuml=, =git=, =rg=, =unzip=), and the optional requests to a local Ollama server (=blueprint-ai.el=). Problems in any of those paths are in scope.

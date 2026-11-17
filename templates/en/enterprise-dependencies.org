@@ -1,0 +1,40 @@
+#+TITLE: Enterprise view -- Dependencies and integrations
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: {{DATE}}
+
+* Dependency map
+<<enterprise-dependencies>> [TO VALIDATE]
+
+** Dependency matrix
+Legend: IN = receives from, OUT = sends to, BI = bidirectional, -- = no relation
+
+| System   | System A | System B | System C | [Ext] |
+|----------+----------+----------+----------+-------|
+| System A | --       | OUT      | --       | OUT   |
+| System B | IN       | --       | BI       | --    |
+| System C | --       | BI       | --       | --    |
+
+** Main cross-system flows
+[One DFD or sequence diagram for each relevant business flow that crosses several systems]
+
+*** Flow: [name]
+[TO VALIDATE]
+
+#+begin_src plantuml :file enterprise-flow-01.svg
+  participant "System A" as a
+  participant "System B" as b
+  a -> b : [data]
+  b --> a : [reply]
+  @enduml
+#+end_src
+
+** Data lineage
+[To fill in when the focus is on how data is transformed and flows]
+
+#+begin_src plantuml :file enterprise-dfd.svg
+  [Data Source A] --> (Transformation T1) : raw data
+  (Transformation T1) --> [System B] : normalized data
+  (Transformation T1) --> [Archive C] : historical copy
+  @enduml
+#+end_src

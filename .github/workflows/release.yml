@@ -42,15 +42,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Collect .el files and templates for release tarball
+      # package-install-file only installs an uncompressed .tar that
+      # holds a blueprint-pkg.el, so the package description is
+      # generated from the header of blueprint.el.
+      - name: Build the package tarball
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
           PKG_DIR="blueprint-${VERSION}"
+          SUMMARY=$(sed -n '1{s/^;;; blueprint\.el --- //;s/[[:space:]]*-\*-.*$//;p}' blueprint.el)
+          REQUIRES=$(grep -oP '^;; Package-Requires: \K.*' blueprint.el)
+          URL=$(grep -oP '^;; Homepage: \K.*' blueprint.el)
           mkdir "$PKG_DIR"
           cp *.el "$PKG_DIR/"
           cp -r templates "$PKG_DIR/"
           cp README.org "$PKG_DIR/" 2>/dev/null || true
-          tar czf "blueprint-${VERSION}.tar.gz" "$PKG_DIR"
+          printf ';; Generated from blueprint.el  -*- no-byte-compile: t; lexical-binding: t -*-\n(define-package "blueprint" "%s" "%s"\n  (quote %s)\n  :url "%s")\n' \
+            "$VERSION" "$SUMMARY" "$REQUIRES" "$URL" > "$PKG_DIR/blueprint-pkg.el"
+          cat "$PKG_DIR/blueprint-pkg.el"
+          tar cf "blueprint-${VERSION}.tar" "$PKG_DIR"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -58,4 +67,4 @@ jobs:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Blueprint v${{ needs.check-version.outputs.version }}
           generate_release_notes: true
-          files: blueprint-*.tar.gz
+          files: blueprint-*.tar

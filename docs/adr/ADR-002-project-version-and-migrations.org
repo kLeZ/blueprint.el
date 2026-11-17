@@ -4,209 +4,132 @@
 
 * Context
 
-Two rules set by the user (2026-11-02), which also revise PLAN.org 10.8
-("nessuna migrazione" meant "no forced migration", not "no migration"):
+Two rules set by the user (2026-11-02), which also revise PLAN.org 10.8 ("nessuna migrazione" meant "no forced migration", not "no migration"):
 
-1. Blueprint must read every project format it ever wrote, without asking
-   for a migration first: a user with a deadline must never be blocked by
-   the tool.
+1. Blueprint must read every project format it ever wrote, without asking for a migration first: a user with a deadline must never be blocked by the tool.
 2. A migration path must always exist, optional, run when the user decides.
 
-Projects may come from any version, pre-0.1.0 included, so both rules
-apply back to the initial commit. The dashboard must show the project's
-Blueprint version and whether a migration is available, for the project
-and for the user templates (=~/.config/blueprint/templates/=), so that the
-work can be planned.
+Projects may come from any version, pre-0.1.0 included, so both rules apply back to the initial commit. The dashboard must show the project's Blueprint version and whether a migration is available, for the project and for the user templates (=~/.config/blueprint/templates/=), so that the work can be planned.
 
-The version number alone does not identify a layout: "0.2.0" covers seven
-months (2026-02-22 to 2026-10-15) and several incompatible layouts. The
-projects do not record which version created them.
+The version number alone does not identify a layout: "0.2.0" covers seven months (2026-02-22 to 2026-10-15) and several incompatible layouts. The projects do not record which version created them.
 
 * Inventory of format changes
 
-Read today = what the code on PR #2 does with the old format, verified on
-the code of each epoch (git history) and, for 0.2.0, on a project created
-with 3e39fd9 and opened with the current code.
+Read today = what the code on PR #2 does with the old format, verified on the code of each epoch (git history) and, for 0.2.0, on a project created with 3e39fd9 and opened with the current code.
 
-| # | Change                                                       | Introduced            | Read today          | Migration today                 |
-|---+--------------------------------------------------------------+-----------------------+---------------------+---------------------------------|
-| 1 | Component dirs named as typed ("Order Service"), not slugs   | until cdc3c1f (0.2.0) | partly (1)          | none (rename-component by hand) |
-| 2 | Pre-0.1.0 component file: =* Component= + level-2 sections   | 8b44775               | yes, lint warns     | none                            |
-| 3 | One file per ADR: =.blueprint/adr/NNNN-slug.org=, =#+STATUS:= | until 9925e88 (0.2.0) | *no*: ADRs invisible | none                            |
-| 4 | Glossary/references written to =.blueprint/= (orphan files)  | until dbbf791 (0.2.0) | *no*                 | none                            |
-| 5 | References as level-1 headings with =:TYPE:/:DATE:= drawer   | until dbbf791 (0.2.0) | as text only        | none                            |
-| 6 | Glossary terms as level-1 headings with =:SOURCE:= drawer    | until 0.3.0           | yes (lookup)        | none                            |
-| 7 | master.org without Parts 0-V and functional/infra markers    | until cdc3c1f (0.2.0) | yes                 | none                            |
-| 8 | Project files missing (enterprise/, nfr/, glossary, refs)    | until cdc3c1f (0.2.0) | yes (absent = empty) | none                            |
-| 9 | Components without functional.org / infrastructure.org       | until cdc3c1f (0.2.0) | yes                 | none                            |
-| 10 | Data directory =.blueprint= vs =blueprint-directory-name=     | f76a6e3 (0.2.0)       | yes (fallback)      | =blueprint-migrate-directory=   |
-| 11 | No =#+BLUEPRINT_LIFECYCLE:= in arc42.org                     | until 0.3.0           | yes (= active)      | none                            |
-| 12 | Questions without =[TAG:]= / =ANSWERED=                      | until 0.3.0           | yes                 | not needed                      |
-| 13 | Agenda IDs hashed on absolute paths                          | 0.3.0                 | *no* after PR #2 (2) | none                            |
-| 14 | Project or user templates older than the system ones         | every release         | yes, silently used  | =blueprint-template-migrate= only adds missing files |
+|  # | Change                                                        | Introduced            | Read today           | Migration today                                      |
+|----+---------------------------------------------------------------+-----------------------+----------------------+------------------------------------------------------|
+|  1 | Component dirs named as typed ("Order Service"), not slugs    | until cdc3c1f (0.2.0) | partly (1)           | none (rename-component by hand)                      |
+|  2 | Pre-0.1.0 component file: =* Component= + level-2 sections    | 8b44775               | yes, lint warns      | none                                                 |
+|  3 | One file per ADR: =.blueprint/adr/NNNN-slug.org=, =#+STATUS:= | until 9925e88 (0.2.0) | *no*: ADRs invisible | none                                                 |
+|  4 | Glossary/references written to =.blueprint/= (orphan files)   | until dbbf791 (0.2.0) | *no*                 | none                                                 |
+|  5 | References as level-1 headings with =:TYPE:/:DATE:= drawer    | until dbbf791 (0.2.0) | as text only         | none                                                 |
+|  6 | Glossary terms as level-1 headings with =:SOURCE:= drawer     | until 0.3.0           | yes (lookup)         | none                                                 |
+|  7 | master.org without Parts 0-V and functional/infra markers     | until cdc3c1f (0.2.0) | yes                  | none                                                 |
+|  8 | Project files missing (enterprise/, nfr/, glossary, refs)     | until cdc3c1f (0.2.0) | yes (absent = empty) | none                                                 |
+|  9 | Components without functional.org / infrastructure.org        | until cdc3c1f (0.2.0) | yes                  | none                                                 |
+| 10 | Data directory =.blueprint= vs =blueprint-directory-name=     | f76a6e3 (0.2.0)       | yes (fallback)       | =blueprint-migrate-directory=                        |
+| 11 | No =#+BLUEPRINT_LIFECYCLE:= in arc42.org                      | until 0.3.0           | yes (= active)       | none                                                 |
+| 12 | Questions without =[TAG:]= / =ANSWERED=                       | until 0.3.0           | yes                  | not needed                                           |
+| 13 | Agenda IDs hashed on absolute paths                           | 0.3.0                 | *no* after PR #2 (2) | none                                                 |
+| 14 | Project or user templates older than the system ones          | every release         | yes, silently used   | =blueprint-template-migrate= only adds missing files |
 
-(1) Listed, but an id with spaces cannot appear in =#+BLUEPRINT_DEPENDS:=
-(space-separated) and escapes the duplicate check of
-=blueprint-add-component=, which compares slugs.
+(1) Listed, but an id with spaces cannot appear in =#+BLUEPRINT_DEPENDS:= (space-separated) and escapes the duplicate check of =blueprint-add-component=, which compares slugs.
 
-(2) PR #2 hashes root-relative paths: a 0.3.0 =agenda.org= loses its
-DEADLINE/SCHEDULED/state at the first refresh.
+(2) PR #2 hashes root-relative paths: a 0.3.0 =agenda.org= loses its DEADLINE/SCHEDULED/state at the first refresh.
 
-Rows 3, 4 and 13 break rule 1 today and are fixed regardless of the
-decisions below. Rows 2 and 12 need no migration (content, or already
-compatible).
+Rows 3, 4 and 13 break rule 1 today and are fixed regardless of the decisions below. Rows 2 and 12 need no migration (content, or already compatible).
 
 * Decision
 
 ** D1: the project records its version in =blueprint-version.org=
 
-A small Org file in the data directory (=.blueprint/blueprint-version.org=),
-never included in master.org.  User decision (2026-11-02): the name must
-be unmistakable; a =project.org= could later be a functional document of
-the project, which is documentation after all.
+A small Org file in the data directory (=.blueprint/blueprint-version.org=), never included in master.org.  User decision (2026-11-02): the name must be unmistakable; a =project.org= could later be a functional document of the project, which is documentation after all.
 
 #+begin_src org
-,#+TITLE: Versione Blueprint del progetto
-,#+BLUEPRINT_VERSION: 0.3.0
-,#+BLUEPRINT_MIGRATIONS: adr-single-file glossary-sections ...
+  ,#+TITLE: Versione Blueprint del progetto
+  ,#+BLUEPRINT_VERSION: 0.3.0
+  ,#+BLUEPRINT_MIGRATIONS: adr-single-file glossary-sections ...
 #+end_src
 
-Written by =blueprint-init= and by every applied migration, never
-required: a project without it gets an /inferred/ version from its
-layout (rows 1-14 are the detectors), shown as such.
+Written by =blueprint-init= and by every applied migration, never required: a project without it gets an /inferred/ version from its layout (rows 1-14 are the detectors), shown as such.
 
-Revised for 0.4.1 (user decision 2026-11-02, see D7): writing the file
-is not a migration step.  A project with nothing to migrate declares
-its version from the plan buffer (=v=).
+Revised for 0.4.1 (user decision 2026-11-02, see D7): writing the file is not a migration step.  A project with nothing to migrate declares its version from the plan buffer (=v=).
 
 ** D2: a registry of migration steps and one optional command
 
-Each step has an id, the version that introduced the format, a
-/detector/ (pending or not, read-only) and an /apply/ function
-(idempotent). =blueprint-project-upgrade= builds the plan from the
-detectors, shows it in a buffer (step, files touched, what changes), and
-applies the steps the user confirms, all or one by one, in version order.
-Nothing runs on its own: commands keep reading the old formats.
+Each step has an id, the version that introduced the format, a /detector/ (pending or not, read-only) and an /apply/ function (idempotent). =blueprint-project-upgrade= builds the plan from the detectors, shows it in a buffer (step, files touched, what changes), and applies the steps the user confirms, all or one by one, in version order. Nothing runs on its own: commands keep reading the old formats.
 
 ** D3: backup before apply, git check configurable
 
-Every file a step rewrites, moves or deletes is copied first to
-=_archive/migration-YYYYMMDD-HHMMSS/= (=blueprint-init= already creates
-=_archive/=), with the plan as a report.  User decision: both safeguards,
-the backup always and, in a git working tree with uncommitted changes, a
-warning that does not block (=blueprint-upgrade-git-check=: =warn=,
-=refuse= or nil).  Renames go through =git mv= when the file is tracked,
-as =blueprint-migrate-directory= does.
+Every file a step rewrites, moves or deletes is copied first to =_archive/migration-YYYYMMDD-HHMMSS/= (=blueprint-init= already creates =_archive/=), with the plan as a report.  User decision: both safeguards, the backup always and, in a git working tree with uncommitted changes, a warning that does not block (=blueprint-upgrade-git-check=: =warn=, =refuse= or nil).  Renames go through =git mv= when the file is tracked, as =blueprint-migrate-directory= does.
 
 ** D4: template status through the hashes of every released version
 
-A table of the MD5 of every version of every system template, extracted
-from git history and shipped with the package, classifies each project
-or user template as /current/, /stale/ (identical to an older system
-version: can be updated, with backup) or /customized/ (matches no
-version: only the diff is shown, the user merges by hand).
+A table of the MD5 of every version of every system template, extracted from git history and shipped with the package, classifies each project or user template as /current/, /stale/ (identical to an older system version: can be updated, with backup) or /customized/ (matches no version: only the diff is shown, the user merges by hand).
 
 ** D5: dashboard, JSON report and CI signal
 
-The dashboard summary line adds the version (declared or inferred), the
-number of pending migrations and of templates to update; =u= in the
-dashboard opens the upgrade plan.  The JSON report gets the same fields.
-User decision: the effect on =blueprint-ci-validate= is configurable
-(=blueprint-ci-pending-migrations=: =ignore= by default, =warn= exits 1,
-=error= exits 2).
+The dashboard summary line adds the version (declared or inferred), the number of pending migrations and of templates to update; =u= in the dashboard opens the upgrade plan.  The JSON report gets the same fields. User decision: the effect on =blueprint-ci-validate= is configurable (=blueprint-ci-pending-migrations=: =ignore= by default, =warn= exits 1, =error= exits 2).
 
 ** D7: the version file is not a migration step (0.4.1)
 
-0.4.0 registered the creation of =blueprint-version.org= as a step
-(=version-file=) like the format migrations.  At the first use on the pilot
-project it showed three inconsistencies: applying any
-other step wrote the file, so =version-file= vanished from the plan
-without being applied or recorded in =#+BLUEPRINT_MIGRATIONS:=; a
-project already in the current format counted "1 migration available"
-in the dashboard and exited 1 in CI with
-=blueprint-ci-pending-migrations= set to =warn=, only for a missing
-metadata file; and the step had no =:era=, the cause of the plan
-crash fixed in PLAN 9.32.
+0.4.0 registered the creation of =blueprint-version.org= as a step (=version-file=) like the format migrations.  At the first use on the pilot project it showed three inconsistencies: applying any other step wrote the file, so =version-file= vanished from the plan without being applied or recorded in =#+BLUEPRINT_MIGRATIONS:=; a project already in the current format counted "1 migration available" in the dashboard and exited 1 in CI with =blueprint-ci-pending-migrations= set to =warn=, only for a missing metadata file; and the step had no =:era=, the cause of the plan crash fixed in PLAN 9.32.
 
-Decision (user, 2026-11-02): =version-file= leaves the registry.  The
-file is still written by =blueprint-init= and by every applied
-migration; the plan buffer has =v= (=blueprint-upgrade-declare-version=)
-to write it on demand, with the inferred version when steps are still
-pending and the package version otherwise, keeping the recorded
-migrations.  "Migrations available" counts only format conversions.
-=#+BLUEPRINT_MIGRATIONS:= keeps listing only steps of the registry; a
-=version-file= id written by 0.4.0 stays readable (the list is
-informational, no code decides on it).
+Decision (user, 2026-11-02): =version-file= leaves the registry.  The file is still written by =blueprint-init= and by every applied migration; the plan buffer has =v= (=blueprint-upgrade-declare-version=) to write it on demand, with the inferred version when steps are still pending and the package version otherwise, keeping the recorded migrations.  "Migrations available" counts only format conversions. =#+BLUEPRINT_MIGRATIONS:= keeps listing only steps of the registry; a =version-file= id written by 0.4.0 stays readable (the list is informational, no code decides on it).
 
-Alternatives: keep the step and record it when the file is created by
-another step (minimal, but the noise in dashboard and CI stays); show
-the step only when nothing else is pending (the plan is coherent, the
-noise stays when it is alone).
+Alternatives: keep the step and record it when the file is created by another step (minimal, but the noise in dashboard and CI stays); show the step only when nothing else is pending (the plan is coherent, the noise stays when it is alone).
 
 ** D6: configurable behaviour (user decision 2026-11-02)
 
-Choices on which users may reasonably disagree become defcustoms, with
-the current behaviour as default:
+Choices on which users may reasonably disagree become defcustoms, with the current behaviour as default:
 
-| Defcustom                              | Values (default first)          | Choice it exposes                           |
-|----------------------------------------+---------------------------------+---------------------------------------------|
-| =blueprint-ci-pending-migrations=      | ignore, warn, error             | CI exit code with a migration available     |
-| =blueprint-upgrade-git-check=          | warn, refuse, nil               | uncommitted changes before a migration      |
-| =blueprint-upgrade-backup=             | t, nil                          | copy rewritten files to the archive         |
-| =blueprint-upgrade-backup-directory=   | "_archive"                      | where the backups go (relative to the root) |
-| =blueprint-template-status-scopes=     | (project user)                  | which template directories are checked      |
-| =blueprint-dashboard-show-version=     | t, nil                          | version/migrations in the dashboard         |
-| =blueprint-diff-default-base=          | head, index                     | component diff without a revision           |
-| =blueprint-agenda-view=                | block, agenda, todo             | what =blueprint-agenda= opens               |
-| =blueprint-glossary-source-position=   | after, before                   | /Fonte:/ line after or before a definition  |
+| Defcustom                            | Values (default first) | Choice it exposes                           |
+|--------------------------------------+------------------------+---------------------------------------------|
+| =blueprint-ci-pending-migrations=    | ignore, warn, error    | CI exit code with a migration available     |
+| =blueprint-upgrade-git-check=        | warn, refuse, nil      | uncommitted changes before a migration      |
+| =blueprint-upgrade-backup=           | t, nil                 | copy rewritten files to the archive         |
+| =blueprint-upgrade-backup-directory= | "_archive"             | where the backups go (relative to the root) |
+| =blueprint-template-status-scopes=   | (project user)         | which template directories are checked      |
+| =blueprint-dashboard-show-version=   | t, nil                 | version/migrations in the dashboard         |
+| =blueprint-diff-default-base=        | head, index            | component diff without a revision           |
+| =blueprint-agenda-view=              | block, agenda, todo    | what =blueprint-agenda= opens               |
+| =blueprint-glossary-source-position= | after, before          | /Fonte:/ line after or before a definition  |
 
-Already configurable and kept: =blueprint-lint-lifecycle-checks=,
-=blueprint-history-on-sync=, =blueprint-agenda-marker-types=,
-=blueprint-agenda-add-to-org-agenda=, =blueprint-milestone-files=,
-=blueprint-preview-delay=, =blueprint-ci-report-file=.
+Already configurable and kept: =blueprint-lint-lifecycle-checks=, =blueprint-history-on-sync=, =blueprint-agenda-marker-types=, =blueprint-agenda-add-to-org-agenda=, =blueprint-milestone-files=, =blueprint-preview-delay=, =blueprint-ci-report-file=.
 
 * Alternatives considered
 
 Pugh matrix for D1, baseline = no record, detection only (C).
 
-| Criterion                          | A: keyword in master.org | B: .blueprint/project.org | C: detection only |
-|------------------------------------+--------------------------+---------------------------+-------------------|
-| Works on projects without master   |                       -1 |                         0 |                 0 |
-| Distinguishes 0.2.0 sub-layouts    |                       +1 |                        +1 |                 0 |
-| Keeps the deliverable untouched    |                       -1 |                         0 |                 0 |
-| Records applied migrations         |                       +1 |                        +1 |                 0 |
-| Implementation cost                |                        0 |                         0 |                 0 |
-| Total                              |                        0 |                        +2 |                 0 |
+| Criterion                        | A: keyword in master.org | B: .blueprint/project.org | C: detection only |
+|----------------------------------+--------------------------+---------------------------+-------------------|
+| Works on projects without master |                       -1 |                         0 |                 0 |
+| Distinguishes 0.2.0 sub-layouts  |                       +1 |                        +1 |                 0 |
+| Keeps the deliverable untouched  |                       -1 |                         0 |                 0 |
+| Records applied migrations       |                       +1 |                        +1 |                 0 |
+| Implementation cost              |                        0 |                         0 |                 0 |
+| Total                            |                        0 |                        +2 |                 0 |
 
-D2: one command per migration (no registry) was considered: simpler, but
-the dashboard could not say "N pending" without duplicating every
-detector, and the order between steps would be up to the user.
+D2: one command per migration (no registry) was considered: simpler, but the dashboard could not say "N pending" without duplicating every detector, and the order between steps would be up to the user.
 
-D3: requiring a clean git tree was considered: safe, but it blocks the
-projects that are not under git and the user with uncommitted work, the
-scenario rule 1 protects.
+D3: requiring a clean git tree was considered: safe, but it blocks the projects that are not under git and the user with uncommitted work, the scenario rule 1 protects.
 
-D4: comparing only with the current system template was considered: it
-cannot tell a stale unmodified copy from a customized one, so it could
-only show diffs and never offer a safe update.
+D4: comparing only with the current system template was considered: it cannot tell a stale unmodified copy from a customized one, so it could only show diffs and never offer a safe update.
 
 * Consequences
 
 ** Positive
-- Every layout since the initial commit stays readable; rows 3, 4, 13
-  become readable again.
+- Every layout since the initial commit stays readable; rows 3, 4, 13 become readable again.
 - One place lists what a project can migrate, with a backup per run.
 - The dashboard tells which projects and user templates are behind.
 
 ** Negative
 - One more file in the data directory.
-- Every future format change needs its detector and its step (a check in
-  the release procedure).
+- Every future format change needs its detector and its step (a check in the release procedure).
 
 ** Risks
-- A detector that misreads a hand-edited file proposes a wrong step:
-  mitigated by the plan buffer (nothing applies unseen) and the backup.
+- A detector that misreads a hand-edited file proposes a wrong step: mitigated by the plan buffer (nothing applies unseen) and the backup.
 
 ** Technical debt
-- The template hash table must be regenerated at each release (a script
-  over git history, run by the release procedure).
+- The template hash table must be regenerated at each release (a script over git history, run by the release procedure).

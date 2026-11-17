@@ -47,8 +47,6 @@ le interviste o le sessioni di validazione mancanti.
 | D-01 | Repository di GestioneMagazzino | team-magazzino            | 2026-11-16 | codebase | Ramo principale, ultimo commit analizzato |
 | D-02 | Manuale operativo del magazzino | Responsabile di magazzino | 2026-11-16 | document | Versione 2019, in parte superata          |
 
-
-
 * Interviste
 <<references-interviews>>
 
@@ -56,8 +54,6 @@ le interviste o le sessioni di validazione mancanti.
 |------+--------------------------------+------------------------+------------+------------------------------------+------|
 | I-01 | Responsabile di magazzino      | Responsabile operativo | 2026-11-16 | Walkthrough di evasione e picking  |      |
 | I-02 | Sviluppatore dell'applicazione | Sviluppatore PHP       | 2026-11-16 | Architettura, deploy, job notturni |      |
-
-
 
 * Sistemi e strumenti
 <<references-systems>>

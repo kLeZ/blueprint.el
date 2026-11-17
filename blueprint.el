@@ -1,11 +1,12 @@
 ;;; blueprint.el --- Text-first architectural assessment toolkit  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
-;; Version: 0.4.1
+;; Author: kLeZ <julius8774@gmail.com>
+;; Maintainer: kLeZ <julius8774@gmail.com>
+;; Version: 0.5.0
 ;; Package-Requires: ((emacs "29.1") (transient "0.4"))
 ;; Keywords: tools, architecture, documentation
-;; URL: https://github.com/kLeZ/blueprint.el
+;; Homepage: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
 
@@ -86,7 +87,7 @@
 
 (require 'transient)
 
-;;;###autoload
+;;;###autoload (autoload 'blueprint-menu "blueprint" nil t)
 (transient-define-prefix blueprint-menu ()
   "Blueprint main menu."
   [["Project"

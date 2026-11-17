@@ -21,7 +21,7 @@
     (blueprint-template-migrate)
     (let ((dst (blueprint--project-template-dir)))
       (should (file-directory-p dst))
-      (dolist (f (directory-files blueprint-template-dir nil "^[^.]"))
+      (dolist (f (directory-files (blueprint--system-template-dir "it") nil "\\.org\\'"))
         (should (file-exists-p (expand-file-name f dst)))))))
 
 (ert-deftest blueprint-test-migrate/non-destructive ()
@@ -69,7 +69,7 @@ came out 0444."
   (let ((src (make-temp-file "blueprint-ro-templates-" t)))
     (unwind-protect
         (progn
-          (dolist (f (directory-files blueprint-template-dir t "\\.org\\'"))
+          (dolist (f (directory-files (blueprint--system-template-dir "it") t "\\.org\\'"))
             (let ((dest (expand-file-name (file-name-nondirectory f) src)))
               (copy-file f dest)
               (set-file-modes dest #o444)))
@@ -88,16 +88,17 @@ came out 0444."
         (user (make-temp-file "blueprint-user-templates-" t)))
     (unwind-protect
         (progn
-          (dolist (f (directory-files blueprint-template-dir t "\\.org\\'"))
+          (dolist (f (directory-files (blueprint--system-template-dir "it") t "\\.org\\'"))
             (let ((dest (expand-file-name (file-name-nondirectory f) src)))
               (copy-file f dest)
               (set-file-modes dest #o444)))
           (let ((blueprint-template-dir (file-name-as-directory src))
                 (blueprint-user-template-dir user)
                 (inhibit-message t))
-            (blueprint--provision-user-templates)
-            (should (directory-files user nil "\\.org\\'"))
-            (dolist (f (directory-files user t "\\.org\\'"))
+            (blueprint--provision-user-templates "it")
+            ;; Provisioned into the folder of the language.
+            (should (directory-files (expand-file-name "it" user) nil "\\.org\\'"))
+            (dolist (f (directory-files (expand-file-name "it" user) t "\\.org\\'"))
               (should (file-writable-p f)))))
       (dolist (f (directory-files src t "\\.org\\'"))
         (set-file-modes f #o644))

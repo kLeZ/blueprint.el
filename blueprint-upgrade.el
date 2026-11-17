@@ -1,7 +1,7 @@
 ;;; blueprint-upgrade.el --- Project version and optional migrations for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -166,7 +166,7 @@ Headings the export leaves out (the template guides) are skipped."
 
 (defun blueprint--upgrade-template-headings (template id name)
   "Return the level-1 body headings of TEMPLATE for component ID/NAME.
-A list of (TITLE . ANCHOR-LINE-OR-NIL), in template order, outside the
+A list of (TITLE . BODY-OR-NIL), in template order, outside the
 :noexport: guide."
   (let ((text (blueprint--template template)))
     (setq text (replace-regexp-in-string "{{ID}}" id text t t))
@@ -185,8 +185,16 @@ A list of (TITLE . ANCHOR-LINE-OR-NIL), in template order, outside the
                      (save-excursion
                        (goto-char (org-element-property :begin hl))
                        (forward-line 1)
-                       (and (looking-at "[ \t]*<<[^>]+>>[ \t]*$")
-                            (string-trim (match-string 0))))))
+                       ;; The property drawer (:BLUEPRINT_SECTION:)
+                       ;; comes with the anchor that follows it.
+                       (let ((drawer
+                              (when (looking-at "[ \t]*:PROPERTIES:[ \t]*$")
+                                (let ((beg (point)))
+                                  (when (re-search-forward "^[ \t]*:END:[ \t]*\n" nil t)
+                                    (buffer-substring-no-properties beg (point)))))))
+                         (if (looking-at "[ \t]*<<[^>]+>>[ \t]*$")
+                             (concat drawer (string-trim (match-string 0)))
+                           (and drawer (string-remove-suffix "\n" drawer)))))))
                 (push (cons (org-element-property :raw-value hl) anchor)
                       result)))))
         (nreverse result)))))
@@ -271,6 +279,7 @@ component.org that are missing are appended, empty."
              (name (or (blueprint--org-keyword file "TITLE") id)))
         (with-temp-buffer
           (insert-file-contents file)
+          (let ((org-inhibit-startup t)) (delay-mode-hooks (org-mode)))
           (goto-char (point-min))
           (when (re-search-forward "^\\* Component[ \t]*$" nil t)
             (delete-region (line-beginning-position)
@@ -296,7 +305,16 @@ component.org that are missing are appended, empty."
             (unless (bolp) (insert "\n"))
             (dolist (h (blueprint--upgrade-template-headings
                         "component.org" (blueprint--component-id id) name))
-              (unless (member (car h) present)
+              ;; A section of the template is there when the file has
+              ;; it under any of its titles (\"Risks\" for \"Rischi\"):
+              ;; compare ids, not titles, when the template gives one.
+              (unless (let ((sid (and (cdr h)
+                                      (string-match ":BLUEPRINT_SECTION:[ \t]+\\(\\S-+\\)"
+                                                    (cdr h))
+                                      (intern (match-string 1 (cdr h))))))
+                        (if sid
+                            (save-excursion (blueprint--section-find sid 1))
+                          (member (car h) present)))
                 (insert "\n* " (car h) "\n")
                 (when (cdr h) (insert (cdr h) "\n")))))
           (write-region (point-min) (point-max) file nil 'silent))
@@ -545,7 +563,7 @@ migrates), the system template."
                    (when (re-search-backward "^\\* .*$" nil t)
                      (match-string 0))))))
            (list (blueprint--resolve-template "master.org")
-                 (expand-file-name "master.org" blueprint-template-dir))))
+                 (expand-file-name "master.org" (blueprint--system-template-dir)))))
 
 (defun blueprint--upgrade-apply-master-sections (root)
   "Append the missing sync sections to master.org.
@@ -638,6 +656,126 @@ one the code already assumed for these components."
       (push (blueprint--upgrade-rel file root) done))
     (nreverse done)))
 
+(defun blueprint--upgrade-section-files (root)
+  "Return the existing project files whose sections the commands look up.
+The documents of every component, the glossary, the references and
+the NFR files."
+  (let ((files (mapcar (lambda (f) (expand-file-name f root))
+                       '("glossary.org" "references.org"
+                         "nfr/quality-scenarios.org" "nfr/constraints.org"
+                         "nfr/risks.org"))))
+    (maphash (lambda (_id dir)
+               (dolist (f '("arc42.org" "functional.org" "infrastructure.org"))
+                 (push (expand-file-name f dir) files)))
+             (blueprint--components))
+    (sort (cl-remove-if-not #'file-exists-p files) #'string<)))
+
+(defun blueprint--upgrade-unmarked-sections ()
+  "Return the headings of the current buffer to give a section property.
+A list of (POSITION . ID), last heading first: the headings found by
+their title (`blueprint--section-id-for-title') that have no
+:BLUEPRINT_SECTION: property, the first one of each id, outside the
+:noexport: and commented subtrees."
+  (let ((seen '()) (result '()))
+    (org-element-map (org-element-parse-buffer 'headline) 'headline
+      (lambda (hl)
+        (unless (or (org-element-property :BLUEPRINT_SECTION hl)
+                    (blueprint--headline-excluded-p hl))
+          (let ((id (blueprint--section-id-for-title
+                     (org-element-property :raw-value hl)
+                     (org-element-property :level hl))))
+            (when (and id (not (memq id seen)))
+              (push id seen)
+              (push (cons (org-element-property :begin hl) id) result))))))
+    result))
+
+(defun blueprint--upgrade-step-section-properties (root)
+  "Detector: known sections without the :BLUEPRINT_SECTION: property."
+  (cl-remove-if-not
+   (lambda (file)
+     (with-temp-buffer
+       (insert-file-contents file)
+       (let ((org-inhibit-startup t)) (delay-mode-hooks (org-mode)))
+       (blueprint--upgrade-unmarked-sections)))
+   (blueprint--upgrade-section-files root)))
+
+(defun blueprint--upgrade-apply-section-properties (root)
+  "Give the known sections their :BLUEPRINT_SECTION: property.
+The headings found by title keep their title; the property lets the
+commands find them however they are renamed or translated later."
+  (let ((done '()))
+    (dolist (file (blueprint--upgrade-step-section-properties root))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (let ((org-inhibit-startup t)) (delay-mode-hooks (org-mode)))
+        (dolist (entry (blueprint--upgrade-unmarked-sections))
+          (goto-char (car entry))
+          (org-entry-put nil "BLUEPRINT_SECTION" (symbol-name (cdr entry))))
+        (write-region (point-min) (point-max) file nil 'silent))
+      (blueprint--upgrade-refresh-buffer file)
+      (blueprint--invalidate-cache file)
+      (push (blueprint--upgrade-rel file root) done))
+    (nreverse done)))
+
+(defconst blueprint--upgrade-marker-renames
+  '(("[DA VALIDARE]" . "[TO VALIDATE]")
+    ("[DA REVISIONARE]" . "[TO REVIEW]")
+    ("[APPROVATO " . "[APPROVED ")
+    ("[FONTE:" . "[SOURCE:"))
+  "The Italian methodology markers and their English form (ADR-003, D3).")
+
+(defun blueprint--upgrade-marker-files (root)
+  "Return the files of ROOT Blueprint owns that hold an Italian marker.
+The files of the document (`blueprint--document-files': master.org
+and what it includes) and every Org file of the data directory
+(components, ADRs, agenda...), but not the project templates, whose
+status the plan reports apart.  Other Org files of the project (a
+schedule, personal notes) are not Blueprint's to rewrite."
+  (let* ((templates (file-name-as-directory (blueprint--data-path "templates" root)))
+         (data (blueprint--data-dir root))
+         (files (delete-dups
+                 (mapcar #'expand-file-name
+                         (append (blueprint--document-files root)
+                                 (and (file-directory-p data)
+                                      (directory-files-recursively
+                                       data blueprint--org-file-regexp)))))))
+    (sort
+     (cl-remove-if-not
+      (lambda (file)
+        (and (file-exists-p file)
+             (not (string-prefix-p templates file))
+             (with-temp-buffer
+               (insert-file-contents file)
+               (cl-some (lambda (pair)
+                          (goto-char (point-min))
+                          (search-forward (car pair) nil t))
+                        blueprint--upgrade-marker-renames))))
+      files)
+     #'string<)))
+
+(defun blueprint--upgrade-step-english-markers (root)
+  "Detector: files with the Italian methodology markers."
+  (blueprint--upgrade-marker-files root))
+
+(defun blueprint--upgrade-apply-english-markers (root)
+  "Rewrite the Italian methodology markers in their English form.
+[DA VALIDARE], [DA REVISIONARE], [APPROVATO date] and [FONTE: x]
+become [TO VALIDATE], [TO REVIEW], [APPROVED date] and [SOURCE: x];
+the counts do not change, both forms are read."
+  (let ((done '()))
+    (dolist (file (blueprint--upgrade-marker-files root))
+      (with-temp-buffer
+        (insert-file-contents file)
+        (dolist (pair blueprint--upgrade-marker-renames)
+          (goto-char (point-min))
+          (while (search-forward (car pair) nil t)
+            (replace-match (cdr pair) t t)))
+        (write-region (point-min) (point-max) file nil 'silent))
+      (blueprint--upgrade-refresh-buffer file)
+      (blueprint--invalidate-cache file)
+      (push (blueprint--upgrade-rel file root) done))
+    (nreverse done)))
+
 (defun blueprint--upgrade-step-agenda-ids (_root)
   "Detector: agenda.org with entries still keyed by the 0.3.0 IDs."
   (require 'blueprint-agenda)
@@ -675,70 +813,80 @@ and keeps DEADLINE, SCHEDULED, CLOSED and state."
 
 (defvar blueprint-upgrade-steps
   `((:id "component-arc42-layout"
-     :era "precedente a 0.1.0"
-     :title "Componenti con la struttura arc42 (al posto di \"* Component\")"
+     :era "before 0.1.0"
+     :title "Components with the arc42 structure (instead of \"* Component\")"
      :detect blueprint--upgrade-step-pre-010
      :apply blueprint--upgrade-apply-pre-010)
     (:id "component-dir-ids"
-     :era "0.1.0 o 0.2.0 (fino a 2026-02)"
-     :title "Directory dei componenti rinominate con l'id (slug)"
+     :era "0.1.0 or 0.2.0 (until 2026-02)"
+     :title "Component directories renamed to their id (slug)"
      :detect blueprint--upgrade-step-component-dirs
      :apply blueprint--upgrade-apply-component-dirs)
     (:id "project-files"
-     :era "0.1.0 o 0.2.0 (fino a 2026-02)"
-     :title "File di progetto mancanti creati dai template (vuoti: il lint li segnala finché non si compilano)"
+     :era "0.1.0 or 0.2.0 (until 2026-02)"
+     :title "Missing project files created from the templates (empty: the lint reports them until filled in)"
      :detect blueprint--upgrade-step-project-files
      :apply blueprint--upgrade-apply-project-files)
     (:id "master-sync-sections"
-     :era "0.1.0 o 0.2.0 (fino a 2026-02)"
-     :title "Sezioni sincronizzate mancanti in master.org"
+     :era "0.1.0 or 0.2.0 (until 2026-02)"
+     :title "Missing synced sections in master.org"
      :detect blueprint--upgrade-step-master-sections
      :apply blueprint--upgrade-apply-master-sections)
     (:id "component-documents"
-     :era "0.1.0 o 0.2.0 (fino a 2026-02)"
-     :title "functional.org e infrastructure.org mancanti creati nei componenti (vuoti: il lint li segnala)"
+     :era "0.1.0 or 0.2.0 (until 2026-02)"
+     :title "Missing functional.org and infrastructure.org created in the components (empty: the lint reports them)"
      :detect blueprint--upgrade-step-component-documents
      :apply blueprint--upgrade-apply-component-documents)
     (:id "adr-single-file"
-     :era "0.2.0 (fino a 2026-03)"
-     :title "ADR da un file ciascuno ad adr.org"
+     :era "0.2.0 (until 2026-03)"
+     :title "ADRs from one file each to adr.org"
      :detect blueprint--upgrade-step-adr-files
      :apply blueprint--upgrade-apply-adr-files)
     (:id "orphan-glossary"
-     :era "0.2.0 (fino a 2026-09)"
-     :title "Termini del glossario scritto nella data directory"
+     :era "0.2.0 (until 2026-09)"
+     :title "Glossary terms written in the data directory"
      :detect blueprint--upgrade-step-orphan-glossary
      :apply blueprint--upgrade-apply-orphan-glossary)
     (:id "orphan-references"
-     :era "0.2.0 (fino a 2026-09)"
-     :title "Riferimenti scritti nella data directory"
+     :era "0.2.0 (until 2026-09)"
+     :title "References written in the data directory"
      :detect blueprint--upgrade-step-orphan-references
      :apply blueprint--upgrade-apply-orphan-references)
     (:id "references-table-rows"
-     :era "0.2.0 (fino a 2026-09)"
-     :title "Riferimenti nel formato precedente convertiti in righe di tabella"
+     :era "0.2.0 (until 2026-09)"
+     :title "References in the earlier format turned into table rows"
      :detect blueprint--upgrade-step-references-entries
      :apply blueprint--upgrade-apply-references-entries)
     (:id "data-directory"
-     :era "0.2.0 (fino a 2026-09)"
-     :title "Directory dati .blueprint rinominata in blueprint-directory-name"
+     :era "0.2.0 (until 2026-09)"
+     :title "Data directory .blueprint renamed to blueprint-directory-name"
      :detect blueprint--upgrade-step-data-directory
      :apply blueprint--upgrade-apply-data-directory)
     (:id "glossary-sections"
-     :era "0.2.0 (fino a 2026-10)"
-     :title "Termini del glossario nel formato precedente spostati nelle sezioni"
+     :era "0.2.0 (until 2026-10)"
+     :title "Glossary terms in the earlier format moved into the sections"
      :detect blueprint--upgrade-step-glossary-entries
      :apply blueprint--upgrade-apply-glossary-entries)
     (:id "lifecycle-keyword"
-     :era "0.2.0 (fino a 2026-10)"
-     :title "#+BLUEPRINT_LIFECYCLE: active dichiarato nei componenti"
+     :era "0.2.0 (until 2026-10)"
+     :title "#+BLUEPRINT_LIFECYCLE: active declared in the components"
      :detect blueprint--upgrade-step-lifecycle
      :apply blueprint--upgrade-apply-lifecycle)
     (:id "agenda-ids"
      :era "0.3.0"
-     :title "ID dell'agenda rigenerati (date e stati conservati)"
+     :title "Agenda IDs regenerated (dates and states kept)"
      :detect blueprint--upgrade-step-agenda-ids
-     :apply blueprint--upgrade-apply-agenda-ids))
+     :apply blueprint--upgrade-apply-agenda-ids)
+    (:id "section-properties"
+     :era "0.4.1 or earlier"
+     :title "Known sections given the :BLUEPRINT_SECTION: property"
+     :detect blueprint--upgrade-step-section-properties
+     :apply blueprint--upgrade-apply-section-properties)
+    (:id "english-markers"
+     :era "0.4.1 or earlier"
+     :title "Italian methodology markers rewritten in English"
+     :detect blueprint--upgrade-step-english-markers
+     :apply blueprint--upgrade-apply-english-markers))
   "Registry of the optional migration steps, oldest format first.
 Each step is a plist: :id (recorded in blueprint-version.org), :era
 \(the layout it migrates from, used to infer the version of an
@@ -792,25 +940,42 @@ or the package version when no such step is pending."
     (insert-file-contents-literally file)
     (secure-hash 'md5 (current-buffer))))
 
-(defun blueprint--template-status (file)
+(defun blueprint--template-system-file (file &optional root)
+  "Return the system template that the copy FILE derives from."
+  (expand-file-name (blueprint--template-relative-name file)
+                    (blueprint--system-template-dir
+                     (blueprint--template-language file root))))
+
+(defun blueprint--template-status (file &optional root)
   "Return the status of the template copy FILE.
-`current' when it is the system template, `stale' when it is an
-unmodified older version of it (`blueprint--template-history'),
-`customized' when it matches no version, `unknown' when the package
-has no template of that name."
-  (let* ((name (file-name-nondirectory file))
-         (system (expand-file-name name blueprint-template-dir))
+`current' when it is the system template of its language
+\(`blueprint--template-language'), `stale' when it is an unmodified
+older version of it (`blueprint--template-history', keyed by
+\"<lang>/<name>\"), `customized' when it matches no version, `unknown'
+when the package has no template of that name.  ROOT is the project
+of a project template."
+  (let* ((name (blueprint--template-relative-name file))
+         (lang (blueprint--template-language file root))
+         (system (blueprint--template-system-file file root))
          (md5 (blueprint--file-md5 file)))
     (cond ((not (file-exists-p system)) 'unknown)
           ((string= md5 (blueprint--file-md5 system)) 'current)
-          ((member md5 (cdr (assoc name blueprint--template-history))) 'stale)
+          ((member md5 (cdr (assoc (concat lang "/" name)
+                                   blueprint--template-history)))
+           'stale)
           (t 'customized))))
 
-(defun blueprint--template-scope-dir (scope &optional root)
-  "Return the template directory of SCOPE (`project' or `user')."
+(defun blueprint--template-scope-files (scope &optional root)
+  "Return the template copies of SCOPE (`project' or `user').
+For `user', those of the folder of each language and, flat, those of
+the directory itself (the Italian copies of earlier versions)."
   (pcase scope
-    ('project (blueprint--data-path "templates" root))
-    ('user blueprint-user-template-dir)))
+    ('project (blueprint--template-files (blueprint--data-path "templates" root)))
+    ('user (append (cl-mapcan (lambda (lang)
+                                (blueprint--template-files
+                                 (expand-file-name lang blueprint-user-template-dir)))
+                              (blueprint--languages))
+                   (blueprint--template-files blueprint-user-template-dir t)))))
 
 (defun blueprint--template-statuses (&optional root)
   "Return the status of every template copy of the checked scopes.
@@ -819,12 +984,10 @@ A list of (SCOPE FILE STATUS), for the scopes of
 or `unknown' are left out."
   (let ((result '()))
     (dolist (scope blueprint-template-status-scopes)
-      (let ((dir (blueprint--template-scope-dir scope root)))
-        (when (and dir (file-directory-p dir))
-          (dolist (f (directory-files dir t "\\`[^.].*\\.org\\'"))
-            (let ((status (blueprint--template-status f)))
-              (when (memq status '(stale customized))
-                (push (list scope f status) result)))))))
+      (dolist (f (blueprint--template-scope-files scope root))
+        (let ((status (blueprint--template-status f root)))
+          (when (memq status '(stale customized))
+            (push (list scope f status) result)))))
     (nreverse result)))
 
 (defun blueprint--template-update (file &optional backup-dir)
@@ -842,13 +1005,12 @@ would be lost.  Returns the backup path."
     (make-directory dir t)
     (copy-file file backup t)
     (delete-file file)
-    (blueprint--copy-file-writable
-     (expand-file-name (file-name-nondirectory file) blueprint-template-dir) file)
+    (blueprint--copy-file-writable (blueprint--template-system-file file) file)
     backup))
 
 (defun blueprint--template-diff (file)
   "Show the diff between the system template and its copy FILE."
-  (diff (expand-file-name (file-name-nondirectory file) blueprint-template-dir)
+  (diff (blueprint--template-system-file file)
         file nil 'noasync))
 
 ;;; --- Summary (dashboard, CI) ---
@@ -972,11 +1134,11 @@ Returns a plist (:applied :report :backup)."
         (blueprint--version-write version migrations root))
       (when backup
         (with-temp-file (expand-file-name "report.org" backup)
-          (insert "#+TITLE: Migrazione Blueprint\n\n"
-                  (format "- Data: %s\n" (format-time-string "%Y-%m-%d %H:%M"))
-                  (format "- Versione del pacchetto: %s\n\n" (blueprint-package-version))
-                  "I file com'erano prima della migrazione sono in questa directory,\n"
-                  "con lo stesso percorso relativo alla root del progetto.\n\n")
+          (insert (format "#+TITLE: %s\n\n" (blueprint--l10n 'upgrade-backup-title root))
+                  (format "- %s: %s\n" (blueprint--l10n 'date root)
+                          (format-time-string "%Y-%m-%d %H:%M"))
+                  (format "- Blueprint %s\n\n" (blueprint-package-version))
+                  (blueprint--l10n 'upgrade-backup-intro root) "\n\n")
           (dolist (r report)
             (insert (format "* %s (%s)\n" (plist-get (car r) :title)
                             (plist-get (car r) :id)))
@@ -1007,8 +1169,8 @@ template at point; \\[blueprint-upgrade-apply-all] applies every pending step;
 \\[blueprint-upgrade-details-at-point] shows the files of a step or the diff of a template;
 \\[blueprint-upgrade-declare-version] writes blueprint-version.org; \[blueprint-project-upgrade] refreshes.
 Nothing is applied without confirmation."
-  (setq tabulated-list-format [("Tipo" 9 t) ("Passo / file" 34 t)
-                               ("Da" 24 t) ("Descrizione" 60 nil)])
+  (setq tabulated-list-format [("Kind" 9 t) ("Step / file" 34 t)
+                               ("From" 24 t) ("Description" 60 nil)])
   (tabulated-list-init-header))
 
 (defvar-local blueprint-upgrade--root nil
@@ -1024,34 +1186,34 @@ Nothing is applied without confirmation."
                        ;; A step that says nothing about the layout
                        ;; would have no :era, and
                        ;; tabulated-list needs a string in every column.
-                       (vector "passo" (plist-get step :id)
+                       (vector "step" (plist-get step :id)
                                (or (plist-get step :era) "--")
-                               (format "%s (%d file)" (plist-get step :title)
+                               (format "%s (%d files)" (plist-get step :title)
                                        (length (cdr p)))))))
              (blueprint--upgrade-pending root))
      (mapcar (lambda (tpl)
                (pcase-let ((`(,scope ,file ,status) tpl))
                  (list (list 'template file status)
                        (vector "template"
-                               (format "%s/%s" (if (eq scope 'user) "utente" "progetto")
-                                       (file-name-nondirectory file))
-                               (if (eq status 'stale) "versione precedente"
-                                 "personalizzato")
+                               (format "%s/%s" (if (eq scope 'user) "user" "project")
+                                       (blueprint--template-relative-name file))
+                               (if (eq status 'stale) "older version"
+                                 "customized")
                                (if (eq status 'stale)
-                                   "Copia non modificata di una versione precedente: x la aggiorna (con backup)"
-                                 "Diverso da ogni versione rilasciata: d mostra il diff, aggiornamento a mano")))))
+                                   "Unmodified copy of an older version: x updates it (with a backup)"
+                                 "Differs from every released version: d shows the diff, update by hand")))))
              (blueprint--template-statuses root)))))
 
 (defun blueprint--upgrade-header (root)
   "Return the header line of the plan of ROOT."
   (let* ((version (blueprint--project-version root))
          (git (and blueprint-upgrade-git-check (blueprint--upgrade-git-dirty-p root))))
-    (format " Progetto: %s (%s) | Pacchetto: %s | Backup: %s%s"
+    (format " Project: %s (%s) | Package: %s | Backup: %s%s"
             (car version)
-            (if (eq (cdr version) 'declared) "dichiarata" "dedotta")
+            (if (eq (cdr version) 'declared) "declared" "inferred")
             (blueprint-package-version)
-            (if blueprint-upgrade-backup blueprint-upgrade-backup-directory "disattivato")
-            (if git " | git: modifiche non committate" ""))))
+            (if blueprint-upgrade-backup blueprint-upgrade-backup-directory "off")
+            (if git " | git: uncommitted changes" ""))))
 
 ;;;###autoload
 (defun blueprint-project-upgrade ()

@@ -1,7 +1,7 @@
 ;;; blueprint-changelog.el --- Changelog generation for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -78,11 +78,8 @@ LOG-ENTRIES is a list of (HASH DATE SUBJECT) as
 the display name of the project."
   (concat
    (format "#+TITLE: CHANGELOG — %s\n\n" project)
-   "File generato da `blueprint-changelog-generate': messaggi dei\n"
-   "commit git (più recenti prima, raggruppati per data) e ADR\n"
-   "accettate.  Le modifiche manuali andranno perse alla prossima\n"
-   "rigenerazione.\n\n"
-   "* Cronologia\n\n"
+   (blueprint--l10n 'changelog-intro) "\n\n"
+   (format "* %s\n\n" (blueprint--l10n 'changelog-history))
    (progn
      (let ((out "")
            (current-date nil)
@@ -98,14 +95,14 @@ the display name of the project."
                                        (car entry) (nth 2 entry)))))
        (when log-entries (setq out (concat out "\n")))
        (when (string-empty-p out)
-         (setq out "Nessun commit registrato.\n"))
+         (setq out (concat (blueprint--l10n 'changelog-no-commits) "\n")))
        out))
-   "* Decisioni architetturali (ADR accettate)\n\n"
+   (format "* %s\n\n" (blueprint--l10n 'changelog-adrs))
    (if adrs
        (mapconcat (lambda (a)
                     (format "- ADR %s (%s): %s\n" (car a) (nth 2 a) (nth 1 a)))
                   adrs "")
-     "Nessuna ADR accettata.\n")))
+     (concat (blueprint--l10n 'changelog-no-adrs) "\n"))))
 
 ;;;###autoload
 (defun blueprint-changelog-generate (&optional since)

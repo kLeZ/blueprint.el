@@ -110,13 +110,13 @@ confermato.
 Struttura del payload in ingresso.
 
 #+begin_src json
-{
+  {
   "idempotency_key": "ord-20240215-78fa3c",
   "amount": 4950,
   "currency": "EUR",
   "payment_method_token": "pm_1OdXXXXX",
   "order_reference": "ORD-2024-001847"
-}
+  }
 #+end_src
 
 ** Cosa scrivere in ogni sezione                                   :noexport:
@@ -146,7 +146,7 @@ Le sezioni nascono vuote.  Quando se ne scrive il contenuto, marcarla con
 - /Open Questions/: elementi non determinabili dal codice che richiedono
   validazione con il domain expert.
 
-** Modelli                                                          :noexport:
+** Modelli                                                         :noexport:
 
 Da copiare nella sezione di destinazione.  Nei blocchi PlantUML togliere
 =:eval never=, che qui impedisce a Babel di generare i file a ogni export
@@ -161,21 +161,21 @@ sottosezione di dettaglio):
 Diagramma ER generale (Entità di dominio):
 
 #+begin_src plantuml :file fatturazione-er-general.svg :eval never
-@startuml
-' Aggiungere le entità del componente e le loro relazioni
-entity "Entità1" as e1 {
-  * id : tipo <<PK>>
+  @startuml
+  ' Aggiungere le entità del componente e le loro relazioni
+  entity "Entità1" as e1 {
+  ,* id : tipo <<PK>>
   --
   attributo : tipo
-}
-entity "Entità2" as e2 {
-  * id : tipo <<PK>>
+  }
+  entity "Entità2" as e2 {
+  ,* id : tipo <<PK>>
   --
   attributo : tipo
-  * fk_e1 : tipo <<FK>>
-}
-e1 ||--o{ e2 : "relazione"
-@enduml
+  ,* fk_e1 : tipo <<FK>>
+  }
+  e1 ||--o{ e2 : "relazione"
+  @enduml
 #+end_src
 
 Data Flow Diagram (Flussi dati).  PlantUML non ha una libreria DFD dedicata:
@@ -183,18 +183,18 @@ entità esterne come ~rectangle~, processi come ~circle~, data store come
 ~database~.
 
 #+begin_src plantuml :file fatturazione-data-flows.svg :eval never
-@startuml
-left to right direction
-rectangle "[Entità esterna, es. Cliente]" as ext1
-circle "[Processo, es. Elabora ordine]" as p1
-database "[Data store, es. DB Ordini]" as ds1
-rectangle "[Sistema esterno, es. Sistema pagamenti]" as ext2
+  @startuml
+  left to right direction
+  rectangle "[Entità esterna, es. Cliente]" as ext1
+  circle "[Processo, es. Elabora ordine]" as p1
+  database "[Data store, es. DB Ordini]" as ds1
+  rectangle "[Sistema esterno, es. Sistema pagamenti]" as ext2
 
-ext1 --> p1 : [dato in ingresso]
-p1 --> ds1 : [dato persistito]
-p1 --> ext2 : [dato in uscita]
-ext2 --> p1 : [dato di risposta]
-@enduml
+  ext1 --> p1 : [dato in ingresso]
+  p1 --> ds1 : [dato persistito]
+  p1 --> ext2 : [dato in uscita]
+  ext2 --> p1 : [dato di risposta]
+  @enduml
 #+end_src
 
 * Panoramica del componente

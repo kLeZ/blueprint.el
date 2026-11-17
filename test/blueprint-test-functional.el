@@ -202,8 +202,8 @@ Requires `default-directory' to be inside a Blueprint project."
                       (expand-file-name ".blueprint/components/svc/functional.org" proj))))
         (should (string-match-p "<<svc-area-gestione-ordini>>" content))))))
 
-(ert-deftest blueprint-test-functional/add-area-has-da-validare ()
-  "add-area inserts [DA VALIDARE] marker."
+(ert-deftest blueprint-test-functional/add-area-has-to-validate ()
+  "add-area inserts the [TO VALIDATE] marker."
   (blueprint-test--with-project
     (let ((proj default-directory))
       (blueprint-test--write-component "svc")
@@ -211,7 +211,7 @@ Requires `default-directory' to be inside a Blueprint project."
       (blueprint-functional-add-area "svc" "Reporting")
       (let ((content (blueprint-test--read-file
                       (expand-file-name ".blueprint/components/svc/functional.org" proj))))
-        (should (string-match-p "\\[DA VALIDARE\\]" content))))))
+        (should (string-match-p "\\[TO VALIDATE\\]" content))))))
 
 (ert-deftest blueprint-test-functional/add-area-unknown-component ()
   "add-area signals error for unknown component."

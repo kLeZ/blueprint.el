@@ -182,7 +182,7 @@ per-component and per-ADR data, not project-level deliverables."
     (blueprint-reference-add "Marco Bianchi" "interview" "Key insights")
     (let ((content (blueprint-test--read-file
                     (expand-file-name "references.org" default-directory))))
-      (should (string-match-p "| I-01 | Marco Bianchi | \\[DA VALIDARE\\] .*Key insights" content)))))
+      (should (string-match-p "| I-01 | Marco Bianchi | \\[TO VALIDATE\\] .*Key insights" content)))))
 
 (ert-deftest blueprint-test-references/document-routes-to-documenti ()
   "A non-interview type reference becomes a row in the Documenti table,
@@ -191,7 +191,7 @@ with TYPE surfacing as that table's own \"Tipo\" column."
     (blueprint-reference-add "System Spec" "monitoring" "Spec notes")
     (let ((content (blueprint-test--read-file
                     (expand-file-name "references.org" default-directory))))
-      (should (string-match-p "| D-01 | System Spec | \\[DA VALIDARE\\] .*monitoring.*Spec notes" content)))))
+      (should (string-match-p "| D-01 | System Spec | \\[TO VALIDATE\\] .*monitoring.*Spec notes" content)))))
 
 (ert-deftest blueprint-test-references/row-has-todays-date ()
   "Added reference row includes today's date."
@@ -414,7 +414,7 @@ exactly the one of older versions."
         (should (string-match-p
                  (concat "^- ANSWERED \\[" (format-time-string "%Y-%m-%d")
                          "\\] Chi usa il servizio\\? \\[TAG: integrazione\\]"
-                         " \\[FONTE: referente BSP\\]$")
+                         " \\[SOURCE: referente BSP\\]$")
                  content))))))
 
 (ert-deftest blueprint-test-glossary/lookup-finds-orphan-legacy-file ()

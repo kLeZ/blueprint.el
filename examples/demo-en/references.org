@@ -1,0 +1,81 @@
+#+TITLE: References
+#+VERSION: 0.1
+#+UPDATED: 2026-11-16
+#+NOTE: Standalone file.  Use blueprint-reference-add (C-c b z) to add references.
+
+* Filling-in guide — References                                    :noexport:
+
+Tracks the sources of the information documented.  It makes it possible to check where each statement comes from and to plan the missing interviews or validation sessions.
+
+** Documents (example)
+
+| ID   | Title                           | Author / Owner |       Date | Type          | Notes                                    |
+|------+---------------------------------+----------------+------------+---------------+------------------------------------------|
+| D-01 | API Gateway technical spec v2.1 | team-platform  | 2023-11-20 | specification | Version in production at the time of     |
+|      |                                 |                |            |               | the assessment; v3 in development        |
+| D-02 | Disaster recovery plan (draft)  | ops-team       | 2024-01-08 | procedure     | [TO VALIDATE] never tested in production |
+
+** Interviews (example)
+
+| ID   | Interviewee | Role                      |       Date | Topics covered                                 | Notes                       |
+|------+-------------+---------------------------+------------+------------------------------------------------+-----------------------------|
+| I-01 | Mark Rogers | Tech lead payment-service | 2024-02-14 | Internal architecture, error handling, backlog | Recording available         |
+| I-02 | Julia Brown | Operations manager        | 2024-02-16 | Deploy procedures, recent incidents, ops SLA   | Notes in =interview-ops.md= |
+
+** Systems and tools (example)
+
+| ID   | Name       | Version | Purpose in the project                                |
+|------+------------+---------+-------------------------------------------------------|
+| S-01 | Stripe     |  API v3 | Payment provider for credit/debit cards               |
+| S-02 | PostgreSQL |    15.4 | Primary database — orders and payments                |
+| S-03 | Kafka      |     3.6 | Asynchronous event bus between order and notification |
+
+** Environments analyzed (example)
+
+| ID   | Environment | Survey date | Components included                          | Notes                                 |
+|------+-------------+-------------+----------------------------------------------+---------------------------------------|
+| E-01 | Production  |  2024-02-12 | payment-service v2.3, order-service v1.8     | Pre-assessment snapshot; not modified |
+| E-02 | Staging     |  2024-02-13 | payment-service v2.4-rc1, order-service v1.8 | Release candidate for March           |
+
+* Documents
+:PROPERTIES:
+:BLUEPRINT_SECTION: references-documents
+:END:
+<<references-documents>>
+
+| ID   | Title                       | Author / Owner    |       Date | Type     | Notes                             |
+|------+-----------------------------+-------------------+------------+----------+-----------------------------------|
+| D-01 | WarehouseManager repository | warehouse-team    | 2026-11-16 | codebase | Main branch, last commit analyzed |
+| D-02 | Warehouse operations manual | Warehouse manager | 2026-11-16 | document | 2019 edition, partly outdated     |
+
+* Interviews
+:PROPERTIES:
+:BLUEPRINT_SECTION: references-interviews
+:END:
+<<references-interviews>>
+
+| ID   | Interviewee                  | Role               |       Date | Topics covered                         | Notes |
+|------+------------------------------+--------------------+------------+----------------------------------------+-------|
+| I-01 | Warehouse manager            | Operations manager | 2026-11-16 | Walkthrough of fulfillment and picking |       |
+| I-02 | Developer of the application | PHP developer      | 2026-11-16 | Architecture, deploy, nightly jobs     |       |
+
+* Systems and tools
+:PROPERTIES:
+:BLUEPRINT_SECTION: references-systems
+:END:
+<<references-systems>>
+
+| ID   | Name           | Version | Purpose in the project            |
+|------+----------------+---------+-----------------------------------|
+| S-01 | Git repository | --      | Reading the code and its history  |
+| S-02 | Apache logs    | 2.4     | Response times of the fulfillment |
+
+* Environments analyzed
+:PROPERTIES:
+:BLUEPRINT_SECTION: references-environments
+:END:
+<<references-environments>>
+
+| ID   | Environment | Survey date | Components included | Notes            |
+|------+-------------+-------------+---------------------+------------------|
+| A-01 | Production  |  2026-11-12 | all                 | Read-only access |

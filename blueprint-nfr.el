@@ -1,7 +1,7 @@
 ;;; blueprint-nfr.el --- NFR management for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -26,80 +26,39 @@
   "Return the path to the NFR file NAME in the current project's nfr/ directory."
   (expand-file-name (concat "nfr/" name) (blueprint--root)))
 
-;;; --- Shared insertion helper ---
-
-(defun blueprint--nfr-insert-row-in-section (section-heading row)
-  "Append ROW after the last org-table line under SECTION-HEADING.
-Works on the current buffer.  If the section is absent, appends both
-the heading and the row at the end of the buffer.  SECTION-HEADING is
-matched anchored to the start of a line, not as a bare substring: a
-:noexport: compilation guide can contain a deeper heading whose text
-contains SECTION-HEADING starting at one of its own leading stars
-(see `blueprint--references-insert-row-in-section' for a concrete
-case of this in references.org), which an unanchored search would
-match instead of the real section."
-  (goto-char (point-min))
-  (let ((last-pipe-pos nil))
-    (when (re-search-forward (concat "^" (regexp-quote section-heading)) nil t)
-      (let ((section-end (save-excursion
-                           (if (re-search-forward "^\\*" nil t)
-                               (match-beginning 0)
-                             (point-max)))))
-        (while (re-search-forward "^|" section-end t)
-          (setq last-pipe-pos (line-end-position)))))
-    (if last-pipe-pos
-        (progn (goto-char last-pipe-pos) (insert "\n" row))
-      (goto-char (point-max))
-      (unless (bolp) (insert "\n"))
-      (insert row))))
-
 ;;; --- Quality scenarios ---
 
-(defcustom blueprint-nfr-quality-attributes
-  '("Performance" "Sicurezza" "Affidabilità" "Disponibilità"
-    "Manutenibilità" "Scalabilità" "Portabilità" "Interoperabilità")
-  "Predefined quality attributes offered for completion in
-`blueprint-nfr-add-quality-scenario'."
-  :type '(repeat string)
+(defcustom blueprint-nfr-quality-attributes nil
+  "Quality attributes offered by `blueprint-nfr-add-quality-scenario'.
+When nil, the list of the document language (security, reliability,
+availability...)."
+  :type '(choice (const :tag "The list of the document language" nil)
+                 (repeat string))
   :group 'blueprint)
 
-(defun blueprint--nfr-goto-end-of-quality-scenarios ()
-  "Move point to the insertion position for a new quality scenario.
-Ensures the `* Scenari di qualità' section exists, then navigates to
-its end (just before the next top-level heading, or EOF)."
-  (goto-char (point-min))
-  (unless (re-search-forward "^\\* Scenari di qualità" nil t)
-    (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
-    (insert "* Scenari di qualità\n"))
-  (goto-char (point-min))
-  (re-search-forward "^\\* Scenari di qualità" nil t)
-  (if (re-search-forward "^\\*[^*]" nil t)
-      (goto-char (match-beginning 0))
-    (goto-char (point-max))))
+(defun blueprint--nfr-quality-attributes ()
+  "Return the quality attributes to offer for completion."
+  (or blueprint-nfr-quality-attributes
+      (blueprint--l10n-list 'nfr-quality-attributes)))
 
 ;;;###autoload
 (defun blueprint-nfr-add-quality-scenario (attribute name)
   "Add a quality scenario for ATTRIBUTE with NAME to nfr/quality-scenarios.org.
-ATTRIBUTE is completed from `blueprint-nfr-quality-attributes'."
+ATTRIBUTE is completed from `blueprint-nfr-quality-attributes'.  The
+scenario goes at the end of the quality scenarios section, created
+if absent; its fields are in the document language."
   (interactive
    (list
-    (completing-read "Quality attribute: " blueprint-nfr-quality-attributes nil nil)
+    (completing-read "Quality attribute: " (blueprint--nfr-quality-attributes)
+                     nil nil)
     (read-string "Scenario name: ")))
   (let ((file (blueprint--nfr-file "quality-scenarios.org")))
     (unless (file-exists-p file)
       (user-error "nfr/quality-scenarios.org not found -- run blueprint-init first"))
-    (let ((entry (concat
-                  (format "** %s\n" name)
-                  (format "- *Attributo di qualità*: %s\n" attribute)
-                  "- *Contesto*: [DA VALIDARE]\n"
-                  "- *Stimolo*: [DA VALIDARE]\n"
-                  "- *Risposta attesa*: [DA VALIDARE]\n"
-                  "- *Misura*: [DA VALIDARE]\n"
-                  "- *Priorità*: [Alta / Media / Bassa]\n"
-                  "- *Fonte*: [DA VALIDARE]\n\n")))
+    (let ((entry (blueprint--snippet "quality-scenario"
+                                    `(("NAME" . ,name) ("ATTRIBUTE" . ,attribute)))))
       (with-current-buffer (find-file-noselect file)
-        (blueprint--nfr-goto-end-of-quality-scenarios)
+        (blueprint--section-ensure-end 'quality-scenarios)
         (unless (bolp) (insert "\n"))
         (insert entry)
         (save-buffer))
@@ -108,127 +67,122 @@ ATTRIBUTE is completed from `blueprint-nfr-quality-attributes'."
 
 ;;; --- Constraints ---
 
-(defun blueprint--nfr-constraint-section-heading (type)
-  "Return the Org heading for constraint TYPE (tecnico/organizzativo/normativo)."
-  (cond
-   ((string= type "tecnico")       "** Vincoli tecnici")
-   ((string= type "organizzativo") "** Vincoli organizzativi")
-   ((string= type "normativo")     "** Vincoli normativi e di compliance")
-   (t (user-error "Unknown constraint type: %s" type))))
+(defconst blueprint--nfr-constraint-types
+  '(("technical"      constraints-technical      4 "tecnico")
+    ("organizational" constraints-organizational 3 "organizzativo")
+    ("regulatory"     constraints-regulatory     3 "normativo"))
+  "Constraint types: (NAME SECTION CELLS LEGACY-NAME).
+SECTION is the section id of the type in constraints.org, CELLS the
+number of cells after the constraint text in its table.  LEGACY-NAME
+is the Italian name earlier versions took as argument, still
+accepted.")
+
+(defun blueprint--nfr-constraint-type (type)
+  "Return the entry of `blueprint--nfr-constraint-types' for TYPE.
+TYPE is the English name or the legacy Italian one."
+  (or (cl-find-if (lambda (e) (member type (list (car e) (nth 3 e))))
+                  blueprint--nfr-constraint-types)
+      (user-error "Unknown constraint type: %s" type)))
 
 (defun blueprint--nfr-constraint-row (type text)
-  "Return an org-table row for a constraint of TYPE with TEXT as the first column."
-  (cond
-   ((string= type "tecnico")
-    (format "| %s | [DA VALIDARE] | [DA VALIDARE] | [DA VALIDARE] | [DA VALIDARE] |\n" text))
-   ((string= type "organizzativo")
-    (format "| %s | [DA VALIDARE] | [DA VALIDARE] | [DA VALIDARE] |\n" text))
-   ((string= type "normativo")
-    (format "| %s | [DA VALIDARE] | [DA VALIDARE] | [DA VALIDARE] |\n" text))
-   (t "")))
+  "Return an org-table row for a constraint of TYPE with TEXT as the first column.
+The other cells hold the to-validate marker."
+  (let ((cells (nth 2 (blueprint--nfr-constraint-type type))))
+    (concat "| " text
+            (apply #'concat (make-list cells
+                                       (format " | %s" blueprint-marker-to-validate)))
+            " |\n")))
 
 ;;;###autoload
 (defun blueprint-nfr-add-constraint (type text)
   "Add a constraint of TYPE with TEXT to nfr/constraints.org.
-TYPE is one of \"tecnico\", \"organizzativo\", \"normativo\"."
+TYPE is one of \"technical\", \"organizational\", \"regulatory\" (the
+Italian \"tecnico\", \"organizzativo\", \"normativo\" are accepted
+too).  The row goes into the table of the section of that type."
   (interactive
    (list
     (completing-read "Constraint type: "
-                     '("tecnico" "organizzativo" "normativo") nil t)
+                     (mapcar #'car blueprint--nfr-constraint-types) nil t)
     (read-string "Constraint: ")))
-  (let ((file (blueprint--nfr-file "constraints.org")))
+  (let ((file (blueprint--nfr-file "constraints.org"))
+        (entry (blueprint--nfr-constraint-type type)))
     (unless (file-exists-p file)
       (user-error "nfr/constraints.org not found -- run blueprint-init first"))
-    (let ((heading (blueprint--nfr-constraint-section-heading type))
-          (row (blueprint--nfr-constraint-row type text)))
-      (with-current-buffer (find-file-noselect file)
-        (blueprint--nfr-insert-row-in-section heading row)
-        (save-buffer))
-      (find-file file)
-      (message "Added %s constraint: %s" type text))))
+    (with-current-buffer (find-file-noselect file)
+      (blueprint--section-append-row
+       (nth 1 entry) (blueprint--nfr-constraint-row type text) 2)
+      (save-buffer))
+    (find-file file)
+    (message "Added %s constraint: %s" (car entry) text)))
 
 ;;; --- Risks ---
 
 (defun blueprint--nfr-next-risk-id ()
   "Return the next risk ID (R-NNN) based on existing entries in nfr/risks.org.
-Scans only within the \"* Registro dei rischi\" section (the same
-boundary `blueprint--nfr-insert-row-in-section' uses), not the whole
-file: the :noexport: compilation guide above it shows R-001/R-002 as
-worked examples, and without this boundary they are indistinguishable
-from real entries, so a fresh project's first real risk would be
-numbered R-003 instead of R-001."
+Scans only within the risk register section (`risk-register'), not
+the whole file: the :noexport: compilation guide above it shows
+R-001/R-002 as worked examples, and without this boundary they are
+indistinguishable from real entries, so a fresh project's first real
+risk would be numbered R-003 instead of R-001."
   (let ((file (blueprint--nfr-file "risks.org"))
         (max-num 0))
     (when (file-exists-p file)
       (with-temp-buffer
         (insert-file-contents file)
-        (goto-char (point-min))
-        (when (re-search-forward "^\\* Registro dei rischi" nil t)
-          (let ((section-end (save-excursion
-                               (if (re-search-forward "^\\*" nil t)
-                                   (match-beginning 0)
-                                 (point-max)))))
-            (while (re-search-forward "| R-\\([0-9]\\{3\\}\\)" section-end t)
+        (let ((bounds (blueprint--section-bounds 'risk-register 1)))
+          (when bounds
+            (goto-char (car bounds))
+            (while (re-search-forward "| R-\\([0-9]\\{3\\}\\)" (cdr bounds) t)
               (let ((n (string-to-number (match-string 1))))
                 (when (> n max-num) (setq max-num n))))))))
     (format "R-%03d" (1+ max-num))))
 
 (defun blueprint--nfr-risk-level (probability impact)
-  "Calculate the risk level string from PROBABILITY and IMPACT strings."
-  (cond
-   ((and (string= probability "Alta") (string= impact "Alto"))
-    "Critico")
-   ((or (and (string= probability "Alta") (string= impact "Medio"))
-        (and (string= probability "Media") (string= impact "Alto")))
-    "Alto")
-   ((or (and (string= probability "Bassa") (string= impact "Alto"))
-        (and (string= probability "Media") (string= impact "Medio"))
-        (and (string= probability "Alta") (string= impact "Basso")))
-    "Medio")
-   (t "Basso")))
+  "Calculate the risk level string from PROBABILITY and IMPACT strings.
+Both are values of the risk register (high, medium, low) in any
+language; the level is in the document language: critical when both
+are high, then high, medium and low."
+  (let* ((p (or (blueprint--l10n-rank probability 'nfr-probabilities) 2))
+         (i (or (blueprint--l10n-rank impact 'nfr-impacts) 2))
+         (level (cond ((and (= p 0) (= i 0)) 0)
+                      ((or (and (= p 0) (= i 1)) (and (= p 1) (= i 0))) 1)
+                      ((or (and (= p 2) (= i 0)) (and (= p 1) (= i 1))
+                           (and (= p 0) (= i 2)))
+                       2)
+                      (t 3))))
+    (nth level (blueprint--l10n-list 'nfr-risk-levels))))
 
 ;;;###autoload
 (defun blueprint-nfr-add-risk (description component probability impact)
   "Add a risk entry to nfr/risks.org with an auto-incremented ID.
 DESCRIPTION is the risk text; COMPONENT is the affected component (may be
 empty for cross-cutting risks); PROBABILITY and IMPACT drive automatic
-level calculation."
+level calculation.  The values are offered in the document language."
   (interactive
    (list
     (read-string "Risk description: ")
     (read-string "Affected component(s) [blank = cross-cutting]: ")
-    (completing-read "Probability: " '("Alta" "Media" "Bassa") nil t)
-    (completing-read "Impact: " '("Alto" "Medio" "Basso") nil t)))
+    (completing-read "Probability: " (blueprint--l10n-list 'nfr-probabilities) nil t)
+    (completing-read "Impact: " (blueprint--l10n-list 'nfr-impacts) nil t)))
   (let ((file (blueprint--nfr-file "risks.org")))
     (unless (file-exists-p file)
       (user-error "nfr/risks.org not found -- run blueprint-init first"))
     (let* ((id    (blueprint--nfr-next-risk-id))
            (level (blueprint--nfr-risk-level probability impact))
-           (comp  (if (string-empty-p component) "(trasversale)" component))
+           (comp  (if (string-empty-p component)
+                      (blueprint--l10n 'nfr-cross-cutting)
+                    component))
            (row   (format
-                   "| %s | %s | %s | %s | %s | %s | [DA VALIDARE] | [DA VALIDARE] | |\n"
-                   id description comp probability impact level)))
+                   "| %s | %s | %s | %s | %s | %s | %s | %s | |\n"
+                   id description comp probability impact level
+                   blueprint-marker-to-validate blueprint-marker-to-validate)))
       (with-current-buffer (find-file-noselect file)
-        (goto-char (point-min))
-        (unless (re-search-forward "^\\* Registro dei rischi" nil t)
+        (unless (blueprint--section-find 'risk-register 1)
           (goto-char (point-max))
           (unless (bolp) (insert "\n"))
-          (insert "* Registro dei rischi\n| ID | Rischio | Componente/i | Probabilità | Impatto | Livello | Mitigazione | Owner | Note |\n|-\n"))
-        ;; Find end of risk table
-        (let ((last-pipe-pos nil)
-              (section-end (save-excursion
-                             (if (re-search-forward "^\\*[^*]" nil t)
-                                 (match-beginning 0)
-                               (point-max)))))
-          (goto-char (point-min))
-          (re-search-forward "^\\* Registro dei rischi" nil t)
-          (while (re-search-forward "^|" section-end t)
-            (setq last-pipe-pos (line-end-position)))
-          (if last-pipe-pos
-              (progn (goto-char last-pipe-pos) (insert "\n" row))
-            (goto-char (point-max))
-            (unless (bolp) (insert "\n"))
-            (insert row)))
+          (insert (blueprint--section-heading 'risk-register 1)
+                  (blueprint--l10n 'nfr-risk-table-header) "\n"))
+        (blueprint--section-append-row 'risk-register row 1)
         (save-buffer))
       (find-file file)
       (message "Added risk %s [%s]: %s" id level description))))

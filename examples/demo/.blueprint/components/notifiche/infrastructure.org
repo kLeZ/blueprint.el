@@ -66,14 +66,14 @@ Ambienti:
 Deployment view:
 
 #+begin_src plantuml :file notifiche-infra.svg :eval never
-node "Ambiente: [nome]" {
+  node "Ambiente: [nome]" {
   node "Host: [nome]" {
-    artifact "notifiche vX.Y"
+  artifact "notifiche vX.Y"
   }
   database "DB: [nome]" {
   }
-}
-@enduml
+  }
+  @enduml
 #+end_src
 
 * Inventario

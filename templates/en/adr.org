@@ -1,0 +1,30 @@
+#+TITLE: Architecture Decision Records — {{PROJECT}}
+#+CREATED: {{DATE}}
+
+Register of the architecture decisions of the project.  Each ADR documents a significant choice: the context that led to it, the decision taken and the expected consequences.
+
+The possible states:
+- =proposed=   — under discussion, not ratified yet
+- =accepted=   — accepted and in force
+- =deprecated= — outdated, with no direct successor
+- =superseded= — replaced by a later ADR (say which)
+
+* ADR 0000: Example — PostgreSQL as the primary database           :noexport:
+:PROPERTIES:
+:STATUS:   accepted
+:DATE:     2024-01-15
+:END:
+
+** Context
+
+The system needs a relational database to manage orders and payments.  Main requirements: ACID, JSON support, synchronous replication to a standby, skills available in the team.  Alternative considered: MySQL 8.0.
+
+** Decision
+
+PostgreSQL 15 is adopted as the only relational database of the project.  Reasons: native JSONB support for flexible metadata, mature logical replication, a team with established skills, an open source license without commercial constraints.
+
+** Consequences
+
+- The ops team keeps skills on Postgres backup, tuning and HA.
+- The components with direct database access use JDBC with the =org.postgresql= driver.
+- To be reconsidered if a component with significant OLAP requirements is introduced (a possible future OLTP/OLAP split).

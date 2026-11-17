@@ -1,7 +1,7 @@
 ;;; blueprint-health.el --- Health scoring for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -9,10 +9,10 @@
 ;; Calculates a quality score (0--100) from the open markers left in
 ;; the text of the document: master.org and every file it includes with
 ;; #+INCLUDE:, recursively (see `blueprint--document-files').  Technical
-;; markers (QUESTION, TBD, FIXME) and methodology markers ([DA VALIDARE],
-;; [DA REVISIONARE]) lower it; [FINDING] is counted for the lists but
-;; does not lower the score: a finding is a result of the assessment,
-;; not an open point.  The weighted marker count is set against the
+;; markers (QUESTION, TBD, FIXME) and methodology markers ([TO VALIDATE],
+;; [TO REVIEW], or the Italian [DA VALIDARE], [DA REVISIONARE]) lower
+;; it; [FINDING] is counted for the lists but does not lower the
+;; score: a finding is a result of the assessment, not an open point.  The weighted marker count is set against the
 ;; size of the exported text, so the score does not drop just because
 ;; the document grows (see `blueprint-health-score').  Also renders the
 ;; result as a semicircular SVG gauge and provides commands for listing
@@ -34,11 +34,13 @@ count (see `blueprint--uncounted-regions'), matched case-sensitively."
 
 (defun blueprint--methodology-metrics (file)
   "Count methodology markers in FILE.
-Returns a list (da-validare findings da-revisionare).
-Markers: [DA VALIDARE], [FINDING], [DA REVISIONARE].  Only markers
+Returns a list (to-validate findings to-review).
+Markers: [TO VALIDATE], [FINDING], [TO REVIEW], and the Italian
+[DA VALIDARE] and [DA REVISIONARE] of older documents.  Only markers
 in exported text count (see `blueprint--uncounted-regions')."
   (blueprint--count-file-markers
-   file '("\\[DA VALIDARE\\]" "\\[FINDING\\]" "\\[DA REVISIONARE\\]")))
+   file (list blueprint--to-validate-regexp "\\[FINDING\\]"
+              blueprint--to-review-regexp)))
 
 ;;; --- Health score ---
 
@@ -52,12 +54,12 @@ lower with more.  Must be a positive number."
   :group 'blueprint)
 
 (defconst blueprint--health-weights
-  '(("\\<QUESTION\\>"          . 3)
+  `(("\\<QUESTION\\>"          . 3)
     ("\\<TBD\\>"               . 2)
     ("\\<FIXME\\>"             . 4)
-    ("\\[DA VALIDARE\\]"       . 1)
+    (,blueprint--to-validate-regexp . 1)
     ("\\[FINDING\\]"           . 0)
-    ("\\[DA REVISIONARE\\]"    . 1))
+    (,blueprint--to-review-regexp   . 1))
   "Penalty weight of each marker regexp in `blueprint-health-score'.
 [FINDING] weighs 0: a finding is a result the assessment delivers,
 not an open point.  It is still counted by the metrics and the
@@ -66,9 +68,10 @@ marker lists.")
 (defun blueprint--document-stats (file)
   "Return (COUNTS PENALTY WORDS) for FILE, uncached.
 COUNTS has one count per marker of `blueprint--health-weights', in
-its order: QUESTION, TBD, FIXME, [DA VALIDARE], [FINDING],
-[DA REVISIONARE].  PENALTY is the sum of each count times its
-weight, WORDS the number of words of exported text (see
+its order: QUESTION, TBD, FIXME, [TO VALIDATE], [FINDING],
+[TO REVIEW] (each with its Italian legacy form).  PENALTY is the
+sum of each count times its weight, WORDS the number of words of
+exported text (see
 `blueprint--count-words-outside').  All count only outside
 `blueprint--uncounted-regions', computed once.  A nil or missing FILE
 yields zeros."
@@ -225,7 +228,7 @@ every file it includes with #+INCLUDE:, recursively (see
 references count as much as the documents of the components.
 Markers add penalty points P with these weights:
   QUESTION: 3, TBD: 2, FIXME: 4.
-  [DA VALIDARE]: 1, [DA REVISIONARE]: 1, [FINDING]: 0.
+  [TO VALIDATE]: 1, [TO REVIEW]: 1, [FINDING]: 0.
 P is set against the size of the same files: W words of exported
 text, U = W / `blueprint-health-words-per-point'.  The score is
 round (100 * U / (U + P)), so it stays the same when the document
@@ -242,8 +245,9 @@ the score with P and W in the echo area."
                score (plist-get summary :penalty) (plist-get summary :words)))
     score))
 
-(defun blueprint--scan-marker-occurrences (marker &optional files)
+(defun blueprint--scan-marker-occurrences (marker &optional files regexp)
   "Return an alist of (FILE LINE-NUM LINE-TEXT) for each MARKER occurrence.
+MARKER is literal text, or a regexp when REGEXP is non-nil.
 Scans FILES, by default the files of the document (see
 `blueprint--document-files'), skipping occurrences in non-exported
 text (see `blueprint--uncounted-regions')."
@@ -251,7 +255,8 @@ text (see `blueprint--uncounted-regions')."
     (dolist (file (or files (blueprint--document-files)))
       (with-temp-buffer
         (blueprint--insert-org-file file)
-        (dolist (pos (blueprint--marker-positions (regexp-quote marker)))
+        (dolist (pos (blueprint--marker-positions
+                      (if regexp marker (regexp-quote marker))))
           (goto-char pos)
           (push (list file
                       (line-number-at-pos)
@@ -261,9 +266,10 @@ text (see `blueprint--uncounted-regions')."
                 results))))
     (nreverse results)))
 
-(defun blueprint--display-marker-list (marker title)
-  "Display a buffer listing all occurrences of MARKER with TITLE as header."
-  (let ((occurrences (blueprint--scan-marker-occurrences marker))
+(defun blueprint--display-marker-list (marker title &optional regexp)
+  "Display a buffer listing all occurrences of MARKER with TITLE as header.
+MARKER is literal text, or a regexp when REGEXP is non-nil."
+  (let ((occurrences (blueprint--scan-marker-occurrences marker nil regexp))
         (bufname (format "*Blueprint: %s*" title))
         (root (blueprint--root)))
     (with-current-buffer (get-buffer-create bufname)
@@ -271,12 +277,12 @@ text (see `blueprint--uncounted-regions')."
       (erase-buffer)
       (insert (format "%s\n%s\n\n" title (make-string (length title) ?=)))
       (if (null occurrences)
-          (insert (format "Nessun %s trovato nel documento.\n" marker))
+          (insert "No occurrences in the document.\n")
         (dolist (entry occurrences)
           (pcase-let ((`(,file ,line ,text) entry))
             (let ((rel (file-relative-name file root)))
               (insert (format "  %s:%d\n    %s\n" rel line text)))))
-        (insert (format "\nTotale: %d occorrenza/e\n" (length occurrences))))
+        (insert (format "\nTotal: %d\n" (length occurrences))))
       (setq buffer-read-only t)
       (goto-char (point-min)))
     (switch-to-buffer bufname)))
@@ -293,13 +299,15 @@ for each occurrence."
 
 ;;;###autoload
 (defun blueprint-list-unvalidated ()
-  "List all [DA VALIDARE] markers in the document.
+  "List all [TO VALIDATE] markers in the document.
+The Italian [DA VALIDARE] of older documents is listed too.
 The document is master.org and the files it includes (see
 `blueprint--document-files').
 Opens a read-only buffer with file, line number, and line content
 for each occurrence."
   (interactive)
-  (blueprint--display-marker-list "[DA VALIDARE]" "Blueprint Sezioni da validare"))
+  (blueprint--display-marker-list blueprint--to-validate-regexp
+                                 "Blueprint To Validate" t))
 
 (defun blueprint--health-svg-string (score)
   "Return a standalone SVG gauge document for health SCORE (0-100).

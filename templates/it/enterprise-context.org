@@ -1,0 +1,57 @@
+#+TITLE: Vista enterprise -- Contesto aggregato
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: {{DATE}}
+
+* Guida alla compilazione — Contesto enterprise                    :noexport:
+
+Vista di sistema a livello C4 L1: tutti i sistemi nel perimetro, i sistemi esterni rilevanti e le relazioni tra loro.  Il diagramma PlantUML e le tabelle devono essere coerenti: ogni elemento che appare nel PlantUML deve avere una riga nella tabella corrispondente.
+
+** Esempio: sistemi nel perimetro
+
+| Sistema          | Tecnologia principale   | Ruolo                                   | Note          |
+|------------------+-------------------------+-----------------------------------------+---------------|
+| payment-service  | Java 17 / Spring Boot 3 | Autorizzazione e tracking dei pagamenti | [TO VALIDATE] |
+| order-service    | Node.js 20 / Fastify    | Gestione ciclo di vita degli ordini     | [TO VALIDATE] |
+| notification-svc | Python 3.12 / FastAPI   | Invio notifiche email/SMS/push          | [TO VALIDATE] |
+
+** Esempio: sistemi esterni rilevanti
+
+| Sistema       | Tipo interazione | Direzione | Note                                      |
+|---------------+------------------+-----------+-------------------------------------------|
+| Stripe        | REST HTTPS       | OUT       | Provider pagamenti — autorizzazione carte |
+| Twilio        | REST HTTPS       | OUT       | Provider SMS — notifiche transazionali    |
+| ERP aziendale | SFTP batch       | IN / OUT  | [FINDING] integrazione non documentata    |
+
+* Vista contestuale aggregata
+<<enterprise-context>> [TO VALIDATE]
+
+Tutti i sistemi nel perimetro come System Context (C4 L1), con le loro relazioni e i sistemi esterni rilevanti.
+
+#+begin_src plantuml :file enterprise-context.svg
+  !include <C4/C4_Context>
+  ' @@blueprint-enterprise-start@@
+  ' Generato da blueprint-generate-enterprise-c4 (tasto "V" nel menu, o
+  ' M-x blueprint-generate-enterprise-c4): un System(...) per componente
+  ' e un Rel(...) per ogni #+BLUEPRINT_DEPENDS:. Non modificare a mano fra
+  ' questi due marker -- verrebbe sovrascritto alla prossima rigenerazione.
+  System(sys_a, "Sistema A", "")
+  System(sys_b, "Sistema B", "")
+  Rel(sys_a, sys_b, "uses")
+  ' @@blueprint-enterprise-end@@
+  ' Sistemi esterni, utenti e relazioni verso l'esterno: scritti a mano,
+  ' sempre fuori dai marker, mai toccati dalla rigenerazione.
+  System_Ext(ext_1, "Sistema Esterno 1", "")
+  Person(user_1, "Utente 1", "")
+  Rel(user_1, sys_a, "Usa")
+  Rel(sys_b, ext_1, "Chiama")
+  @enduml
+#+end_src
+
+** Sistemi nel perimetro
+| Sistema | Tecnologia principale | Ruolo | Note |
+|---------+-----------------------+-------+------|
+
+** Sistemi esterni rilevanti
+| Sistema | Tipo interazione | Direzione | Note |
+|---------+------------------+-----------+------|

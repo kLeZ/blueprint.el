@@ -67,8 +67,8 @@ Returns nothing; call inside `blueprint-test--with-project'."
 (ert-deftest blueprint-test-ci/marker-name-keys ()
   "Marker regexps become readable, stable JSON keys."
   (should (string= "question" (blueprint--ci-report--marker-name "\\<QUESTION\\>")))
-  (should (string= "da-validare" (blueprint--ci-report--marker-name "\\[DA VALIDARE\\]")))
-  (should (string= "da-revisionare" (blueprint--ci-report--marker-name "\\[DA REVISIONARE\\]"))))
+  (should (string= "to-validate" (blueprint--ci-report--marker-name blueprint--to-validate-regexp)))
+  (should (string= "to-review" (blueprint--ci-report--marker-name blueprint--to-review-regexp))))
 
 (ert-deftest blueprint-test-ci/report-object-health ()
   "The report health block mirrors `blueprint-health-score'."
@@ -82,7 +82,7 @@ Returns nothing; call inside `blueprint-test--with-project'."
       (should (= (gethash "penalty" health) 7)) ; QUESTION 3 + FIXME 4
       (should (= (gethash "question" markers) 1))
       (should (= (gethash "fixme" markers) 1))
-      (should (= (gethash "da-validare" markers) 0)))))
+      (should (= (gethash "to-validate" markers) 0)))))
 
 (ert-deftest blueprint-test-ci/report-object-components ()
   "Components carry id, scope, owner, tech, depends and markers."

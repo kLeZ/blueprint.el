@@ -1,0 +1,5 @@
+** {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Description of the area in business terms.

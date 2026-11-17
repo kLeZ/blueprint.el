@@ -1,0 +1,56 @@
+#+TITLE: Scenari di qualità e requisiti non funzionali
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: {{DATE}}
+
+* Guida alla compilazione — Scenari di qualità                     :noexport:
+
+Ogni scenario collega un attributo di qualità a una soglia misurabile. La struttura (contesto → stimolo → risposta attesa → misura) segue il modello arc42 / ISO 25010.  Usare =blueprint-nfr-add-quality-scenario= (=C-c b p=) per aggiungere scenari in modo interattivo.
+
+** Latenza API di pagamento sotto carico                           :noexport:
+- *Attributo di qualità*: Performance
+- *Contesto*: Sistema in produzione durante il picco pomeridiano (venerdì ore 17:00–19:00, ~500 richieste/s).
+- *Stimolo*: Un client invia una richiesta =POST /payments= con payload standard (importo, metodo, riferimento ordine).
+- *Risposta attesa*: Il servizio restituisce =HTTP 200= con l'esito dell'autorizzazione entro i limiti di latenza definiti.
+- *Misura*: p95 latency ≤ 300 ms; p99 ≤ 800 ms; nessun timeout (=HTTP 504=) per meno del 0,1% delle richieste.
+- *Priorità*: Alta
+- *Fonte*: SLA contrattuale con il cliente principale (contratto 2024-Q3)
+
+** Disponibilità del servizio ordini                               :noexport:
+- *Attributo di qualità*: Disponibilità
+- *Contesto*: Orario di business (lunedì–sabato 06:00–23:00 CET).
+- *Stimolo*: Qualsiasi richiesta in ingresso all'=order-service=, inclusi i casi di riavvio di un singolo nodo.
+- *Risposta attesa*: Il servizio rimane raggiungibile e risponde correttamente; i riavvii non causano errori visibili all'utente.
+- *Misura*: Uptime mensile ≥ 99,5% (max ~3,6 h di downtime/mese); RTO ≤ 2 min per un singolo nodo; RPO = 0 (nessuna perdita di dati).
+- *Priorità*: Alta
+- *Fonte*: Accordo di livello di servizio interno (OLA 2024)
+
+* Scenari di qualità
+:PROPERTIES:
+:BLUEPRINT_SECTION: quality-scenarios
+:END:
+<<nfr-quality-scenarios>> [TO VALIDATE]
+
+Ogni scenario segue la struttura: contesto, stimolo, risposta attesa, misura.
+
+** [Nome scenario]
+- *Attributo di qualità*: [Performance / Sicurezza / Affidabilità / Manutenibilità / ...]
+- *Contesto*: [quando si verifica]
+- *Stimolo*: [cosa scatena lo scenario]
+- *Risposta attesa*: [comportamento del sistema]
+- *Misura*: [criterio quantificabile di successo o fallimento]
+- *Priorità*: [Alta / Media / Bassa]
+- *Fonte*: [da dove proviene questo requisito]
+
+* Livelli di servizio
+:PROPERTIES:
+:BLUEPRINT_SECTION: service-level
+:END:
+<<nfr-sla>> [TO VALIDATE]
+
+| Servizio / Componente | Metrica     | Valore rilevato | Valore atteso | Fonte |
+|-----------------------+-------------+-----------------+---------------+-------|
+|                       | Uptime      |                 |               |       |
+|                       | RTO         |                 |               |       |
+|                       | RPO         |                 |               |       |
+|                       | Latenza p95 |                 |               |       |

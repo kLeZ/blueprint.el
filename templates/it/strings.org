@@ -1,0 +1,91 @@
+#+TITLE: Blueprint strings — Italiano
+
+# The short texts Blueprint writes into a project in this language.
+# One level-1 heading per key; the value is the text under it, or its
+# list items for the keys that take a list.  %s is replaced by the
+# command (keep it).  Keys and structure are the same in every
+# language: translate the text only.
+
+* version-file-title
+Versione Blueprint del progetto
+
+* version-file-intro
+File gestito da Blueprint: la versione del pacchetto con cui il progetto è stato creato o aggiornato, le migrazioni applicate da `blueprint-project-upgrade' e la lingua del documento.  Non è incluso in master.org e non è obbligatorio: senza, la versione viene dedotta dai file e la lingua è l'italiano.
+
+* glossary-source
+/Fonte: %s/
+
+* date
+Data
+
+* agenda-file-title
+Blueprint — punti aperti del documento
+
+* agenda-file-intro
+File generato da `blueprint-agenda-refresh': le righe del documento (QUESTION, FIXME...) come TODO per org-agenda.  DEADLINE, SCHEDULED, CLOSED e stato vengono preservati al refresh (gli ID sono stabili); il resto della voce viene rigenerato.  Non è incluso in master.org.
+
+* history-file-title
+Metriche nel tempo
+
+* history-file-intro
+Una riga per ogni registrazione: `blueprint-sync' ne aggiunge una quando i valori cambiano (vedi `blueprint-history-on-sync').  Grafico: `blueprint-metrics-history'.
+
+* history-log-heading
+Registro
+
+* changelog-intro
+File generato da `blueprint-changelog-generate': messaggi dei commit git (più recenti prima, raggruppati per data) e ADR accettate.  Le modifiche manuali andranno perse alla prossima rigenerazione.
+
+* changelog-history
+Cronologia
+
+* changelog-adrs
+Decisioni architetturali (ADR accettate)
+
+* changelog-no-commits
+Nessun commit registrato.
+
+* changelog-no-adrs
+Nessuna ADR accettata.
+
+* upgrade-backup-title
+Migrazione Blueprint
+
+* upgrade-backup-intro
+I file com'erano prima della migrazione sono in questa directory, con gli stessi percorsi relativi alla radice del progetto.
+
+* nfr-quality-attributes
+- Performance
+- Sicurezza
+- Affidabilità
+- Disponibilità
+- Manutenibilità
+- Scalabilità
+- Portabilità
+- Interoperabilità
+
+* nfr-probabilities
+# Highest first.
+- Alta
+- Media
+- Bassa
+
+* nfr-impacts
+# Highest first.
+- Alto
+- Medio
+- Basso
+
+* nfr-risk-levels
+# Highest first: critical, high, medium, low.
+- Critico
+- Alto
+- Medio
+- Basso
+
+* nfr-cross-cutting
+(trasversale)
+
+* nfr-risk-table-header
+| ID | Rischio | Componente/i | Probabilità | Impatto | Livello | Mitigazione | Owner | Note |
+|----+---------+--------------+-------------+---------+---------+-------------+-------+------|

@@ -1,0 +1,26 @@
+*** {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+**** Purpose
+What this function does in business terms.  One sentence.
+
+**** Input
+| Name (business) | Type (business) | Constraints | Origin |
+|-----------------+-----------------+-------------+--------|
+|                 |                 |             |        |
+
+**** Output
+| Name (business) | Type (business) | Format | Destination |
+|-----------------+-----------------+--------+-------------|
+|                 |                 |        |             |
+
+**** Business rules
+1.
+
+**** Validation rules
+| Condition | Behavior / Error |
+|-----------+------------------|
+|           |                  |
+
+**** Edge cases and exceptions

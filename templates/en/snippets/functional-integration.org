@@ -1,0 +1,25 @@
+** {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Description of the integration in business terms.  What is exchanged, why, and in which operational context.
+
+| Field          | Value                                           |
+|----------------+-------------------------------------------------|
+| Direction      | {{DIRECTION}}                                   |
+| Counterpart    |                                                 |
+| Protocol       | REST / SOAP / Kafka / gRPC / file / batch / ... |
+| Authentication | OAuth2 / API key / mTLS / none / ...            |
+| Frequency      | synchronous / asynchronous / batch / ...        |
+| SLA            |                                                 |
+
+*** Exchange format
+<<{{FORMAT_ANCHOR}}>>
+
+Structure of the payload or of the file exchanged.  Include a realistic example with every mandatory field filled in.
+
+#+begin_src json
+  {
+  "attr1": ""
+  }
+#+end_src

@@ -1,0 +1,17 @@
+* ADR {{NUMBER}}: {{TITLE}}
+:PROPERTIES:
+:STATUS:   proposed
+:DATE:     {{DATE}}
+:END:
+
+** Contesto
+
+Situazione e forze in gioco che hanno motivato questa decisione.
+
+** Decisione
+
+La decisione presa e le alternative considerate.
+
+** Conseguenze
+
+Conseguenze positive, negative e neutre di questa decisione.

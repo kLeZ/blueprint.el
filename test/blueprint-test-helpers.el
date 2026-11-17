@@ -11,6 +11,17 @@
 (require 'ert)
 (require 'blueprint-core)
 
+;; The suites were written against the Italian templates and text, which
+;; are also what every project created before languages existed
+;; contains.  The tests of other languages bind the language
+;; explicitly (see test/blueprint-test-l10n.el).
+(setq blueprint-default-language "it")
+
+;; The user template directory of the machine running the tests (with
+;; its own languages or customized copies) must not change the results.
+(setq blueprint-user-template-dir
+      (make-temp-file "blueprint-test-user-templates-" t))
+
 (defmacro blueprint-test--with-project (&rest body)
   "Execute BODY inside a temporary, freshly initialized Blueprint project.
 The macro uses `save-current-buffer' so that find-file calls inside

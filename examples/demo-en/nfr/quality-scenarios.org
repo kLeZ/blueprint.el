@@ -1,0 +1,65 @@
+#+TITLE: Quality scenarios and non-functional requirements
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: 2026-11-16
+
+* Filling-in guide — Quality scenarios                             :noexport:
+
+Each scenario ties a quality attribute to a measurable threshold.  The structure (context → stimulus → expected response → measure) follows the arc42 / ISO 25010 model.  Use =blueprint-nfr-add-quality-scenario= (=C-c b p=) to add scenarios interactively.
+
+** Payment API latency under load                                  :noexport:
+- *Quality attribute*: Performance
+- *Context*: System in production during the afternoon peak (Friday 17:00–19:00, ~500 requests/s).
+- *Stimulus*: A client sends a =POST /payments= request with a standard payload (amount, method, order reference).
+- *Expected response*: The service returns =HTTP 200= with the outcome of the authorization within the defined latency limits.
+- *Measure*: p95 latency ≤ 300 ms; p99 ≤ 800 ms; timeouts (=HTTP 504=) for less than 0.1% of the requests.
+- *Priority*: High
+- *Source*: Contractual SLA with the main customer (contract 2024-Q3)
+
+** Availability of the order service                               :noexport:
+- *Quality attribute*: Availability
+- *Context*: Business hours (Monday–Saturday 06:00–23:00 CET).
+- *Stimulus*: Any request to =order-service=, including the restart of a single node.
+- *Expected response*: The service stays reachable and answers correctly; restarts cause no error visible to the user.
+- *Measure*: Monthly uptime ≥ 99.5% (at most ~3.6 h of downtime per month); RTO ≤ 2 min for a single node; RPO = 0 (no data loss).
+- *Priority*: High
+- *Source*: Internal operational level agreement (OLA 2024)
+
+* Quality scenarios
+:PROPERTIES:
+:BLUEPRINT_SECTION: quality-scenarios
+:END:
+<<nfr-quality-scenarios>> [TO VALIDATE]
+
+Each scenario follows the structure: context, stimulus, expected response, measure.
+
+** Fulfilling an order in the morning peak
+- *Quality attribute*: Performance
+- *Context*: between 8 and 10, when the orders of the night arrive
+- *Stimulus*: three operators fulfill orders at the same time
+- *Expected response*: each fulfillment closes without the operator waiting for the courier
+- *Measure*: complete fulfillment in less than 5 seconds in 95% of the cases
+- *Priority*: High
+- *Source*: interview I-01
+
+** FatturaPA does not answer during fulfillment
+- *Quality attribute*: Reliability
+- *Context*: normal fulfillment, FatturaPA service slow or down
+- *Stimulus*: the SOAP call times out
+- *Expected response*: the order stays fulfilled and the invoice is retried later
+- *Measure*: no order fulfilled without an invoice after 24 hours
+- *Priority*: High
+- *Source*: code, invoicing module [TO VALIDATE]
+
+* Service level
+:PROPERTIES:
+:BLUEPRINT_SECTION: service-level
+:END:
+<<nfr-sla>> [TO VALIDATE]
+
+| Service / Component | Metric      | Measured value            | Expected value       | Source                |
+|---------------------+-------------+---------------------------+----------------------+-----------------------|
+| WarehouseManager    | Uptime      | not measured              | 99% in working hours | interview I-01        |
+| Database            | RTO         | unknown                   | 4 hours              | [TO VALIDATE]         |
+| Database            | RPO         | 24 hours (nightly backup) | 24 hours             | crontab configuration |
+| Fulfillment         | Latency p95 | about 9 s in the peak     | 5 s                  | Apache logs           |

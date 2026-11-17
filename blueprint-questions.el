@@ -1,20 +1,22 @@
 ;;; blueprint-questions.el --- Open questions management for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
 
 ;; AST-based insertion of open questions into component arc42.org files.
-;; Uses `org-element' to find the "Open Questions" heading and insert
-;; items without fragile regex manipulation.
+;; Uses `org-element' to find the open questions section (by its
+;; :BLUEPRINT_SECTION: property or its title, see
+;; `blueprint--section-find') and insert items without fragile regex
+;; manipulation.
 ;;
 ;; The extended question format (backward compatible) carries optional
 ;; metadata on the row itself:
 ;;
 ;;   - QUESTION text [TAG: tag]                 (open)
-;;   - ANSWERED [YYYY-MM-DD] text [TAG: tag] [FONTE: fonte]
+;;   - ANSWERED [YYYY-MM-DD] text [TAG: tag] [SOURCE: source]
 ;;
 ;; Answering rewrites the row's token from QUESTION to ANSWERED, so the
 ;; question stops counting in the health score, the dashboard and the
@@ -26,18 +28,6 @@
 (require 'blueprint-core)
 (require 'cl-lib)
 (require 'org-element)
-
-(defun blueprint--find-heading (heading)
-  "Find the position after HEADING in the current buffer using org-element.
-Returns the position where new content should be inserted, or nil."
-  (let ((tree (org-element-parse-buffer 'headline))
-        (result nil))
-    (org-element-map tree 'headline
-      (lambda (hl)
-        (when (and (= (org-element-property :level hl) 1)
-                   (string= (org-element-property :raw-value hl) heading))
-          (setq result (org-element-property :contents-begin hl)))))
-    result))
 
 (defconst blueprint--question-regexp "\\<QUESTION\\>"
   "Regexp of an OPEN question marker, weighted in `blueprint--health-weights'.
@@ -69,7 +59,9 @@ keep working."
     (with-current-buffer (find-file-noselect file)
       (save-excursion
         (goto-char (point-min))
-        (let ((pos (blueprint--find-heading "Open Questions"))
+        (let ((pos (let ((hl (blueprint--section-find 'open-questions 1)))
+                     (and hl (or (org-element-property :contents-begin hl)
+                                 (org-element-property :end hl)))))
               next-heading)
           (if pos
               (progn
@@ -87,8 +79,8 @@ keep working."
                 (when (and next-heading (eq (char-after) ?*))
                   (insert "\n")))
             (goto-char (point-max))
-            (insert (format "\n* Open Questions\n\n- QUESTION %s%s\n"
-                            question tag-suffix))))
+            (insert "\n" (blueprint--section-heading 'open-questions 1)
+                    (format "\n- QUESTION %s%s\n" question tag-suffix))))
         (save-buffer))
       (blueprint--invalidate-cache file))
     (message "Added question to %s" component)))
@@ -114,9 +106,10 @@ an open point but has no row to rewrite."
   "Answer an open question: rewrite its row as ANSWERED.
 ENTRY is a question entry id (COMPONENT FILE LINE), as the list of
 questions prompts.  FONTE records the source of the answer, per the
-methodology's [FONTE: ...] marking.  The row becomes
+methodology's [SOURCE: ...] marking (the Italian
+[FONTE: ...] of older rows is read too).  The row becomes
 
-  - ANSWERED [YYYY-MM-DD] text [TAG: tag] [FONTE: fonte]
+  - ANSWERED [YYYY-MM-DD] text [TAG: tag] [SOURCE: source]
 
 and stops counting in the health score, the dashboard and the lint,
 while the history stays in the file."
@@ -141,7 +134,7 @@ while the history stays in the file."
        (user-error "No open question to answer"))
      (list (cdr (assoc (completing-read "Answer question: " choices nil t)
                        choices))
-           (read-string "Fonte: "))))
+           (read-string "Source of the answer: "))))
   (pcase-let* ((`(,component ,file ,line) entry)
                (date (format-time-string "%Y-%m-%d")))
     (with-current-buffer (find-file-noselect file)
@@ -156,7 +149,7 @@ while the history stays in the file."
           (delete-region (line-beginning-position) (line-end-position))
           (insert (format "%s- ANSWERED [%s] %s%s" indent date text
                           (if (and fonte (not (string-empty-p (string-trim fonte))))
-                              (format " [FONTE: %s]" (string-trim fonte))
+                              (format " [SOURCE: %s]" (string-trim fonte))
                             "")))))
       (save-buffer))
     (blueprint--invalidate-cache file)
@@ -204,11 +197,12 @@ the list accordingly.  Cycled with
 `blueprint-questions-filter-state' in the list buffer.")
 
 (defun blueprint--question-parse (line)
-  "Parse one question LINE into (TEXT TAG STATE FONTE).
+  "Parse one question LINE into (TEXT TAG STATE SOURCE).
 LINE is the full line of one `blueprint--question-any-regexp'
-occurrence.  The metadata tokens ([TAG: ...], [FONTE: ...]) are
-stripped from the display text; a QUESTION marker in prose has no
-prefix and no metadata, and that is fine."
+occurrence.  The metadata tokens ([TAG: ...], [SOURCE: ...] or
+the older [FONTE: ...]) are stripped from the display text; a
+QUESTION marker in prose has no prefix and no metadata, and that is
+fine."
   (let* ((state (if (string-match-p "\\`[ \t]*-[ \t]*ANSWERED[ \t]" line)
                     "answered" "open"))
          (text line)
@@ -217,7 +211,7 @@ prefix and no metadata, and that is fine."
     (when (string-match "\\[TAG:[ \t]*\\([^]]*?\\)[ \t]*]" text)
       (setq tag (match-string 1 text))
       (setq text (replace-match "" t t text)))
-    (when (string-match "\\[FONTE:[ \t]*\\([^]]*?\\)[ \t]*]" text)
+    (when (string-match blueprint--source-regexp text)
       (setq fonte (match-string 1 text))
       (setq text (replace-match "" t t text)))
     (setq text (string-trim

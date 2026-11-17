@@ -1,7 +1,7 @@
 ;;; blueprint-lint.el --- Linter for Blueprint projects  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -25,10 +25,12 @@
   :group 'blueprint)
 
 (defvar blueprint--lint-expected-headings
-  '("Introduction" "Context and Scope" "Constraints" "Solution Strategy"
-    "Building Blocks" "Runtime Behavior" "Deployment" "Responsibility"
-    "Risks" "Open Questions" "Diagrams")
-  "Expected top-level Arc42 headings in a component file.")
+  '(introduction context-scope constraints solution-strategy
+    building-blocks runtime deployment responsibility
+    risks open-questions diagrams)
+  "Sections expected at the top level of a component's arc42.org.
+Section ids (the :BLUEPRINT_SECTION: of the templates): a heading is
+found by its property or by its title (`blueprint--section-find').")
 
 (defun blueprint--lint-content (label file)
   "Check the content of FILE, reporting under LABEL.
@@ -47,12 +49,20 @@ TBD, FIXME, exported text only, as in the health score) than
     ;; templates' :noexport: guides) is not content: every component
     ;; created from a template has some.  A line holding only a
     ;; <<target>> is the anchor the templates put under each heading,
-    ;; not content either.
+    ;; not content either, and neither is a property drawer (the
+    ;; :BLUEPRINT_SECTION: of every template heading): the export
+    ;; does not show it.
     (with-temp-buffer
       (blueprint--insert-org-file file)
       (goto-char (point-min))
       (let ((content-lines 0)
-            (excluded (blueprint--non-exported-subtrees)))
+            (excluded (append
+                       (blueprint--non-exported-subtrees)
+                       (org-element-map (org-element-parse-buffer 'element)
+                           'property-drawer
+                         (lambda (d)
+                           (cons (org-element-property :begin d)
+                                 (org-element-property :end d)))))))
         (while (not (eobp))
           (let ((line (buffer-substring-no-properties
                        (line-beginning-position) (line-end-position))))
@@ -93,11 +103,14 @@ a \"deprecated\" one (#+BLUEPRINT_LIFECYCLE:)."
     (let ((warnings '()))
       (with-temp-buffer
         (insert-file-contents file)
-        (dolist (heading blueprint--lint-expected-headings)
-          (goto-char (point-min))
-          (unless (re-search-forward (format "^\\* %s" (regexp-quote heading)) nil t)
+        (let ((org-inhibit-startup t))
+          (delay-mode-hooks (org-mode)))
+        (dolist (section blueprint--lint-expected-headings)
+          (unless (blueprint--section-find section 1 t)
             (push (format "%s:%s: missing heading \"%s\""
-                          (file-name-nondirectory file) id heading)
+                          (file-name-nondirectory file) id
+                          (blueprint--section-title
+                           section (blueprint--project-language)))
                   warnings))))
       (unless skip-content
         (setq warnings (append (reverse (blueprint--lint-content id file))

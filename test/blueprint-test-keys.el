@@ -122,5 +122,24 @@ Also every M-x blueprint-... command mentioned exists."
                    (sort (mapcar #'car (blueprint-test--transient-bindings))
                          #'string<)))))
 
+(ert-deftest blueprint-test-keys/menu-autoload-needs-no-transient ()
+  "The autoloads of the package define `blueprint-menu' with `autoload'.
+A bare cookie on `transient-define-prefix' copies the whole form into
+the autoloads file, which then fails with void-function when a package
+manager loads it before Transient."
+  ;; A fresh directory: loaddefs-generate leaves alone an output file
+  ;; newer than the sources, such as an empty `make-temp-file'.
+  (let* ((dir (make-temp-file "blueprint-autoloads" t))
+         (out (expand-file-name "blueprint-autoloads.el" dir)))
+    (unwind-protect
+        (progn
+          (loaddefs-generate blueprint-test--package-dir out)
+          (with-temp-buffer
+            (insert-file-contents out)
+            (should-not (search-forward "transient-define-prefix" nil t))
+            (goto-char (point-min))
+            (should (search-forward "(autoload 'blueprint-menu \"blueprint\"" nil t))))
+      (delete-directory dir t))))
+
 (provide 'blueprint-test-keys)
 ;;; blueprint-test-keys.el ends here

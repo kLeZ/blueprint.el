@@ -1,0 +1,58 @@
+#+TITLE: Enterprise view -- Dependencies and integrations
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: 2026-11-16
+
+* Dependency map
+<<enterprise-dependencies>> [TO VALIDATE]
+
+** Dependency matrix
+Legend: IN = receives from, OUT = sends to, BI = bidirectional, -- = no relation
+
+| System           | WarehouseManager | SAP B1 | BRT API | FatturaPA | SMTP relay |
+|------------------+------------------+--------+---------+-----------+------------|
+| WarehouseManager | --               | IN     | OUT     | OUT       | OUT        |
+| SAP B1           | OUT              | --     | --      | --        | --         |
+| BRT API          | IN               | --     | --      | --        | --         |
+| FatturaPA        | IN               | --     | --      | --        | --         |
+| SMTP relay       | IN               | --     | --      | --        | --         |
+
+** Main cross-system flows
+*** Flow: from the SAP order to the invoice
+
+The order is born in SAP Business One and leaves it as a file.  Everything else happens in WarehouseManager, inside a single request of the operator: if the courier or FatturaPA answer slowly, the operator waits.
+
+#+begin_src plantuml :file enterprise-flow-01.svg
+  actor "Operator" as op
+  participant "SAP B1" as sap
+  participant "WarehouseManager" as wm
+  participant "BRT API" as brt
+  participant "FatturaPA" as fpa
+  participant "SMTP relay" as smtp
+  sap -> wm : order CSV (network share)
+  op -> wm : manual import
+  op -> wm : confirms the picking
+  activate wm
+  wm -> wm : creates the delivery note
+  wm -> brt : POST /shipment
+  brt --> wm : tracking number
+  wm -> fpa : sendInvoice (SOAP)
+  fpa --> wm : invoice id
+  wm -> smtp : confirmation to the customer
+  deactivate wm
+  @enduml
+#+end_src
+
+** Data lineage
+The orders change shape three times: CSV rows, rows of a staging table, real orders.  The rows rejected by the validation end up only in a log file. [FINDING]
+
+#+begin_src plantuml :file enterprise-dfd.svg
+  [SAP Business One] --> (CSV import) : order rows
+  (CSV import) --> [Staging table] : raw rows
+  [Staging table] --> (Validation) : rows to check
+  (Validation) --> [Orders] : valid rows
+  (Validation) --> [Rejection log] : rejected rows
+  [Orders] --> (Fulfillment) : confirmed order
+  (Fulfillment) --> [Delivery notes and invoices] : documents
+  @enduml
+#+end_src

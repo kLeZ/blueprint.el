@@ -1,7 +1,7 @@
 ;;; blueprint-glossary.el --- Glossary management for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -10,11 +10,10 @@
 ;; (the same file `blueprint-init' creates and `master.org' includes).
 ;;
 ;; A term is added as a level-2 heading at the end of one of the
-;; sections the template defines ("Termini di dominio", "Termini
-;; tecnici con uso specifico", "Acronimi e abbreviazioni"), in the
-;; format of the template itself: the definition followed by a
-;; /Fonte: .../ line.  Entries written by older Blueprint versions (level-1
-;; headings with a :PROPERTIES: drawer appended at the end of the
+;; sections the template defines (domain terms, technical terms,
+;; acronyms), in the format of the template itself: the definition
+;; followed by a /Source: .../ line (/Fonte: .../ in Italian).  Entries
+;; written by older Blueprint versions (level-1 headings with a :PROPERTIES: drawer appended at the end of the
 ;; file) keep working: `blueprint-glossary-lookup' finds both formats.
 
 ;;; Code:
@@ -43,7 +42,7 @@ first `blueprint-glossary-add' still has the sections and guidance a
     file))
 
 (defcustom blueprint-glossary-source-position 'after
-  "Where `blueprint-glossary-add' writes the /Fonte: .../ line of a term.
+  "Where `blueprint-glossary-add' writes the source line of a term.
 `after' the definition, as the glossary template does; `before' it,
 for glossaries kept that way."
   :type '(choice (const :tag "After the definition (template)" after)
@@ -71,27 +70,44 @@ its own level-1 section, exactly as it did before."
             (push (org-element-property :raw-value hl) sections)))))
     (nreverse sections)))
 
+(defun blueprint--glossary-default-section ()
+  "Return the glossary section new terms go to by default.
+The domain terms section (`glossary-domain', found by property or
+title), else the first section of glossary.org, else the title of the
+domain terms section in the document language."
+  (let ((file (blueprint--glossary-file)))
+    (or (and (file-exists-p file)
+             (with-temp-buffer
+               (blueprint--insert-org-file file)
+               (let ((hl (blueprint--section-find 'glossary-domain 1)))
+                 (and hl (org-element-property :raw-value hl)))))
+        (car (and (file-exists-p file) (blueprint--glossary-sections)))
+        (blueprint--section-title 'glossary-domain
+                                  (blueprint--project-language)))))
+
 ;;;###autoload
 (defun blueprint-glossary-add (term definition source &optional section)
   "Add TERM with DEFINITION and SOURCE to the project glossary.
 The entry is inserted as a level-2 heading at the end of SECTION, a
-level-1 heading of glossary.org that defaults to the first one (by
-convention \"Termini di dominio\"), in the format of the glossary
-template: the definition followed by a /Fonte: .../ line.  Entries
-written by older versions (level-1 headings with a :PROPERTIES:
-drawer at the end of the file) are left untouched and remain
+level-1 heading of glossary.org that defaults to the domain terms
+section (`blueprint--glossary-default-section'), in the format of the
+glossary template: the definition followed by a /Source: .../ line
+(/Fonte: .../ in an Italian document).  Entries written by older
+versions (level-1 headings with a :PROPERTIES: drawer at the end of
+the file) are left untouched and remain
 readable by `blueprint-glossary-lookup'."
   (interactive
    (let* ((sections (blueprint--glossary-sections))
           (term (read-string "Term: "))
           (definition (read-string "Definition: "))
           (source (read-string "Source: "))
-          (section (completing-read "Section: " (or sections '("Termini di dominio"))
-                                    nil t nil nil (car sections))))
+          (default (blueprint--glossary-default-section))
+          (section (completing-read "Section: " (or sections (list default))
+                                    nil t nil nil default)))
      (list term definition source section)))
   (blueprint--ensure-glossary)
   (let* ((sections (blueprint--glossary-sections))
-         (section (or section (car sections)))
+         (section (or section (blueprint--glossary-default-section)))
          (file (blueprint--glossary-file)))
     (unless (member section sections)
       (user-error "Glossary section %S not found in glossary.org" section))
@@ -128,8 +144,11 @@ readable by `blueprint-glossary-lookup'."
           (unless (save-excursion (forward-line -1) (looking-at "^\\s-*$"))
             (insert "\n"))
           (insert (if (eq blueprint-glossary-source-position 'before)
-                      (format "** %s\n/Fonte: %s/\n%s\n" term source definition)
-                    (format "** %s\n%s\n/Fonte: %s/\n" term definition source)))
+                      (format "** %s\n%s\n%s\n" term
+                              (format (blueprint--l10n 'glossary-source) source)
+                              definition)
+                    (format "** %s\n%s\n%s\n" term definition
+                            (format (blueprint--l10n 'glossary-source) source))))
           ;; And one before the heading that follows, if any.
           (when (and next-heading (eq (char-after) ?*))
             (insert "\n"))))
@@ -209,7 +228,7 @@ data directory (`blueprint--glossary-orphan-file')."
                    (and orphan
                         (let ((found (blueprint--glossary-find-term orphan term)))
                           (and found
-                               (format "%s\n[%s, formato precedente: blueprint-project-upgrade lo sposta nel glossario]"
+                               (format "%s\n[%s, earlier format: blueprint-project-upgrade moves it into the glossary]"
                                        found
                                        (file-relative-name orphan (blueprint--root)))))))))
     (unless (or (file-exists-p file) orphan)

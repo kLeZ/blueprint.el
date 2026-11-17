@@ -1,0 +1,27 @@
+** {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Description.  Main attributes in business terms.  The /Relation/ column gives the target entity of the attributes that are foreign keys (e.g.: ~→ OtherName~).
+
+| Attribute | Type (business) | Constraints | Relation | Notes |
+|-----------+-----------------+-------------+----------+-------|
+|           |                 |             |          |       |
+
+*** Logical representation
+<<{{ER_ANCHOR}}>>
+
+ER diagram of the entity.  Arrows to external entities point to their identifiers only, without showing the internal structure of the related entities.
+
+#+begin_src plantuml :file {{ER_FILE}}
+  @startuml
+  entity "{{NAME}}" as e {
+  ,* id : type <<PK>>
+  --
+  attribute : type
+  }
+  ' External entities: border only, no internal detail
+  ' entity "[Related entity]" as ext #lightgrey {}
+  ' e }o--|| ext : "relation description"
+  @enduml
+#+end_src

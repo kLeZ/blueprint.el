@@ -30,9 +30,6 @@ di =arc42.org=; questo registro raccoglie i rischi trasversali.
 | R-002 | Nessun ripristino del database mai provato: il backup notturno potrebbe non essere utilizzabile                             | database     | Media       | Alto    | Alto    | Provare un ripristino su una copia, poi ogni trimestre          | sistemi        |      |
 | R-003 | Token di BRT in chiaro in un file versionato                                                                                | spedizioni   | Alta        | Medio   | Alto    | Token in una variabile d'ambiente e rotazione                   | team-magazzino |      |
 
-
-
-
 Livello = combinazione Probabilità x Impatto:
 - *Critico*: Alta prob. x Alto impatto
 - *Alto*: Alta prob. x Medio impatto, o Media prob. x Alto impatto

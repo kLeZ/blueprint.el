@@ -1,20 +1,22 @@
 ;;; blueprint-runtime.el --- Runtime behavior management for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
 
 ;; Interactive commands to add runtime behavior flows to arc42.org.
-;; Each flow includes both a use case diagram (chi fa cosa) and a
-;; sequence diagram (come i messaggi si scambiano nel tempo), each
+;; Each flow includes both a use case diagram (who does what) and a
+;; sequence diagram (how messages are exchanged over time), each
 ;; accompanied by a prose description to give context to the diagram.
 ;;
 ;;   `blueprint-runtime-add-flow' -- add a level-2 flow with UC + seq diagrams
 ;;
-;; Flows are inserted under the `* Runtime Behavior' section.  The section
-;; is created at the end of the file if it is absent.
+;; Flows are inserted under the runtime section, found by its
+;; :BLUEPRINT_SECTION: property or its title (see
+;; `blueprint--section-find').  The section is created at the end of
+;; the file if it is absent, in the document language.
 
 ;;; Code:
 
@@ -32,46 +34,20 @@ Leading and trailing hyphens are stripped."
     (replace-regexp-in-string "[^a-z0-9]" "-" (downcase name)))
    "-+" "-+"))
 
-(defun blueprint--runtime-find-heading (level title)
-  "Return `:contents-begin' of heading TITLE at LEVEL in the current buffer.
-Uses org-element.  Falls back to `:end' if the heading has no body.
-Returns nil if the heading is not found."
-  (let (result)
-    (org-element-map (org-element-parse-buffer 'headline) 'headline
-      (lambda (hl)
-        (when (and (= (org-element-property :level hl) level)
-                   (string= (org-element-property :raw-value hl) title))
-          (setq result (or (org-element-property :contents-begin hl)
-                           (org-element-property :end hl)))))
-      nil t)
-    result))
-
-(defun blueprint--runtime-goto-section-end (title)
-  "Move point to the insertion position at the end of level-1 section TITLE.
-Finds the next level-1 heading and positions before it, or at EOF.
-Returns t when the section is found, nil otherwise."
-  (let ((pos (blueprint--runtime-find-heading 1 title)))
-    (when pos
-      (goto-char pos)
-      (let ((next (save-excursion
-                    (when (re-search-forward "^\\* " nil t)
-                      (line-beginning-position)))))
-        (goto-char (or next (point-max))))
-      t)))
-
 (defun blueprint--runtime-list-flows (file)
-  "Return list of level-2 flow names under `* Runtime Behavior' in FILE."
+  "Return the names of the runtime flows (level 2) in FILE.
+They are the children of the runtime section (`runtime', see
+`blueprint--section-find')."
   (when (and file (file-exists-p file))
     (with-temp-buffer
       (insert-file-contents file)
-      (let (flows (in-runtime nil))
-        (org-element-map (org-element-parse-buffer 'headline) 'headline
-          (lambda (hl)
-            (let ((lvl (org-element-property :level hl))
-                  (raw (org-element-property :raw-value hl)))
-              (cond
-               ((= lvl 1) (setq in-runtime (string= raw "Runtime Behavior")))
-               ((and in-runtime (= lvl 2)) (push raw flows))))))
+      (let ((parent (blueprint--section-find 'runtime 1))
+            flows)
+        (when parent
+          (org-element-map parent 'headline
+            (lambda (hl)
+              (when (= (org-element-property :level hl) 2)
+                (push (org-element-property :raw-value hl) flows)))))
         (nreverse flows)))))
 
 ;;; --- Public commands ---
@@ -79,16 +55,17 @@ Returns t when the section is found, nil otherwise."
 ;;;###autoload
 (defun blueprint-runtime-add-flow (component flow-name)
   "Add a runtime flow FLOW-NAME with use case and sequence diagrams to COMPONENT.
-Inserts a level-2 heading under `* Runtime Behavior' in arc42.org.
+Inserts a level-2 heading under the runtime section of arc42.org.
 
 Each flow includes:
   - A prose description (objective, actors, preconditions, context)
-  - A `*** Casi d\\='uso\\=' sub-heading with PlantUML use case diagram and
+  - A use case sub-heading with PlantUML use case diagram and
     a description targeted at non-technical stakeholders
-  - A `*** Sequenza\\=' sub-heading with PlantUML sequence diagram and
+  - A sequence sub-heading with PlantUML sequence diagram and
     a description targeted at technical teams
 
-Creates the `* Runtime Behavior\\=' section if absent."
+Creates the runtime section if absent.  The text is in the
+document language."
   (interactive
    (list (completing-read "Component: "
                           (hash-table-keys (blueprint--components)) nil t)
@@ -101,43 +78,15 @@ Creates the `* Runtime Behavior\\=' section if absent."
            (anchor (format "%s-flow-%s" comp-id slug))
            (uc-file (format "%s-uc-%s.svg" comp-id slug))
            (seq-file (format "%s-seq-%s.svg" comp-id slug))
-           (content (concat
-                     (format "** Flusso: %s\n<<%s>>\n[DA VALIDARE]\n\n" flow-name anchor)
-                     "Descrizione del flusso: obiettivo, precondizioni, attori coinvolti e\n"
-                     "vincoli di contesto rilevanti.\n\n"
-                     "*** Casi d'uso\n\n"
-                     "Panoramica degli attori e delle funzionalità coinvolte nel flusso.\n"
-                     "Questa vista è utile per comunicare con stakeholder non tecnici.\n\n"
-                     (format "#+begin_src plantuml :file %s\n" uc-file)
-                     "@startuml\n"
-                     "left to right direction\n"
-                     "actor \"Utente\" as u\n"
-                     (format "rectangle \"%s\" {\n" component)
-                     "  usecase \"Caso d'uso 1\" as uc1\n"
-                     "  usecase \"Caso d'uso 2\" as uc2\n"
-                     "}\n"
-                     "u --> uc1\n"
-                     "u --> uc2\n"
-                     "@enduml\n"
-                     "#+end_src\n\n"
-                     "*** Sequenza\n\n"
-                     "Dettaglio temporale degli scambi di messaggi per il flusso.\n"
-                     "Questa vista è utile per i team tecnici e per la documentazione delle API.\n\n"
-                     (format "#+begin_src plantuml :file %s\n" seq-file)
-                     "@startuml\n"
-                     "participant \"A\" as a\n"
-                     "participant \"B\" as b\n"
-                     "a -> b : messaggio\n"
-                     "b --> a : risposta\n"
-                     "@enduml\n"
-                     "#+end_src\n\n"))
+           (content (blueprint--snippet
+                     "runtime-flow"
+                     `(("NAME" . ,flow-name) ("ANCHOR" . ,anchor)
+                       ("UC_FILE" . ,uc-file) ("COMPONENT" . ,component)
+                       ("SEQ_FILE" . ,seq-file))))
            (buf (find-file-noselect file)))
       (with-current-buffer buf
-        (unless (blueprint--runtime-goto-section-end "Runtime Behavior")
-          (goto-char (point-max))
-          (unless (bolp) (insert "\n"))
-          (insert "* Runtime Behavior\n\n"))
-        (insert content)
+        (blueprint--section-ensure-end 'runtime)
+        (blueprint--insert-aligned content)
         (save-buffer))
       (switch-to-buffer buf)
       (message "Added flow '%s' to %s" flow-name component))))
@@ -145,14 +94,14 @@ Creates the `* Runtime Behavior\\=' section if absent."
 ;;;###autoload
 (defun blueprint-runtime-add-process (component process-name)
   "Add business process PROCESS-NAME with a swimlane activity diagram to COMPONENT.
-Inserts a level-2 heading under `* Processi di business' in arc42.org,
-with a PlantUML activity diagram using swimlanes (`|Attore|') to show
+Inserts a level-2 heading under the business processes section of
+arc42.org, with a PlantUML activity diagram using swimlanes (`|Actor|') to show
 which actor performs each step of a multi-actor business process --
 distinct from `blueprint-runtime-add-flow', whose UC/sequence diagrams
 describe how a single flow's messages move between system components,
 not between business actors over time.
 
-Creates the `* Processi di business\\=' section if absent."
+Creates the section if absent."
   (interactive
    (list (completing-read "Component: "
                           (hash-table-keys (blueprint--components)) nil t)
@@ -164,34 +113,14 @@ Creates the `* Processi di business\\=' section if absent."
            (slug (blueprint--runtime-slugify process-name))
            (anchor (format "%s-process-%s" comp-id slug))
            (svg-file (format "%s-process-%s.svg" comp-id slug))
-           (content (concat
-                     (format "** Processo: %s\n<<%s>>\n[DA VALIDARE]\n\n" process-name anchor)
-                     "Descrizione del processo: obiettivo di business, attori coinvolti\n"
-                     "e punti decisionali rilevanti.\n\n"
-                     (format "#+begin_src plantuml :file %s\n" svg-file)
-                     "@startuml\n"
-                     "|Attore 1|\n"
-                     "start\n"
-                     ":Attività 1;\n"
-                     "|Attore 2|\n"
-                     ":Attività 2;\n"
-                     "if (Condizione?) then (si)\n"
-                     "  :Attività 3a;\n"
-                     "else (no)\n"
-                     "  :Attività 3b;\n"
-                     "endif\n"
-                     "|Attore 1|\n"
-                     ":Attività 4;\n"
-                     "stop\n"
-                     "@enduml\n"
-                     "#+end_src\n\n"))
+           (content (blueprint--snippet
+                     "runtime-process"
+                     `(("NAME" . ,process-name) ("ANCHOR" . ,anchor)
+                       ("SVG_FILE" . ,svg-file))))
            (buf (find-file-noselect file)))
       (with-current-buffer buf
-        (unless (blueprint--runtime-goto-section-end "Processi di business")
-          (goto-char (point-max))
-          (unless (bolp) (insert "\n"))
-          (insert "* Processi di business\n\n"))
-        (insert content)
+        (blueprint--section-ensure-end 'business-processes)
+        (blueprint--insert-aligned content)
         (save-buffer))
       (switch-to-buffer buf)
       (message "Added business process '%s' to %s" process-name component))))

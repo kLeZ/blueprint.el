@@ -1,7 +1,7 @@
 ;;; blueprint-adr.el --- ADR management for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -159,22 +159,13 @@ PROPERTIES drawer.  Creates adr.org from template if absent."
   (let* ((file (blueprint--adr-ensure-file))
          (num (blueprint--adr-next-number))
          (date (format-time-string "%Y-%m-%d"))
-         (entry (concat
-                 (format "* ADR %s: %s\n" num title)
-                 ":PROPERTIES:\n"
-                 ":STATUS: proposed\n"
-                 (format ":DATE:   %s\n" date)
-                 ":END:\n\n"
-                 "** Contesto\n\n"
-                 "Situazione e forze in gioco che hanno motivato questa decisione.\n\n"
-                 "** Decisione\n\n"
-                 "La decisione presa e le alternative considerate.\n\n"
-                 "** Conseguenze\n\n"
-                 "Conseguenze positive, negative e neutre di questa decisione.\n\n")))
+         (entry (blueprint--snippet "adr-entry"
+                                `(("NUMBER" . ,num) ("TITLE" . ,title)
+                                  ("DATE" . ,date)))))
     (with-current-buffer (find-file-noselect file)
       (goto-char (point-max))
       (unless (bolp) (insert "\n"))
-      (insert entry)
+      (blueprint--insert-aligned entry)
       (save-buffer))
     (find-file file)
     (message "Added ADR %s: %s" num title)))

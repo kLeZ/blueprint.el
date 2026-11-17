@@ -13,7 +13,7 @@ Audience: architects and consultants using Blueprint.el on an engagement.
 
 Blueprint.el is an Emacs package for producing the architectural documentation of software systems, typically existing ones that have none. The underlying method is reverse engineering: the source code is the primary source, and the documentation is rebuilt from it step by step. The same structure also works for a system being designed (see the method, "Using the method on a new system").
 
-The templates, the headings they create and the markers are in Italian for now. Full English support and localized templates are planned (PLAN.org, phase 11).
+A document is written in English (the default for new projects) or in Italian. The language is chosen when the project is created and recorded in it; projects created before languages existed are Italian and keep working unchanged. The commands below show the English headings and text; in an Italian project they write the Italian ones (for example =* Aree funzionali= instead of =* Functional areas=). The user interface is English in both cases.
 
 ** Mental model
 
@@ -78,10 +78,10 @@ Each part declares its audience, so every reader can go straight to their own wi
 ** Step 1: create the structure
 
 #+begin_src
-M-x blueprint-init  (or: C-c b I)
+  M-x blueprint-init  (or: C-c b I)
 #+end_src
 
-Creates the project structure in the current directory. The command is idempotent: running it again does not overwrite existing files.
+Creates the project structure in the current directory, in the language of =blueprint-default-language= (=en= by default; with =C-u= the command asks). The language goes into =.blueprint/blueprint-version.org= as =#+BLUEPRINT_LANGUAGE:= and decides the templates and the text the commands write for the whole life of the project. The command is idempotent: running it again does not overwrite existing files and never changes the language.
 
 What it creates:
 
@@ -102,14 +102,14 @@ _archive/
   components/
 #+end_example
 
-The first time it runs interactively, =blueprint-init= also copies the system templates to =~/.config/blueprint/templates/=, where they become your personal defaults.
+The first time it runs interactively, =blueprint-init= also copies the system templates of the project language to =~/.config/blueprint/templates/<lang>/=, where they become your personal defaults. Italian templates customized in =~/.config/blueprint/templates/= itself, where earlier versions copied them, are still used and never shadowed.
 
 ** Step 2: customize the templates (optional)
 
 If the project needs its own templates (extra sections, different notations, text prepared for the client):
 
 #+begin_src
-M-x blueprint-template-migrate  (or: C-c b M)
+  M-x blueprint-template-migrate  (or: C-c b M)
 #+end_src
 
 Copies the system templates into =.blueprint/templates/=. From then on the project's templates take precedence over the personal and system ones.
@@ -121,7 +121,7 @@ Available templates: =component.org=, =arc42-enterprise.org=, =functional.org=, 
 The project's data directory (components, ADRs, local templates) is called =.blueprint/= by default. If the layout has to match what a site generator or a build tool expects, set =blueprint-directory-name= to another name or to a nested relative path, for example =content/blueprint=, globally (=init.el= or Customize):
 
 #+begin_src emacs-lisp
-(setq blueprint-directory-name "content/blueprint")
+  (setq blueprint-directory-name "content/blueprint")
 #+end_src
 
 The variable is also marked safe as a directory-local, but a value in =.dir-locals.el= only reaches buffers visiting a file of the project: commands run from buffers without a file (dashboard, result buffers) still see the global value.
@@ -129,7 +129,7 @@ The variable is also marked safe as a directory-local, but a value in =.dir-loca
 A project that still has =.blueprint/= keeps working after the change: Blueprint falls back to it and says so once per session. To rename it:
 
 #+begin_src
-M-x blueprint-migrate-directory  (or: C-c b m)
+  M-x blueprint-migrate-directory  (or: C-c b m)
 #+end_src
 
 The command shows the plan and asks for confirmation. Then it renames the directory (with =git mv= if git tracks it) and rewrites every =file:= link and every =#+INCLUDE:= / =#+SETUPFILE:= path in the project's Org files that the rename would break, including links from files inside the moved directory to files outside it. Mentions in free text (prose, =:file= arguments of source blocks) are only listed in the report buffer, to be fixed by hand.
@@ -153,8 +153,8 @@ These sections are editorial and need input specific to the project.
 ** Add a component
 
 #+begin_src
-M-x blueprint-add-component  (or: C-c b A)
-Component name: order-service
+  M-x blueprint-add-component  (or: C-c b A)
+  Component name: order-service
 #+end_src
 
 Creates =.blueprint/components/order-service/= with:
@@ -183,7 +183,7 @@ The lifecycle of a component is a separate axis from the scope: =#+BLUEPRINT_LIF
 ** Rename a component
 
 #+begin_src
-M-x blueprint-rename-component  (or: C-c b R)
+  M-x blueprint-rename-component  (or: C-c b R)
 #+end_src
 
 Updates every occurrence of the name in the =BLUEPRINT_DEPENDS= of the other components.
@@ -191,7 +191,7 @@ Updates every occurrence of the name in the =BLUEPRINT_DEPENDS= of the other com
 ** Delete a component
 
 #+begin_src
-M-x blueprint-delete-component  (or: C-c b X)
+  M-x blueprint-delete-component  (or: C-c b X)
 #+end_src
 
 Asks for confirmation and deletes the component's directory. The confirmation warns when other components still declare the name in =#+BLUEPRINT_DEPENDS:=: those dependencies stay (a human decides), and the linter reports them as dangling until they are removed by hand. After the confirmation, before deleting the directory, it removes the component's =#+INCLUDE= lines and headings from the synchronized sections of =master.org= (the next =blueprint-sync= restores the exact format of the section).
@@ -199,7 +199,7 @@ Asks for confirmation and deletes the component's directory. The confirmation wa
 ** Check the scope
 
 #+begin_src
-M-x blueprint-lint  (or: C-c b L)
+  M-x blueprint-lint  (or: C-c b L)
 #+end_src
 
 Reports dependencies on components that do not exist, missing mandatory sections and missing template files.
@@ -231,9 +231,9 @@ Every component has up to three documents, one for each part of the deliverable:
 Add a documented runtime flow (use cases plus a sequence diagram):
 
 #+begin_src
-M-x blueprint-runtime-add-flow  (or: C-c b r)
-Component: order-service
-Flow name: checkout
+  M-x blueprint-runtime-add-flow  (or: C-c b r)
+  Component: order-service
+  Flow name: checkout
 #+end_src
 
 Inserts under =* Runtime Behavior= a subheading with:
@@ -247,19 +247,19 @@ Both are PlantUML templates to complete.
 Add a business process with several actors, as a UML activity diagram with swimlanes. It is different from a runtime flow: a flow describes how messages travel between system components, a business process describes which actor performs each step.
 
 #+begin_src
-M-x blueprint-runtime-add-process  (or: C-c b b)
-Component: order-service
-Process name: returns handling
+  M-x blueprint-runtime-add-process  (or: C-c b b)
+  Component: order-service
+  Process name: returns handling
 #+end_src
 
-Inserts under =* Processi di business= (created if missing) a subheading with a swimlane PlantUML block to complete (lanes, steps, a sample decision point).
+Inserts under =* Business processes= (created if missing) a subheading with a swimlane PlantUML block to complete (lanes, steps, a sample decision point).
 
 ** Mark a component out of scope
 
 Set =#+BLUEPRINT_STATUS:= in the header of =arc42.org= (=in-scope= when missing, so components created before this feature behave as before):
 
 #+begin_src org
-#+BLUEPRINT_STATUS: out-of-scope
+  ,#+BLUEPRINT_STATUS: out-of-scope
 #+end_src
 
 Values: =in-scope= (default), =out-of-scope=, =tbd=. =blueprint-lint= reports an =in-scope= component that depends on an =out-of-scope= one; the dashboard has a "Scope" column and a filter (=C-c b o=, or =O= in the dashboard buffer) to review only the components outside the scope. The reason for the exclusion is written by hand in Part 0 of the master: the keyword only records the state, not the reason.
@@ -268,23 +268,25 @@ Values: =in-scope= (default), =out-of-scope=, =tbd=. =blueprint-lint= reports an
 
 Use the markers defined by the method:
 
-| Marker                   | When to use it                                         |
-|--------------------------+--------------------------------------------------------|
-| =[DA VALIDARE]=          | To validate: written, not yet checked with the client  |
-| =[FINDING]=              | A discrepancy between actual and expected behavior     |
-| =[APPROVATO YYYY-MM-DD]= | Approved by the client's owner on that date            |
-| =[FONTE: X]=             | The source (for example, FONTE: interview with J. Doe) |
+| Marker                  | When to use it                                          |
+|-------------------------+---------------------------------------------------------|
+| =[TO VALIDATE]=         | To validate: written, not yet checked with the client   |
+| =[FINDING]=             | A discrepancy between actual and expected behavior      |
+| =[APPROVED YYYY-MM-DD]= | Approved by the client's owner on that date             |
+| =[SOURCE: X]=           | The source (for example, SOURCE: interview with J. Doe) |
 
-The markers =QUESTION=, =TBD=, =FIXME=, =[DA VALIDARE]= and =[DA REVISIONARE]= are picked up by the health score and lower the project's score; =[FINDING]= is counted but carries no penalty, because it is a result of the assessment, not an open point.
+The markers are English in every document language. Documents written by 0.4.x and earlier use the Italian forms =[DA VALIDARE]=, =[DA REVISIONARE]=, =[APPROVATO YYYY-MM-DD]= and =[FONTE: X]=: Blueprint reads them exactly like the English ones, and =blueprint-project-upgrade= offers to rewrite them (step =english-markers=).
 
-Only markers in the text that the export actually shows count. Ignored: subtrees with an exclusion tag (=:noexport:= or those listed in =#+EXCLUDE_TAGS:=), COMMENT subtrees, src/example/export/comment blocks, comment lines and verbatim/code markup (writing ==[FINDING]== quotes the marker without creating one). The match is case-sensitive. File keywords such as =#+STATUS: [DA VALIDARE]= still count. That is why the =:noexport:= guides in the templates, with their sample data, do not weigh on the score.
+The markers =QUESTION=, =TBD=, =FIXME=, =[TO VALIDATE]= and =[TO REVIEW]= are picked up by the health score and lower the project's score; =[FINDING]= is counted but carries no penalty, because it is a result of the assessment, not an open point.
+
+Only markers in the text that the export actually shows count. Ignored: subtrees with an exclusion tag (=:noexport:= or those listed in =#+EXCLUDE_TAGS:=), COMMENT subtrees, src/example/export/comment blocks, comment lines and verbatim/code markup (writing ==[FINDING]== quotes the marker without creating one). The match is case-sensitive. File keywords such as =#+STATUS: [TO VALIDATE]= still count. That is why the =:noexport:= guides in the templates, with their sample data, do not weigh on the score.
 
 ** Open questions during the analysis
 
 #+begin_src
-M-x blueprint-add-question  (or: C-c b Q)
-Component: order-service
-Question: Who authorizes a refund when the payment is already booked?
+  M-x blueprint-add-question  (or: C-c b Q)
+  Component: order-service
+  Question: Who authorizes a refund when the payment is already booked?
 #+end_src
 
 Questions go into the component's =* Open Questions= section and count in the health score (weight 3 for every unresolved =QUESTION=).
@@ -300,28 +302,30 @@ The goal is specifications that an analyst without a technical background can re
 ** Structure of functional.org
 
 =functional.org= is organized as:
-- =* Aree funzionali=: functional areas of the domain (for example, Orders, Invoicing)
+- =* Functional areas=: functional areas of the domain (for example, Orders, Invoicing)
   - =** Area=: one subsection per area
     - =*** Feature=: a single function or business rule, with inputs, outputs and rules
-- =* Entità di dominio=: business objects (not database tables)
-- =* Punti di integrazione=: flows in and out of other systems
-- =* Open Questions=
+- =* Domain entities=: business objects (not database tables)
+- =* Integration points=: flows in and out of other systems
+- =* Open questions=
+
+Each of these headings carries a =:BLUEPRINT_SECTION:= property (=functional-areas=, =domain-entities=, ...): the commands find the section through it, so the heading can be renamed or translated. A heading without the property, as in files written by 0.4.x and earlier, is found by its title (the one of the project language, or the one 0.4.x wrote); =blueprint-project-upgrade= offers to add the property (step =section-properties=).
 
 ** Add a functional area
 
 #+begin_src
-M-x blueprint-functional-add-area  (or: C-c b a)
-Component: order-service
-Area name: Order management
+  M-x blueprint-functional-add-area  (or: C-c b a)
+  Component: order-service
+  Area name: Order management
 #+end_src
 
 ** Add a feature
 
 #+begin_src
-M-x blueprint-functional-add-feature  (or: C-c b f)
-Component: order-service
-Area: Order management
-Feature name: Net amount calculation
+  M-x blueprint-functional-add-feature  (or: C-c b f)
+  Component: order-service
+  Area: Order management
+  Feature name: Net amount calculation
 #+end_src
 
 Inserts a skeleton with purpose, inputs, outputs, business rules, calculation logic, validation rules and edge cases.
@@ -329,9 +333,9 @@ Inserts a skeleton with purpose, inputs, outputs, business rules, calculation lo
 ** Add a domain entity
 
 #+begin_src
-M-x blueprint-functional-add-entity  (or: C-c b e)
-Component: order-service
-Entity name: Order
+  M-x blueprint-functional-add-entity  (or: C-c b e)
+  Component: order-service
+  Entity name: Order
 #+end_src
 
 Inserts an attribute table and a PlantUML block for the ER diagram.
@@ -339,9 +343,9 @@ Inserts an attribute table and a PlantUML block for the ER diagram.
 ** Add an integration point
 
 #+begin_src
-M-x blueprint-functional-add-integration  (or: C-c b i)
-Component: order-service
-Integration name: Sending invoices to the billing system
+  M-x blueprint-functional-add-integration  (or: C-c b i)
+  Component: order-service
+  Integration name: Sending invoices to the billing system
 #+end_src
 
 Inserts a metadata table (direction, counterpart, frequency) and a subsection to document the structure of the exchanged payload.
@@ -384,7 +388,7 @@ If access is not available, fall back in this order:
 1. a walkthrough with the technical owner;
 2. secondary artifacts (Dockerfile, CI/CD configuration);
 3. observation of monitoring, APM, logs;
-4. black-box inference, only as a last resort, marked =[DA VALIDARE]=.
+4. black-box inference, only as a last resort, marked =[TO VALIDATE]=.
 
 -----
 
@@ -399,7 +403,7 @@ The enterprise view is Part I of the master document. It has two files, both at 
 ** Generate the C4 container diagram (Part II)
 
 #+begin_src
-M-x blueprint-generate-c4  (or: C-c b C)
+  M-x blueprint-generate-c4  (or: C-c b C)
 #+end_src
 
 Writes =c4.puml= at the project root, with every component as a Container and its dependencies as =Rel= relations, ready for PlantUML.
@@ -407,7 +411,7 @@ Writes =c4.puml= at the project root, with every component as a Container and it
 ** Generate the enterprise C4 diagram (Part I)
 
 #+begin_src
-M-x blueprint-generate-enterprise-c4  (or: C-c b V)
+  M-x blueprint-generate-enterprise-c4  (or: C-c b V)
 #+end_src
 
 Updates =enterprise/context.org= with a C4 level 1 diagram: a =System(...)= for each component and a =Rel(...)= for each =#+BLUEPRINT_DEPENDS:=. Unlike the container diagram (Part II), there are no =Container= elements here, only =System=.
@@ -462,7 +466,7 @@ Three categories (=C-c b c= adds one):
 Risk patterns can be detected automatically:
 
 #+begin_src
-M-x blueprint-suggest-risks-all  (or: C-c b s)
+  M-x blueprint-suggest-risks-all  (or: C-c b s)
 #+end_src
 
 Detects patterns such as "no backup", "single point of failure", "hardcoded credentials", "no monitoring", "deprecated library", "isolated component". The results are moved into the register by hand, with an assessment of probability and impact.
@@ -478,18 +482,18 @@ Risks not detected automatically go into =risks.org= by hand, or with =blueprint
 ** Add a term to the glossary
 
 #+begin_src
-M-x blueprint-glossary-add  (or: C-c b y)
-Term: SLA
-Definition: Service Level Agreement, the contractual agreement on service levels
-Source: client-contract-2024
+  M-x blueprint-glossary-add  (or: C-c b y)
+  Term: SLA
+  Definition: Service Level Agreement, the contractual agreement on service levels
+  Source: client-contract-2024
 #+end_src
 
-The term goes into =glossary.org= as a level-2 heading at the end of the chosen section, in the template's own format: the definition and a =/Fonte: client-contract-2024/= line. The command asks for the section (domain terms by default, then technical terms with a specific use, then acronyms and abbreviations). Entries written by older versions (level 1 with a =:PROPERTIES:= drawer at the end of the file) stay valid: =blueprint-glossary-lookup= finds both.
+The term goes into =glossary.org= as a level-2 heading at the end of the chosen section, in the template's own format: the definition and a =/Source: client-contract-2024/= line (=/Fonte: .../= in an Italian document). The command asks for the section (domain terms by default, then technical terms with a specific use, then acronyms and abbreviations). Entries written by older versions (level 1 with a =:PROPERTIES:= drawer at the end of the file) stay valid: =blueprint-glossary-lookup= finds both.
 
 ** Look up a term
 
 #+begin_src
-M-x blueprint-glossary-lookup
+  M-x blueprint-glossary-lookup
 #+end_src
 
 It has no key in the Transient menu, only =M-x=.
@@ -497,17 +501,17 @@ It has no key in the Transient menu, only =M-x=.
 ** Add a source
 
 #+begin_src
-M-x blueprint-reference-add  (or: C-c b z)
-Title: Interview with Jane Doe (lead developer)
-Type: interview
-Notes: Walkthrough of the order architecture, 2026-03-10
+  M-x blueprint-reference-add  (or: C-c b z)
+  Title: Interview with Jane Doe (lead developer)
+  Type: interview
+  Notes: Walkthrough of the order architecture, 2026-03-10
 #+end_src
 
 =Type: interview= files the source as a row of the interviews table; any other type (=document=, =codebase=, =monitoring=, =ticket=) goes into the documents table, where the type becomes the value of the "Tipo" column. The ID (=I-NN= or =D-NN=) is assigned automatically.
 
 ** Principle: full traceability
 
-Every statement that does not come straight from the code needs an explicit source. Use =[FONTE: X]= in the text, or the references for formal traceability.
+Every statement that does not come straight from the code needs an explicit source. Use =[SOURCE: X]= in the text, or the references for formal traceability.
 
 -----
 
@@ -520,8 +524,8 @@ ADRs record the decisions, their context and their consequences. They serve both
 ** Add an ADR
 
 #+begin_src
-M-x blueprint-adr-new  (or: C-c b N)
-ADR title: PostgreSQL as the primary database
+  M-x blueprint-adr-new  (or: C-c b N)
+  ADR title: PostgreSQL as the primary database
 #+end_src
 
 Adds to =.blueprint/adr.org= a new level-1 heading with a sequential number:
@@ -553,7 +557,7 @@ The states are =proposed=, then =accepted= (or =deprecated= / =superseded=). Upd
 ** List the ADRs
 
 #+begin_src
-M-x blueprint-adr-list  (or: C-c b n)
+  M-x blueprint-adr-list  (or: C-c b n)
 #+end_src
 
 Opens a =*Blueprint ADRs*= buffer with the title and state of every ADR. =RET= on an ADR opens =adr.org= at its heading.
@@ -567,21 +571,21 @@ Opens a =*Blueprint ADRs*= buffer with the title and state of every ADR. =RET= o
 ** Health score
 
 #+begin_src
-M-x blueprint-health-score
+  M-x blueprint-health-score
 #+end_src
 
 It has no key in the menu: the score also appears at the top of the dashboard (=C-c b B=) and in the pre-delivery check (=C-c b d=), and =C-c b H= draws it as an SVG gauge.
 
 It returns a score from 0 to 100 computed on the text of the document exactly: =master.org= and every file it includes with =#+INCLUDE:=, nested includes too (an included file that includes others), with paths resolved relative to the including file. So Part 0 (the text of =master.org=), the glossary, Part I (=enterprise/=), the component documents, Part V (=nfr/=) and the references all count; files that =master.org= does not include (notes, knowledge base, questions, interviews) do not, and neither does a component document not yet synchronized. Every unresolved marker adds penalty points according to its weight:
 
-| Marker             | Weight |
-|--------------------+--------|
-| =QUESTION=         |      3 |
-| =TBD=              |      2 |
-| =FIXME=            |      4 |
-| =[DA VALIDARE]=    |      1 |
-| =[DA REVISIONARE]= |      1 |
-| =[FINDING]=        |      0 |
+| Marker          | Weight |
+|-----------------+--------|
+| =QUESTION=      |      3 |
+| =TBD=           |      2 |
+| =FIXME=         |      4 |
+| =[TO VALIDATE]= |      1 |
+| =[TO REVIEW]=   |      1 |
+| =[FINDING]=     |      0 |
 
 The sum P of the weights is compared with the size of the same files, so the score does not drop just because the document grows. With W the number of words of the exported text (same exclusions as the markers) and N the variable =blueprint-health-words-per-point= (100 by default):
 
@@ -594,14 +598,14 @@ The score is 50 with one penalty point every N words. With P = 0 it is 100, even
 
 A score of 100 means every marker has been resolved. A low score does not mean "poor documentation" but "work still to do".
 
-The same scope applies to every count in the package: dashboard, pre-delivery check, lint, risks, the lists of =[FINDING]= and =[DA VALIDARE]=. In the included files, markers only count in the exported text: =:noexport:= subtrees (or those with a tag from =#+EXCLUDE_TAGS:=) and =COMMENT= subtrees, src/example/export/comment blocks, comment lines and =verbatim=/~code~ text are excluded. =#+INCLUDE:= lines inside a non-exported subtree or a comment are not followed; a file included as a block (=#+INCLUDE: "x.org" src org=) does not count, because in the document it appears as code.
+The same scope applies to every count in the package: dashboard, pre-delivery check, lint, risks, the lists of =[FINDING]= and =[TO VALIDATE]=. In the included files, markers only count in the exported text: =:noexport:= subtrees (or those with a tag from =#+EXCLUDE_TAGS:=) and =COMMENT= subtrees, src/example/export/comment blocks, comment lines and =verbatim=/~code~ text are excluded. =#+INCLUDE:= lines inside a non-exported subtree or a comment are not followed; a file included as a block (=#+INCLUDE: "x.org" src org=) does not count, because in the document it appears as code.
 
 Known limits: a file included only in part (=:lines=, =file.org::*Heading=) counts in full; a file included twice counts once; =#+EXCLUDE_TAGS:= only applies to the file that declares it, while the export applies the one of =master.org= (and of the included files) to the whole document, and =#+SELECT_TAGS:= is not handled; =:minlevel= does not change the text and has no effect on the counts. Without =master.org= the document is not assembled yet, and the counts use the documents of every component, as =blueprint-sync= would include them.
 
 ** Lint
 
 #+begin_src
-M-x blueprint-lint  (or: C-c b L)
+  M-x blueprint-lint  (or: C-c b L)
 #+end_src
 
 Checks:
@@ -615,7 +619,7 @@ Warnings about a component file other than =arc42.org= read =component/functiona
 ** Dashboard
 
 #+begin_src
-M-x blueprint-dashboard  (or: C-c b B)
+  M-x blueprint-dashboard  (or: C-c b B)
 #+end_src
 
 One row per component, in alphabetical order, then one row for every other file of the document in the order =master.org= includes it (=master.org= itself, glossary, =enterprise/*=, =nfr/*=, references), identified by its path relative to the root. Every file of the document is on exactly one row, so the rows together make up the document's health score. The first line of the buffer holds the column titles; the header line at the top shows the document's health score, how many components and other files there are, and the active filters.
@@ -625,8 +629,8 @@ One row per component, in alphabetical order, then one row for every other file 
 | Name               | Component id, or path of the file                                            |
 | Owner/Tech/Scope   | =#+BLUEPRINT_OWNER=, =#+BLUEPRINT_TECH=, =#+BLUEPRINT_STATUS= of =arc42.org= |
 | QUESTION/TBD/FIXME | Technical markers                                                            |
-| DA VAL             | =[DA VALIDARE]=                                                              |
-| DA REV             | =[DA REVISIONARE]=                                                           |
+| TO VAL             | =[TO VALIDATE]=                                                              |
+| TO REV             | =[TO REVIEW]=                                                                |
 | FINDING            | =[FINDING]= (weight 0, information only)                                     |
 | Penalty            | Penalty points, with the health score weights                                |
 | Health             | Score of the row alone (=-= for a component outside the document)            |
@@ -639,7 +643,7 @@ The same numbers drive the colors of the graph: =C-c b h= (=blueprint-dashboard-
 ** Automatic risk detection
 
 #+begin_src
-M-x blueprint-suggest-risks-all  (or: C-c b s)
+  M-x blueprint-suggest-risks-all  (or: C-c b s)
 #+end_src
 
 Looks for risk patterns (no backup, single point of failure, hardcoded values, deprecated technologies, no monitoring, manual processes) in the exported text of the document: for each component in all its documents included in =master.org=, then in every other file of the document. It also reports isolated components (no dependencies in or out) and immature documentation (more than 8 =QUESTION=/=TBD=/=FIXME= in the files of a row). =M-x blueprint-suggest-risks= does the same for a single component.
@@ -651,7 +655,7 @@ Looks for risk patterns (no backup, single point of failure, hardcoded values, d
 /When: regularly, and before every intermediate delivery./
 
 #+begin_src
-M-x blueprint-sync  (or: C-c b S)
+  M-x blueprint-sync  (or: C-c b S)
 #+end_src
 
 Updates the three self-managed sections of =master.org= with the current component files:
@@ -678,7 +682,7 @@ Parts of the master that are not synchronized automatically:
 ** Export to ODT
 
 #+begin_src
-M-x blueprint-export-odt  (or: C-c b O)
+  M-x blueprint-export-odt  (or: C-c b O)
 #+end_src
 
 Uses =org-odt-export-to-odt= (Org's native export, no external dependency). It honors =#+ODT_STYLES_FILE:= set in =master.org=: that is how a company template (the client's header and styles) is applied, which PDF via LaTeX has no equivalent for. The default backend stays =pdf= (a package value, shared by every project and user); to make =odt= your personal default, set =blueprint-export-backend= in your own configuration (=:custom= in =use-package blueprint=), not in the package.
@@ -690,7 +694,7 @@ Two export choices are configurable. =blueprint-export-double-hyphen= decides wh
 A "raw" company =.ott= template (written in LibreOffice Writer, not derived from an Org export) replaces =styles.xml= entirely, including the internal styles Org needs (=OrgDisplayImage=, =OrgTable*=, =OrgCode=, =OrgBulletedList=/=OrgNumberedList= and so on). The document comes out "almost right", with no error and no warning, but paragraph images (every diagram included through =#+begin_src plantuml :file x.svg=) overlap the content that follows instead of reserving their vertical space.
 
 #+begin_src
-M-x blueprint-check-odt-styles  (or: C-c b k)
+  M-x blueprint-check-odt-styles  (or: C-c b k)
 #+end_src
 
 Exports =master.org= to ODT and compares the styles the document references with those defined in the custom template, reporting only the ones Org normally provides itself (from its bundled =OrgOdtStyles.xml=) and that the template silently dropped. It needs =unzip= to inspect the generated =.odt=. Run it before delivering a document with a new or modified company template, not only the first time: a template update can bring the same problem back.
@@ -700,14 +704,14 @@ Exports =master.org= to ODT and compares the styles the document references with
 To start every component on a new page in the parts managed by =blueprint-sync= (II, III and IV), add to =master.org=:
 
 #+begin_src org
-,#+BLUEPRINT_PAGE_BREAK: components
+  ,#+BLUEPRINT_PAGE_BREAK: components
 #+end_src
 
 At the next =blueprint-sync=, two lines appear before every component heading except the first of each part:
 
 #+begin_src org
-,#+ODT: <text:p text:style-name="PageBreak"/>
-,#+LATEX: \clearpage
+  ,#+ODT: <text:p text:style-name="PageBreak"/>
+  ,#+LATEX: \clearpage
 #+end_src
 
 Each exporter uses its own line and ignores the other: ODT starts a new page through the =PageBreak= paragraph style, PDF via LaTeX through =\clearpage=. The first component of each part stays on the page of the part's title. Removing the keyword, the next sync removes the breaks too. A value other than =components= is ignored with a message.
@@ -715,7 +719,7 @@ Each exporter uses its own line and ignores the other: ODT starts a new page thr
 For a break anywhere else, outside the synchronized sections:
 
 #+begin_src
-M-x blueprint-insert-page-break
+  M-x blueprint-insert-page-break
 #+end_src
 
 The =PageBreak= style must exist in the =#+ODT_STYLES_FILE:= template (a paragraph with =fo:break-before="page"=): if it is missing, LibreOffice ignores the break without warning. =blueprint-check-odt-styles= reports it together with Org's internal styles.
@@ -723,7 +727,7 @@ The =PageBreak= style must exist in the =#+ODT_STYLES_FILE:= template (a paragra
 ** Export to Word (.docx)
 
 #+begin_src
-M-x blueprint-export-docx
+  M-x blueprint-export-docx
 #+end_src
 
 Pipeline: Org mode, then Pandoc, then =.docx=. It needs the =ox-pandoc= package.
@@ -733,7 +737,7 @@ If the client has a company Word template (header, footer, styles, logo), save i
 ** Export to PDF
 
 #+begin_src
-M-x blueprint-export-pdf  (or: C-c b P)
+  M-x blueprint-export-pdf  (or: C-c b P)
 #+end_src
 
 Pipeline: Org mode, then LaTeX, then PDF (through Org's exporter). It does not apply =#+ODT_STYLES_FILE:= or a Word template: for a company template, prefer ODT or DOCX.
@@ -741,7 +745,7 @@ Pipeline: Org mode, then LaTeX, then PDF (through Org's exporter). It does not a
 ** Choose the format at export time
 
 #+begin_src
-M-x blueprint-export-dispatch  (or: C-c b v)
+  M-x blueprint-export-dispatch  (or: C-c b v)
 #+end_src
 
 Opens =master.org= and hands over to Org's standard menu (=org-export-dispatch=): any backend Org knows (ODT, PDF, HTML, ASCII, ...) and any per-file option Org already supports (=#+ODT_STYLES_FILE:=, =#+LATEX_CLASS:= and so on) are chosen there, instead of being fixed in advance by =blueprint-export-backend=. =M-x blueprint-export= (=C-c b E=) stays the shortcut that always uses the default backend.
@@ -771,12 +775,12 @@ Lint and health score cover the whole document (=master.org= and the included fi
 
 ** Pre-delivery checklist
 
-=M-x blueprint-pre-delivery-check= (=C-c b d=) checks the health score, the remaining =[DA VALIDARE]= and =[DA REVISIONARE]=, the lint warnings and whether =master.org= is synchronized. All the counts concern the document only, that is =master.org= and the files it includes (see the health score): markers in notes, knowledge bases or other =.org= files of the project do not count. The number of =[FINDING]= appears with the =[INFO]= label, for information only: a finding is a result to deliver, so it raises no warning and does not change the outcome.
+=M-x blueprint-pre-delivery-check= (=C-c b d=) checks the health score, the remaining =[TO VALIDATE]= and =[TO REVIEW]=, the lint warnings and whether =master.org= is synchronized. All the counts concern the document only, that is =master.org= and the files it includes (see the health score): markers in notes, knowledge bases or other =.org= files of the project do not count. The number of =[FINDING]= appears with the =[INFO]= label, for information only: a finding is a result to deliver, so it raises no warning and does not change the outcome.
 
 Before delivering the document to the client, check by hand:
 
-- [ ] every =[DA VALIDARE]= has been verified or removed
-- [ ] every =[DA REVISIONARE]= has been reviewed
+- [ ] every =[TO VALIDATE]= has been verified or removed
+- [ ] every =[TO REVIEW]= has been reviewed
 - [ ] the glossary covers every technical and domain term used in the document
 - [ ] the references are complete and can be checked
 - [ ] the PlantUML diagrams are rendered and readable
@@ -792,10 +796,10 @@ Before delivering the document to the client, check by hand:
 For every section the client approves, update the marker:
 
 #+begin_example
-[APPROVATO 2026-03-15]
+[APPROVED 2026-03-15]
 #+end_example
 
-The approval date keeps track of validity over time: if the system changes after that date, the section goes back to =[DA VALIDARE]=.
+The approval date keeps track of validity over time: if the system changes after that date, the section goes back to =[TO VALIDATE]=.
 
 -----
 
@@ -815,7 +819,7 @@ If the project root has a =CRONOPROGRAMMA.org= or =TODO.org= (=blueprint-milesto
 
 ** Questions: tags, answers and filters
 
-=blueprint-add-question= (=C-c b Q=) also asks for an optional tag, which ends up on the line as =[TAG: tag]=. A question is closed with =M-x blueprint-answer-question=: the line becomes =- ANSWERED [date] text [FONTE: source]=. It stops counting in the health score, dashboard and lint, but stays in the file with the source of the answer, following the method's =[FONTE: X]= convention. The question list (=C-c b q=) shows Tag and State and filters by tag (=t=) and by state (=s=); the open entries of the list match the QUESTION column of the dashboard. Lines written by earlier versions stay valid and open.
+=blueprint-add-question= (=C-c b Q=) also asks for an optional tag, which ends up on the line as =[TAG: tag]=. A question is closed with =M-x blueprint-answer-question=: the line becomes =- ANSWERED [date] text [SOURCE: source]=. It stops counting in the health score, dashboard and lint, but stays in the file with the source of the answer, following the method's =[SOURCE: X]= convention. The question list (=C-c b q=) shows Tag and State and filters by tag (=t=) and by state (=s=); the open entries of the list match the QUESTION column of the dashboard. Lines written by earlier versions stay valid and open.
 
 ** Triage in org-agenda
 
@@ -891,7 +895,7 @@ The status line of the dashboard (=C-c b B=) shows the version, declared or infe
 ** The migration plan
 
 #+begin_src
-M-x blueprint-project-upgrade  (or: C-c b ^)
+  M-x blueprint-project-upgrade  (or: C-c b ^)
 #+end_src
 
 Opens the =*Blueprint Upgrade*= buffer, with a row for each available step and for each template to review. Nothing changes until you ask:
@@ -994,18 +998,18 @@ The questions below, taken from the method, point to the Blueprint.el command th
 
 * Appendix B: markers
 
-| Marker                   | Meaning                                                      | Tracked   |
-|--------------------------+--------------------------------------------------------------+-----------|
-| =[DA VALIDARE]=          | To validate: not yet checked with the client's owner         | Automatic |
-| =[DA REVISIONARE]=       | To review: produced automatically, not reviewed              | Automatic |
-| =[FINDING]=              | Discrepancy between actual and expected or declared behavior | Automatic |
-| =[APPROVATO YYYY-MM-DD]= | Approved by the client on that date                          | Manual    |
-| =[FONTE: X]=             | The specific source of a piece of information                | Manual    |
-| =QUESTION=               | Unresolved open question (health score weight 3)             | Automatic |
-| =TBD=                    | Section still to be written (weight 2)                       | Automatic |
-| =FIXME=                  | Known problem to fix (weight 4)                              | Automatic |
+| Marker                  | Meaning                                                      | Tracked   |
+|-------------------------+--------------------------------------------------------------+-----------|
+| =[TO VALIDATE]=         | To validate: not yet checked with the client's owner         | Automatic |
+| =[TO REVIEW]=           | To review: produced automatically, not reviewed              | Automatic |
+| =[FINDING]=             | Discrepancy between actual and expected or declared behavior | Automatic |
+| =[APPROVED YYYY-MM-DD]= | Approved by the client on that date                          | Manual    |
+| =[SOURCE: X]=           | The specific source of a piece of information                | Manual    |
+| =QUESTION=              | Unresolved open question (health score weight 3)             | Automatic |
+| =TBD=                   | Section still to be written (weight 2)                       | Automatic |
+| =FIXME=                 | Known problem to fix (weight 4)                              | Automatic |
 
-=[DA VALIDARE]= and =[DA REVISIONARE]= (weight 1) lower the health score like =QUESTION=/=TBD=/=FIXME=; =[FINDING]= has weight 0, because it is a delivered result, not an open point. All three appear in =blueprint-list-findings= / =blueprint-list-unvalidated= (=C-c b g= / =C-c b u=). Only =[APPROVATO]= and =[FONTE: X]= are purely manual: they carry no penalty and no command looks for them.
+=[TO VALIDATE]= and =[TO REVIEW]= (weight 1) lower the health score like =QUESTION=/=TBD=/=FIXME=; =[FINDING]= has weight 0, because it is a delivered result, not an open point. All three appear in =blueprint-list-findings= / =blueprint-list-unvalidated= (=C-c b g= / =C-c b u=). Only =[APPROVED]= and =[SOURCE: X]= are purely manual: they carry no penalty and no command looks for them.
 
 -----
 

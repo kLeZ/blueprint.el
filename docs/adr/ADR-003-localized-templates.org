@@ -1,6 +1,6 @@
 #+TITLE: ADR-003: Localized templates and generated text
 #+DATE: 2026-11-16
-#+STATUS: proposed
+#+STATUS: accepted
 
 * Context
 
@@ -15,43 +15,58 @@ The documentation is moving to English (README, USAGE, the method in =docs/metho
 
 * Decision
 
-Not taken yet. What is decided (user, 2026-11-16) is that the feature has to be built: Blueprint must be able to produce a document in a language other than Italian, with templates organized in one folder per language. When and how is still open; the alternatives below are the starting point.
+D1, D2 and D3 were taken by the user on 2026-11-16; D4 and the rename of the JSON report keys (see Compatibility) were confirmed by the user the same day, after the implementation.  The user rejected the string catalog of the first implementation (=blueprint-l10n.el=, one alist of all translations): how translations are stored is being redesigned, see PLAN.org 11.7.
 
-Constraints any solution must respect:
-- existing Italian projects keep working with no migration (ADR-002: read the old format, offer the migration, never force it);
-- the three-tier template lookup (project, user, system) stays, per language;
-- Italian stays the default until a project or the user chooses otherwise.
+** D1: the language belongs to the project
 
-* Alternatives considered
+The document language is recorded per project, in =.blueprint/blueprint-version.org=, as =#+BLUEPRINT_LANGUAGE: en= (an ISO 639-1 code). =blueprint-init= writes it from the defcustom =blueprint-default-language=, whose default is ="en"=: the public of the package is no longer only Italian, and an Italian user sets the option once. A project without the keyword (every project created before this change, with or without a version file) is Italian: that is what it was written in, so it keeps working with no migration (ADR-002). Changing the defcustom never changes an existing project.
 
-** A: one template folder per language, headings matched through a per-language table
+** D2: sections are found by a property, with the Italian titles as fallback
 
-=templates/it/=, =templates/en/=, a defcustom such as =blueprint-template-language= (default ="it"=), and in the code a table that maps each logical section (functional areas, entities, ...) to its heading in each language.
+Every heading the code looks up carries a property in the templates:
 
-- Pro: small change to the code that searches headings.
-- Pro: the user's and the project's template folders follow the same layout.
-- Con: every new language means editing the code, not only adding templates.
-- Con: a user who renames a heading in a custom template breaks the commands, as today.
+#+begin_src org
+  ,* Entità di dominio
+  :PROPERTIES:
+  :BLUEPRINT_SECTION: domain-entities
+  :END:
+#+end_src
 
-** B: one template folder per language, sections found by anchor instead of heading
+The code finds a section by its =BLUEPRINT_SECTION= first; when no heading has it, by its title: the one the templates of the project language give it, or the one Blueprint 0.4.x wrote.  The 0.4.x titles are a frozen list in the code (option C, user, 2026-11-16): documents without the property are only those written by 0.4.x and earlier, a closed set, so the list never grows.  Titles of other languages are not used: a match would be a coincidence. Headings become free text: a user can rename or translate them. Projects created before keep working through the title fallback (the lint also accepts a title that starts with the expected one, as its old prefix match did); an optional upgrade step adds the property to the headings it recognizes.  Property drawers are not exported, so they count neither as content for the lint nor as words for the health score. When a command has to create a missing section, it writes the heading in the project language, with the property.
 
-The templates already carry a target for most sections (=<<component-entities>>=, =<<component-business-processes>>= and similar; "Aree funzionali" has none yet). The code would find sections through those anchors, or through a property, and ignore the heading text.
+Preferred to the existing =<<{{ID}}-...>>= anchors (alternative B as first written) by the user: one uniform mechanism also for the files that have no component id (glossary, references, NFR), at the cost of a property drawer under each heading in the source. Property drawers are not exported by default (=org-export-with-properties= is nil).
 
-- Pro: headings become free text, in any language and renamable by the user.
-- Pro: a new language is only a new template folder plus the generated strings.
-- Con: projects created before the anchors existed need the old heading lookup as a fallback (ADR-002).
-- Con: larger change, touching every module that searches headings.
+** D3: one canonical set of markers, in English
 
-** C: English as the only canonical language, Italian as a translation
+The methodology markers become English for every language: =[TO VALIDATE]=, =[TO REVIEW]=, =[APPROVED YYYY-MM-DD]=, =[SOURCE: X]=; =[FINDING]=, =QUESTION=, =ANSWERED=, =TBD=, =FIXME= and =[TAG: x]= are already English. The commands and the templates of every language write the English markers. The Italian ones (=[DA VALIDARE]=, =[DA REVISIONARE]=, =[APPROVATO YYYY-MM-DD]=, =[FONTE: X]=) stay recognized as legacy everywhere they are read today (health score, lint, lists, pre-delivery check, questions, agenda), and an optional upgrade step rewrites them. An Italian document therefore carries English markers from now on: a deliberate choice, since the markers are syntax of the tool, not prose of the document.
 
-Move the canonical templates to English and treat Italian as the first translation.
+** D5: translations are files, one set per language
 
-- Pro: aligns the code, the documentation and the templates.
-- Con: the Italian projects in use today need a migration, or the old lookup forever.
-- Con: it does not by itself solve the coupling between code and heading text.
+User decision (2026-11-16), after rejecting a first implementation that kept every translation in one alist of a Lisp file.  A language is a folder: =templates/<lang>/= with the document templates, =snippets/= (the skeletons the commands insert, one file each, placeholders such as ={{NAME}}=) and =strings.org= (the short texts, one level-1 heading per key).  Every file goes through the three tiers of the template lookup; a key missing in a =strings.org= is looked up in the next tier and finally in English.  The available languages are the folders found in the package and in the user directory.  The title of a section is the one its template gives the heading with the property.  The code that reads all this is in one file, =blueprint-l10n.el=, which holds no translated text.  Considered and rejected: gettext (no runtime in Emacs Lisp, and made for interface messages, while what is translated here is Org content) and Org's own =org-export-dictionary= model (one alist with every language, the model rejected).
 
-Markers and generated strings need a solution in every alternative: either language-specific marker names recognized alongside the Italian ones, or one canonical set documented as such.
+** D4: what is localized and what is not
+
+- Localized, in the project language: the templates (=templates/<lang>/=), the headings and the prose the commands insert, the headers of the files Blueprint writes in the project (=agenda.org=, =metrics-history.org=, the README of a migration backup), the default lists offered for completion (quality attributes, constraint types).
+- Not localized: the user interface (prompts, messages, buffer headers) is English, like Emacs itself; the Italian strings that leaked into it are translated, not put in the catalog.
+
+Templates: =templates/it/= and =templates/en/= in the package, =~/.config/blueprint/templates/<lang>/= for the user. The flat =~/.config/blueprint/templates/= of earlier versions is still read, as Italian, after the language folder. The project folder =.blueprint/templates/= stays flat: a project has one language.
 
 * Consequences
 
-To be written when the decision is taken.
+** Positive
+- An English-speaking user gets an English document, with the same commands.
+- A new language is a folder of files, in the package or in the user directory; no change to the code.
+- Headings can be renamed without breaking the commands.
+
+** Negative
+- Every heading the code looks up gets a property drawer in the source.
+- Two sets of templates to keep aligned; a change to one has to be made in the other.
+- Italian documents created from now on mix Italian prose and English markers.
+
+** Risks
+- A custom user or project template without the properties still works only through the title fallback, that is with the known titles.
+- The template history (=blueprint-template-history.el=) changes key: entries are per language folder, and the Italian entries keep the hashes of the flat =templates/= of the past releases.
+
+** Compatibility
+- JSON report: the marker keys change to the English names (=to-validate=, =to-review=; they were =da-validare=, =da-revisionare=), with the same counts.  It is the only visible change for a CI that reads the report.  Confirmed by the user: nothing outside the repository reads the report.
+- Checked on the demo project (a 0.4.x project): with this change and without migrating, =blueprint-ci-lint= gives the same output as 0.4.1 and =blueprint-ci-validate= adds only the line of the two optional migrations; after both migrations the output is the same as 0.4.1.

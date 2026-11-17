@@ -1,7 +1,7 @@
 ;;; blueprint-functional.el --- Functional spec management for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -65,7 +65,9 @@ Returns nil if the heading is not found."
 (defun blueprint--func-goto-section-end (level title)
   "Move point to the insertion position at the end of heading TITLE at LEVEL.
 Finds the next heading at LEVEL or above and positions before it, or at EOF.
-Returns t when the heading is found, nil otherwise."
+Returns t when the heading is found, nil otherwise.  For the sections
+the code knows, use `blueprint--section-goto-end', which also finds
+them by property and in any language."
   (let ((pos (blueprint--func-find-heading level title)))
     (when pos
       (goto-char pos)
@@ -76,35 +78,28 @@ Returns t when the heading is found, nil otherwise."
         (goto-char (or next (point-max))))
       t)))
 
-(defun blueprint--func-list-areas (file)
-  "Return list of level-2 heading names under `* Aree funzionali' in FILE."
+(defun blueprint--func-list-children (file section)
+  "Return the level-2 heading names under SECTION (an id) in FILE.
+SECTION is found by property or title (`blueprint--section-find')."
   (when (and file (file-exists-p file))
     (with-temp-buffer
       (insert-file-contents file)
-      (let (areas (in-aree nil))
-        (org-element-map (org-element-parse-buffer 'headline) 'headline
-          (lambda (hl)
-            (let ((lvl (org-element-property :level hl))
-                  (raw (org-element-property :raw-value hl)))
-              (cond
-               ((= lvl 1) (setq in-aree (string= raw "Aree funzionali")))
-               ((and in-aree (= lvl 2)) (push raw areas))))))
-        (nreverse areas)))))
+      (let ((parent (blueprint--section-find section 1))
+            names)
+        (when parent
+          (org-element-map parent 'headline
+            (lambda (hl)
+              (when (= (org-element-property :level hl) 2)
+                (push (org-element-property :raw-value hl) names)))))
+        (nreverse names)))))
+
+(defun blueprint--func-list-areas (file)
+  "Return the names of the functional areas (level 2) in FILE."
+  (blueprint--func-list-children file 'functional-areas))
 
 (defun blueprint--func-list-integrations (file)
-  "Return list of level-2 heading names under `* Punti di integrazione' in FILE."
-  (when (and file (file-exists-p file))
-    (with-temp-buffer
-      (insert-file-contents file)
-      (let (integrations (in-punti nil))
-        (org-element-map (org-element-parse-buffer 'headline) 'headline
-          (lambda (hl)
-            (let ((lvl (org-element-property :level hl))
-                  (raw (org-element-property :raw-value hl)))
-              (cond
-               ((= lvl 1) (setq in-punti (string= raw "Punti di integrazione")))
-               ((and in-punti (= lvl 2)) (push raw integrations))))))
-        (nreverse integrations)))))
+  "Return the names of the integration points (level 2) in FILE."
+  (blueprint--func-list-children file 'integration-points))
 
 ;;; --- Public commands ---
 
@@ -112,7 +107,8 @@ Returns t when the heading is found, nil otherwise."
 (defun blueprint-functional-add-area (component area-name)
   "Add a new functional area AREA-NAME to COMPONENT's functional.org.
 Inserts a level-2 heading with org anchor and placeholder content under
-the `* Aree funzionali' section.  Creates the section if absent."
+the functional areas section (`functional-areas', see
+`blueprint--section-find').  Creates the section if absent."
   (interactive
    (list (completing-read "Component: "
                           (hash-table-keys (blueprint--components)) nil t)
@@ -122,15 +118,12 @@ the `* Aree funzionali' section.  Creates the section if absent."
          (comp-id (file-name-nondirectory (directory-file-name dir)))
          (slug (blueprint--func-slugify area-name))
          (anchor (format "%s-area-%s" comp-id slug))
-         (content (format "** %s\n<<%s>>\n[DA VALIDARE]\n\nDescrizione dell'area in termini di business.\n\n"
-                          area-name anchor))
+         (content (blueprint--snippet "functional-area"
+                                  `(("NAME" . ,area-name) ("ANCHOR" . ,anchor))))
          (buf (find-file-noselect file)))
     (with-current-buffer buf
-      (unless (blueprint--func-goto-section-end 1 "Aree funzionali")
-        (goto-char (point-max))
-        (unless (bolp) (insert "\n"))
-        (insert "* Aree funzionali\n\n"))
-      (insert content)
+      (blueprint--section-ensure-end 'functional-areas)
+      (blueprint--insert-aligned content)
       (save-buffer))
     (switch-to-buffer buf)
     (message "Added area '%s' to %s" area-name component)))
@@ -138,8 +131,9 @@ the `* Aree funzionali' section.  Creates the section if absent."
 ;;;###autoload
 (defun blueprint-functional-add-feature (component area feature-name)
   "Add a new feature FEATURE-NAME under AREA in COMPONENT's functional.org.
-Inserts a level-3 heading with the standard skeleton: Scopo, Input, Output,
-Regole di business, Regole di validazione, Casi limite e eccezioni.
+Inserts a level-3 heading with the standard skeleton (purpose, input,
+output, business rules, validation rules, edge cases), in the document
+language.
 Signals an error if AREA does not exist in the file."
   (interactive
    (let* ((names (hash-table-keys (blueprint--components)))
@@ -158,31 +152,14 @@ Signals an error if AREA does not exist in the file."
          (comp-id (file-name-nondirectory (directory-file-name dir)))
          (slug (blueprint--func-slugify feature-name))
          (anchor (format "%s-func-%s" comp-id slug))
-         (content (concat
-                   (format "*** %s\n<<%s>>\n[DA VALIDARE]\n\n" feature-name anchor)
-                   "**** Scopo\n"
-                   "Cosa fa questa funzione in termini di business.  Una frase.\n\n"
-                   "**** Input\n"
-                   "| Nome (business) | Tipo (business) | Vincoli | Provenienza |\n"
-                   "|-----------------+-----------------+---------+-------------|\n"
-                   "|                 |                 |         |             |\n\n"
-                   "**** Output\n"
-                   "| Nome (business) | Tipo (business) | Formato | Destinazione |\n"
-                   "|-----------------+-----------------+---------+--------------|\n"
-                   "|                 |                 |         |              |\n\n"
-                   "**** Regole di business\n"
-                   "1.\n\n"
-                   "**** Regole di validazione\n"
-                   "| Condizione | Comportamento / Errore |\n"
-                   "|------------+------------------------|\n"
-                   "|            |                        |\n\n"
-                   "**** Casi limite e eccezioni\n\n"))
+         (content (blueprint--snippet "functional-feature"
+                                  `(("NAME" . ,feature-name) ("ANCHOR" . ,anchor))))
          (buf (find-file-noselect file)))
     (with-current-buffer buf
       (unless (blueprint--func-goto-section-end 2 area)
         (user-error "Area '%s' not found in %s; add it first with blueprint-functional-add-area"
                     area component))
-      (insert content)
+      (blueprint--insert-aligned content)
       (save-buffer))
     (switch-to-buffer buf)
     (message "Added feature '%s' under area '%s' in %s" feature-name area component)))
@@ -190,12 +167,14 @@ Signals an error if AREA does not exist in the file."
 ;;;###autoload
 (defun blueprint-functional-add-entity (component entity-name)
   "Add a new domain entity ENTITY-NAME to COMPONENT's functional.org.
-Inserts a level-2 heading with attribute table (including Relazione column)
-and a `*** Rappresentazione logica' sub-heading with a PlantUML ER skeleton,
-under the `* Entità di dominio' section.  Creates the section if absent.
+Inserts a level-2 heading with attribute table (including a relation
+column) and a logical representation sub-heading with a PlantUML ER
+skeleton, under the domain entities section (`domain-entities').
+Creates the section if absent.
 
-New entities are always inserted BEFORE `** Diagramma ER generale' (if
-present) so that the general diagram remains the last item in the section."
+New entities are always inserted BEFORE the overall ER diagram (the
+`er-diagram' section, if present) so that the general diagram remains
+the last item in the section."
   (interactive
    (list (completing-read "Component: "
                           (hash-table-keys (blueprint--components)) nil t)
@@ -207,45 +186,19 @@ present) so that the general diagram remains the last item in the section."
          (anchor (format "%s-entity-%s" comp-id slug))
          (er-anchor (format "%s-entity-%s-er" comp-id slug))
          (er-file (format "%s-er-%s.svg" comp-id slug))
-         (content (concat
-                   (format "** %s\n<<%s>>\n[DA VALIDARE]\n\n" entity-name anchor)
-                   "Descrizione.  Attributi principali in termini di business.\n"
-                   "La colonna /Relazione/ indica l'entità target per gli attributi "
-                   "che sono chiavi esterne (es.: ~→ AltroNome~).\n\n"
-                   "| Attributo | Tipo (business) | Vincoli | Relazione | Note |\n"
-                   "|-----------+-----------------+---------+-----------+------|\n"
-                   "|           |                 |         |           |      |\n\n"
-                   (format "*** Rappresentazione logica\n<<%s>>\n\n" er-anchor)
-                   "Diagramma ER dell'entità.  Le frecce verso entità esterne "
-                   "puntano ai soli identificatori, senza mostrare la struttura "
-                   "interna delle entità correlate.\n\n"
-                   (format "#+begin_src plantuml :file %s\n" er-file)
-                   "@startuml\n"
-                   (format "entity \"%s\" as e {\n" entity-name)
-                   "  * id : tipo <<PK>>\n"
-                   "  --\n"
-                   "  attributo : tipo\n"
-                   "}\n"
-                   "' Entità esterne: solo il bordo, nessun dettaglio interno\n"
-                   "' entity \"[Entità correlata]\" as ext #lightgrey {}\n"
-                   "' e }o--|| ext : \"descrizione relazione\"\n"
-                   "@enduml\n"
-                   "#+end_src\n\n"))
+         (content (blueprint--snippet "functional-entity"
+                                  `(("NAME" . ,entity-name) ("ANCHOR" . ,anchor)
+                                    ("ER_ANCHOR" . ,er-anchor) ("ER_FILE" . ,er-file))))
          (buf (find-file-noselect file)))
     (with-current-buffer buf
-      ;; Insert before "** Diagramma ER generale" to keep it as the last item
+      ;; Insert before the overall ER diagram to keep it as the last item
       (let ((er-general-pos
-             (save-excursion
-               (goto-char (point-min))
-               (when (re-search-forward "^\\*\\* Diagramma ER generale" nil t)
-                 (line-beginning-position)))))
+             (let ((hl (blueprint--section-find 'er-diagram 2)))
+               (and hl (org-element-property :begin hl)))))
         (if er-general-pos
             (goto-char er-general-pos)
-          (unless (blueprint--func-goto-section-end 1 "Entità di dominio")
-            (goto-char (point-max))
-            (unless (bolp) (insert "\n"))
-            (insert "* Entità di dominio\n\n"))))
-      (insert content)
+          (blueprint--section-ensure-end 'domain-entities)))
+      (blueprint--insert-aligned content)
       (save-buffer))
     (switch-to-buffer buf)
     (message "Added entity '%s' to %s" entity-name component)))
@@ -255,9 +208,9 @@ present) so that the general diagram remains the last item in the section."
   "Add a new integration point INTEGRATION-NAME to COMPONENT's functional.org.
 DIRECTION is one of \"IN\", \"OUT\", or \"IN/OUT\".
 Inserts a level-2 heading with a metadata table (direction, counterpart,
-protocol, authentication, frequency, SLA) and a `*** Formato scambio'
-sub-heading with a code block placeholder, under the
-`* Punti di integrazione' section.  Creates the section if absent."
+protocol, authentication, frequency, SLA) and an exchange format
+sub-heading with a code block placeholder, under the integration
+points section (`integration-points').  Creates the section if absent."
   (interactive
    (let* ((names (hash-table-keys (blueprint--components)))
           (comp (completing-read "Component: " names nil t))
@@ -270,33 +223,13 @@ sub-heading with a code block placeholder, under the
          (slug (blueprint--func-slugify integration-name))
          (anchor (format "%s-integ-%s" comp-id slug))
          (fmt-anchor (format "%s-integ-%s-fmt" comp-id slug))
-         (content (concat
-                   (format "** %s\n<<%s>>\n[DA VALIDARE]\n\n" integration-name anchor)
-                   "Descrizione dell'integrazione in termini di business.  Cosa viene\n"
-                   "scambiato, perché, e in quale contesto operativo.\n\n"
-                   "| Campo          | Valore                                          |\n"
-                   "|----------------+-------------------------------------------------|\n"
-                   (format "| Direzione      | %-47s |\n" direction)
-                   "| Controparte    |                                                 |\n"
-                   "| Protocollo     | REST / SOAP / Kafka / gRPC / file / batch / ... |\n"
-                   "| Autenticazione | OAuth2 / API key / mTLS / nessuna / ...         |\n"
-                   "| Frequenza      | sincrona / asincrona / batch / ...              |\n"
-                   "| SLA            |                                                 |\n\n"
-                   (format "*** Formato scambio\n<<%s>>\n\n" fmt-anchor)
-                   "Struttura del payload o del file scambiato.  Includere un esempio\n"
-                   "realistico con tutti i campi obbligatori valorizzati.\n\n"
-                   "#+begin_src json\n"
-                   "{\n"
-                   "  \"attr1\": \"\"\n"
-                   "}\n"
-                   "#+end_src\n\n"))
+         (content (blueprint--snippet "functional-integration"
+                                  `(("NAME" . ,integration-name) ("ANCHOR" . ,anchor)
+                                    ("DIRECTION" . ,direction) ("FORMAT_ANCHOR" . ,fmt-anchor))))
          (buf (find-file-noselect file)))
     (with-current-buffer buf
-      (unless (blueprint--func-goto-section-end 1 "Punti di integrazione")
-        (goto-char (point-max))
-        (unless (bolp) (insert "\n"))
-        (insert "* Punti di integrazione\n\n"))
-      (insert content)
+      (blueprint--section-ensure-end 'integration-points)
+      (blueprint--insert-aligned content)
       (save-buffer))
     (switch-to-buffer buf)
     (message "Added integration '%s' (%s) to %s" integration-name direction component)))

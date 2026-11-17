@@ -1,6 +1,6 @@
 #+TITLE: Assessment Architetturale — GestioneMagazzino
 #+SUBTITLE: Documento di analisi architetturale del sistema legacy di gestione ordini e magazzino
-#+AUTHOR: 
+#+AUTHOR:
 #+DATE: 2026-03-18
 #+OPTIONS: toc:3 num:t H:4 ':t
 #+LANGUAGE: it
@@ -120,7 +120,6 @@ preesistente.
 | A-01 | Produzione |   2026-02-10 | App, DB, Apache, crontab | Accesso SSH read-only          |
 | A-02 | Staging    |   2026-02-11 | App, DB                  | Dati anonimizzati parzialmente |
 
-
 * Parte I — Architettura enterprise
 
 ** Vista contestuale
@@ -129,30 +128,30 @@ Il sistema GestioneMagazzino opera all'interno dell'ecosistema IT di Logistica
 Nord S.r.l., interagendo con sistemi interni e servizi esterni.
 
 #+begin_src plantuml :file enterprise-context.png :exports results
-@startuml
-!include <C4/C4_Context>
+  @startuml
+  !include <C4/C4_Context>
 
-title Sistema GestioneMagazzino — Contesto Enterprise (C4 L1)
+  title Sistema GestioneMagazzino — Contesto Enterprise (C4 L1)
 
-Person(operatore, "Operatore magazzino", "Gestisce ordini,\nverifica giacenze,\nstampa bolle")
-Person(manager, "Responsabile logistica", "Consulta report,\nmonitora KPI")
+  Person(operatore, "Operatore magazzino", "Gestisce ordini,\nverifica giacenze,\nstampa bolle")
+  Person(manager, "Responsabile logistica", "Consulta report,\nmonitora KPI")
 
-System(gm, "GestioneMagazzino", "Applicazione web PHP/MySQL\nper gestione ordini e scorte")
+  System(gm, "GestioneMagazzino", "Applicazione web PHP/MySQL\nper gestione ordini e scorte")
 
-System_Ext(erp, "SAP Business One", "ERP aziendale —\nimportazione ordini clienti")
-System_Ext(fattura, "FatturaPA Service", "Servizio esterno\nfatturazione elettronica")
-System_Ext(corriere, "API Corriere BRT", "Tracking spedizioni\ne generazione etichette")
-System_Ext(smtp, "Server SMTP interno", "Invio notifiche\ne allarmi email")
+  System_Ext(erp, "SAP Business One", "ERP aziendale —\nimportazione ordini clienti")
+  System_Ext(fattura, "FatturaPA Service", "Servizio esterno\nfatturazione elettronica")
+  System_Ext(corriere, "API Corriere BRT", "Tracking spedizioni\ne generazione etichette")
+  System_Ext(smtp, "Server SMTP interno", "Invio notifiche\ne allarmi email")
 
-Rel(operatore, gm, "Usa quotidianamente", "HTTPS / browser")
-Rel(manager, gm, "Consulta report", "HTTPS / browser")
-Rel(gm, erp, "Import ordini", "File CSV via share di rete")
-Rel(gm, fattura, "Invio dati fattura", "SOAP/XML")
-Rel(gm, corriere, "Richiesta tracking", "REST/JSON")
-Rel(gm, smtp, "Invio email", "SMTP/TLS")
-Rel(erp, gm, "Export catalogo", "File CSV")
+  Rel(operatore, gm, "Usa quotidianamente", "HTTPS / browser")
+  Rel(manager, gm, "Consulta report", "HTTPS / browser")
+  Rel(gm, erp, "Import ordini", "File CSV via share di rete")
+  Rel(gm, fattura, "Invio dati fattura", "SOAP/XML")
+  Rel(gm, corriere, "Richiesta tracking", "REST/JSON")
+  Rel(gm, smtp, "Invio email", "SMTP/TLS")
+  Rel(erp, gm, "Export catalogo", "File CSV")
 
-@enduml
+  @enduml
 #+end_src
 
 ** Sistemi nel perimetro
@@ -190,35 +189,34 @@ Legenda: IN = riceve da, OUT = invia a, BI = bidirezionale, -- = nessuna dipende
 *** Flussi principali cross-sistema
 
 #+begin_src plantuml :file enterprise-flows.png :exports results
-@startuml
-title Flussi principali cross-sistema
+  @startuml
+  title Flussi principali cross-sistema
 
-participant "SAP B1" as sap
-participant "GestioneMagazzino" as gm
-participant "BRT API" as brt
-participant "FatturaPA" as fp
-participant "SMTP" as smtp
+  participant "SAP B1" as sap
+  participant "GestioneMagazzino" as gm
+  participant "BRT API" as brt
+  participant "FatturaPA" as fp
+  participant "SMTP" as smtp
 
-sap -> gm : Export CSV ordini\n(via share di rete)
-activate gm
+  sap -> gm : Export CSV ordini\n(via share di rete)
+  activate gm
 
-gm -> gm : Elaborazione ordine\n(picking, packing)
-gm -> brt : POST /shipment\n(richiesta spedizione)
-brt --> gm : tracking_number
+  gm -> gm : Elaborazione ordine\n(picking, packing)
+  gm -> brt : POST /shipment\n(richiesta spedizione)
+  brt --> gm : tracking_number
 
-gm -> fp : SOAP inviaFattura\n(dati DDT + importi)
-fp --> gm : id_fattura + stato
+  gm -> fp : SOAP inviaFattura\n(dati DDT + importi)
+  fp --> gm : id_fattura + stato
 
-gm -> smtp : Email conferma\n(operatore + cliente)
-deactivate gm
+  gm -> smtp : Email conferma\n(operatore + cliente)
+  deactivate gm
 
-note over gm : Job notturno
-gm -> gm : Controllo scorte minime
-gm -> smtp : Email allarme\n(scorte sotto soglia)
+  note over gm : Job notturno
+  gm -> gm : Controllo scorte minime
+  gm -> smtp : Email allarme\n(scorte sotto soglia)
 
-@enduml
+  @enduml
 #+end_src
-
 
 * Parte II — Architettura per componente
 
@@ -239,27 +237,27 @@ L'applicazione è composta da 4 moduli funzionali:
 *** Contesto e scope
 
 #+begin_src plantuml :file gm-context.png :exports results
-@startuml
-!include <C4/C4_Context>
+  @startuml
+  !include <C4/C4_Context>
 
-title GestioneMagazzino — Contesto (C4 L1)
+  title GestioneMagazzino — Contesto (C4 L1)
 
-Person(operatore, "Operatore", "CRUD ordini, stampa bolle")
-Person(manager, "Manager", "Consulta dashboard e report")
+  Person(operatore, "Operatore", "CRUD ordini, stampa bolle")
+  Person(manager, "Manager", "Consulta dashboard e report")
 
-System(gm, "GestioneMagazzino", "PHP 7.4 / MySQL 5.7\nApplicazione web monolitica")
+  System(gm, "GestioneMagazzino", "PHP 7.4 / MySQL 5.7\nApplicazione web monolitica")
 
-System_Ext(sap, "SAP B1", "Import/export CSV")
-System_Ext(brt, "BRT API", "Tracking spedizioni")
-System_Ext(smtp, "SMTP", "Notifiche email")
+  System_Ext(sap, "SAP B1", "Import/export CSV")
+  System_Ext(brt, "BRT API", "Tracking spedizioni")
+  System_Ext(smtp, "SMTP", "Notifiche email")
 
-Rel(operatore, gm, "HTTPS")
-Rel(manager, gm, "HTTPS")
-Rel_R(gm, sap, "CSV via NFS")
-Rel_R(gm, brt, "REST/JSON")
-Rel_D(gm, smtp, "SMTP/TLS")
+  Rel(operatore, gm, "HTTPS")
+  Rel(manager, gm, "HTTPS")
+  Rel_R(gm, sap, "CSV via NFS")
+  Rel_R(gm, brt, "REST/JSON")
+  Rel_D(gm, smtp, "SMTP/TLS")
 
-@enduml
+  @enduml
 #+end_src
 
 *** Vincoli
@@ -290,35 +288,35 @@ progettuali (ricostruite dal codice):
 *** Blocchi costruttivi
 
 #+begin_src plantuml :file gm-containers.png :exports results
-@startuml
-!include <C4/C4_Container>
+  @startuml
+  !include <C4/C4_Container>
 
-title GestioneMagazzino — Container (C4 L2)
+  title GestioneMagazzino — Container (C4 L2)
 
-Person(user, "Utente", "Operatore / Manager")
+  Person(user, "Utente", "Operatore / Manager")
 
-System_Boundary(gm, "GestioneMagazzino") {
-    Container(web, "Applicazione Web", "PHP 7.4 / Apache", "Moduli: Catalogo,\nOrdini, Scorte,\nReport")
-    Container(cron, "Job schedulati", "PHP CLI / crontab", "Allarme scorte,\nReport mensile")
-    ContainerDb(db, "Database", "MySQL 5.7", "47 tabelle\n~2 GB dati")
-    Container(files, "File storage", "Filesystem locale", "PDF generati,\nCSV import/export")
-}
+  System_Boundary(gm, "GestioneMagazzino") {
+  Container(web, "Applicazione Web", "PHP 7.4 / Apache", "Moduli: Catalogo,\nOrdini, Scorte,\nReport")
+  Container(cron, "Job schedulati", "PHP CLI / crontab", "Allarme scorte,\nReport mensile")
+  ContainerDb(db, "Database", "MySQL 5.7", "47 tabelle\n~2 GB dati")
+  Container(files, "File storage", "Filesystem locale", "PDF generati,\nCSV import/export")
+  }
 
-System_Ext(sap, "SAP B1", "")
-System_Ext(brt, "BRT API", "")
-System_Ext(smtp, "SMTP", "")
+  System_Ext(sap, "SAP B1", "")
+  System_Ext(brt, "BRT API", "")
+  System_Ext(smtp, "SMTP", "")
 
-Rel(user, web, "HTTPS")
-Rel(web, db, "mysqli", "TCP/3306")
-Rel(cron, db, "mysqli", "TCP/3306")
-Rel(web, files, "fopen/fwrite")
-Rel(cron, files, "fwrite")
-Rel(web, sap, "CSV via NFS share")
-Rel(web, brt, "REST/JSON")
-Rel(web, smtp, "SMTP/TLS")
-Rel(cron, smtp, "SMTP/TLS")
+  Rel(user, web, "HTTPS")
+  Rel(web, db, "mysqli", "TCP/3306")
+  Rel(cron, db, "mysqli", "TCP/3306")
+  Rel(web, files, "fopen/fwrite")
+  Rel(cron, files, "fwrite")
+  Rel(web, sap, "CSV via NFS share")
+  Rel(web, brt, "REST/JSON")
+  Rel(web, smtp, "SMTP/TLS")
+  Rel(cron, smtp, "SMTP/TLS")
 
-@enduml
+  @enduml
 #+end_src
 
 *Struttura directory del codice:*
@@ -376,36 +374,36 @@ BRT per il tracking.
 ***** Casi d'uso
 
 #+begin_src plantuml :file uc-evasione-ordine.png :exports results
-@startuml
-title Casi d'uso — Evasione ordine
+  @startuml
+  title Casi d'uso — Evasione ordine
 
-actor "Operatore magazzino" as op
-actor "Corriere BRT" as brt
+  actor "Operatore magazzino" as op
+  actor "Corriere BRT" as brt
 
-rectangle "GestioneMagazzino" {
-    usecase "Visualizza ordini\nin coda" as UC1
-    usecase "Avvia picking" as UC2
-    usecase "Registra packing" as UC3
-    usecase "Genera bolla PDF" as UC4
-    usecase "Richiedi spedizione" as UC5
-    usecase "Stampa etichetta" as UC6
-}
+  rectangle "GestioneMagazzino" {
+  usecase "Visualizza ordini\nin coda" as UC1
+  usecase "Avvia picking" as UC2
+  usecase "Registra packing" as UC3
+  usecase "Genera bolla PDF" as UC4
+  usecase "Richiedi spedizione" as UC5
+  usecase "Stampa etichetta" as UC6
+  }
 
-op --> UC1
-op --> UC2
-op --> UC3
-op --> UC4
-op --> UC5
-UC5 --> brt : tracking number
-op --> UC6
+  op --> UC1
+  op --> UC2
+  op --> UC3
+  op --> UC4
+  op --> UC5
+  UC5 --> brt : tracking number
+  op --> UC6
 
-UC1 ..> UC2 : <<precedes>>
-UC2 ..> UC3 : <<precedes>>
-UC3 ..> UC4 : <<precedes>>
-UC4 ..> UC5 : <<precedes>>
-UC5 ..> UC6 : <<precedes>>
+  UC1 ..> UC2 : <<precedes>>
+  UC2 ..> UC3 : <<precedes>>
+  UC3 ..> UC4 : <<precedes>>
+  UC4 ..> UC5 : <<precedes>>
+  UC5 ..> UC6 : <<precedes>>
 
-@enduml
+  @enduml
 #+end_src
 
 L'operatore accede alla lista ordini in coda, seleziona un ordine e avvia la
@@ -416,53 +414,53 @@ l'API BRT, ottenendo il tracking number. Infine stampa l'etichetta per il collo.
 ***** Sequenza
 
 #+begin_src plantuml :file seq-evasione-ordine.png :exports results
-@startuml
-title Sequenza — Evasione ordine
+  @startuml
+  title Sequenza — Evasione ordine
 
-actor "Operatore" as op
-participant "ordini/controller" as ctrl
-participant "ordini/model" as model
-database "MySQL" as db
-participant "BRT API" as brt
-participant "TCPDF" as pdf
-participant "PHPMailer" as mail
+  actor "Operatore" as op
+  participant "ordini/controller" as ctrl
+  participant "ordini/model" as model
+  database "MySQL" as db
+  participant "BRT API" as brt
+  participant "TCPDF" as pdf
+  participant "PHPMailer" as mail
 
-op -> ctrl : GET ?module=ordini&action=dettaglio&id=1234
-ctrl -> model : getOrdine(1234)
-model -> db : SELECT * FROM ordini WHERE id=1234
-db --> model : row
-model --> ctrl : array ordine
-ctrl --> op : HTML dettaglio ordine
+  op -> ctrl : GET ?module=ordini&action=dettaglio&id=1234
+  ctrl -> model : getOrdine(1234)
+  model -> db : SELECT * FROM ordini WHERE id=1234
+  db --> model : row
+  model --> ctrl : array ordine
+  ctrl --> op : HTML dettaglio ordine
 
-op -> ctrl : POST ?module=ordini&action=avvia_picking
-ctrl -> model : updateStato(1234, 'picking')
-model -> db : UPDATE ordini SET stato='picking'
-ctrl -> model : getArticoliOrdine(1234)
-model -> db : SELECT * FROM ordine_righe WHERE ordine_id=1234
-db --> model : rows
-ctrl --> op : HTML lista picking
+  op -> ctrl : POST ?module=ordini&action=avvia_picking
+  ctrl -> model : updateStato(1234, 'picking')
+  model -> db : UPDATE ordini SET stato='picking'
+  ctrl -> model : getArticoliOrdine(1234)
+  model -> db : SELECT * FROM ordine_righe WHERE ordine_id=1234
+  db --> model : rows
+  ctrl --> op : HTML lista picking
 
-op -> ctrl : POST ?module=ordini&action=completa_picking
-ctrl -> model : updateStato(1234, 'packing')
-model -> db : UPDATE ordini SET stato='packing'
-ctrl -> model : decrementaGiacenze(righe)
-model -> db : UPDATE prodotti SET giacenza = giacenza - qty
+  op -> ctrl : POST ?module=ordini&action=completa_picking
+  ctrl -> model : updateStato(1234, 'packing')
+  model -> db : UPDATE ordini SET stato='packing'
+  ctrl -> model : decrementaGiacenze(righe)
+  model -> db : UPDATE prodotti SET giacenza = giacenza - qty
 
-op -> ctrl : POST ?module=ordini&action=genera_bolla
-ctrl -> pdf : generaBolla(ordine, righe)
-pdf --> ctrl : /storage/pdf/bolla_1234.pdf
-ctrl -> model : updateStato(1234, 'spedizione')
+  op -> ctrl : POST ?module=ordini&action=genera_bolla
+  ctrl -> pdf : generaBolla(ordine, righe)
+  pdf --> ctrl : /storage/pdf/bolla_1234.pdf
+  ctrl -> model : updateStato(1234, 'spedizione')
 
-ctrl -> brt : POST /shipment {peso, destinazione, colli}
-brt --> ctrl : {tracking: "BRT123456789"}
-ctrl -> model : salvaTracking(1234, "BRT123456789")
+  ctrl -> brt : POST /shipment {peso, destinazione, colli}
+  brt --> ctrl : {tracking: "BRT123456789"}
+  ctrl -> model : salvaTracking(1234, "BRT123456789")
 
-ctrl -> mail : inviaConferma(cliente_email, tracking)
-mail --> ctrl : ok
+  ctrl -> mail : inviaConferma(cliente_email, tracking)
+  mail --> ctrl : ok
 
-ctrl --> op : HTML conferma + link tracking
+  ctrl --> op : HTML conferma + link tracking
 
-@enduml
+  @enduml
 #+end_src
 
 **** Flusso: Job allarme scorte minime
@@ -474,24 +472,24 @@ al responsabile magazzino.
 ***** Casi d'uso
 
 #+begin_src plantuml :file uc-allarme-scorte.png :exports results
-@startuml
-title Casi d'uso — Allarme scorte minime
+  @startuml
+  title Casi d'uso — Allarme scorte minime
 
-actor "Crontab" as cron
-actor "Responsabile" as resp
+  actor "Crontab" as cron
+  actor "Responsabile" as resp
 
-rectangle "Job Allarme Scorte" {
-    usecase "Interroga giacenze\nsotto soglia" as UC1
-    usecase "Genera report\nallarme" as UC2
-    usecase "Invia email\nriepilogativa" as UC3
-}
+  rectangle "Job Allarme Scorte" {
+  usecase "Interroga giacenze\nsotto soglia" as UC1
+  usecase "Genera report\nallarme" as UC2
+  usecase "Invia email\nriepilogativa" as UC3
+  }
 
-cron --> UC1
-UC1 ..> UC2 : <<precedes>>
-UC2 ..> UC3 : <<precedes>>
-UC3 --> resp : email
+  cron --> UC1
+  UC1 ..> UC2 : <<precedes>>
+  UC2 ..> UC3 : <<precedes>>
+  UC3 --> resp : email
 
-@enduml
+  @enduml
 #+end_src
 
 Il job non ha interazione utente. Se non ci sono prodotti sotto soglia, termina
@@ -500,28 +498,28 @@ silenziosamente senza inviare email (evita allarmi vuoti).
 ***** Sequenza
 
 #+begin_src plantuml :file seq-allarme-scorte.png :exports results
-@startuml
-title Sequenza — Job allarme scorte (cron, 02:00)
+  @startuml
+  title Sequenza — Job allarme scorte (cron, 02:00)
 
-participant "allarme_scorte.php" as job
-database "MySQL" as db
-participant "PHPMailer" as mail
+  participant "allarme_scorte.php" as job
+  database "MySQL" as db
+  participant "PHPMailer" as mail
 
-[-> job : crontab trigger
+  [-> job : crontab trigger
 
-job -> db : SELECT p.sku, p.nome, p.giacenza, p.scorta_minima\n  FROM prodotti p\n  WHERE p.giacenza < p.scorta_minima\n    AND p.attivo = 1
-db --> job : rows (prodotti sotto soglia)
+  job -> db : SELECT p.sku, p.nome, p.giacenza, p.scorta_minima\n  FROM prodotti p\n  WHERE p.giacenza < p.scorta_minima\n    AND p.attivo = 1
+  db --> job : rows (prodotti sotto soglia)
 
-alt Nessun prodotto sotto soglia
-    job -> job : exit(0) — nessuna azione
-else Prodotti trovati
-    job -> job : Formatta tabella HTML\n(SKU, nome, giacenza, scorta minima, delta)
-    job -> mail : inviaAllarme(\n  to: "magazzino@logisticanord.it",\n  subject: "Allarme scorte — N prodotti sotto soglia",\n  body: tabella HTML\n)
-    mail --> job : ok
-    job -> db : INSERT INTO log_allarmi\n  (data, tipo, dettaglio, num_prodotti)
-end
+  alt Nessun prodotto sotto soglia
+  job -> job : exit(0) — nessuna azione
+  else Prodotti trovati
+  job -> job : Formatta tabella HTML\n(SKU, nome, giacenza, scorta minima, delta)
+  job -> mail : inviaAllarme(\n  to: "magazzino@logisticanord.it",\n  subject: "Allarme scorte — N prodotti sotto soglia",\n  body: tabella HTML\n)
+  mail --> job : ok
+  job -> db : INSERT INTO log_allarmi\n  (data, tipo, dettaglio, num_prodotti)
+  end
 
-@enduml
+  @enduml
 #+end_src
 
 **** Flusso: Job report mensile vendite
@@ -532,99 +530,99 @@ le statistiche di vendita del mese precedente e lo invia via email al management
 ***** Casi d'uso
 
 #+begin_src plantuml :file uc-report-mensile.png :exports results
-@startuml
-title Casi d'uso — Report vendite mensile
+  @startuml
+  title Casi d'uso — Report vendite mensile
 
-actor "Crontab" as cron
-actor "Management" as mgmt
+  actor "Crontab" as cron
+  actor "Management" as mgmt
 
-rectangle "Job Report Mensile" {
-    usecase "Calcola statistiche\nmese precedente" as UC1
-    usecase "Genera PDF\nreport" as UC2
-    usecase "Invia email\ncon allegato" as UC3
-    usecase "Archivia PDF" as UC4
-}
+  rectangle "Job Report Mensile" {
+  usecase "Calcola statistiche\nmese precedente" as UC1
+  usecase "Genera PDF\nreport" as UC2
+  usecase "Invia email\ncon allegato" as UC3
+  usecase "Archivia PDF" as UC4
+  }
 
-cron --> UC1
-UC1 ..> UC2 : <<precedes>>
-UC2 ..> UC3 : <<precedes>>
-UC2 ..> UC4
-UC3 --> mgmt : email + PDF
+  cron --> UC1
+  UC1 ..> UC2 : <<precedes>>
+  UC2 ..> UC3 : <<precedes>>
+  UC2 ..> UC4
+  UC3 --> mgmt : email + PDF
 
-@enduml
+  @enduml
 #+end_src
 
 ***** Sequenza
 
 #+begin_src plantuml :file seq-report-mensile.png :exports results
-@startuml
-title Sequenza — Job report vendite mensile (cron, 1° del mese, 06:00)
+  @startuml
+  title Sequenza — Job report vendite mensile (cron, 1° del mese, 06:00)
 
-participant "report_mensile.php" as job
-database "MySQL" as db
-participant "TCPDF" as pdf
-participant "PHPMailer" as mail
+  participant "report_mensile.php" as job
+  database "MySQL" as db
+  participant "TCPDF" as pdf
+  participant "PHPMailer" as mail
 
-[-> job : crontab trigger
+  [-> job : crontab trigger
 
-job -> db : SELECT COUNT(*), SUM(totale)\n  FROM ordini\n  WHERE stato = 'completato'\n    AND MONTH(data_evasione) = mese_prec
-db --> job : totale_ordini, fatturato
+  job -> db : SELECT COUNT(*), SUM(totale)\n  FROM ordini\n  WHERE stato = 'completato'\n    AND MONTH(data_evasione) = mese_prec
+  db --> job : totale_ordini, fatturato
 
-job -> db : SELECT p.nome, SUM(r.quantita) as qty,\n  SUM(r.quantita * r.prezzo) as valore\n  FROM ordine_righe r\n  JOIN prodotti p ON r.prodotto_id = p.id\n  JOIN ordini o ON r.ordine_id = o.id\n  WHERE o.stato = 'completato'\n    AND MONTH(o.data_evasione) = mese_prec\n  GROUP BY p.id ORDER BY qty DESC LIMIT 20
-db --> job : top_20_prodotti
+  job -> db : SELECT p.nome, SUM(r.quantita) as qty,\n  SUM(r.quantita * r.prezzo) as valore\n  FROM ordine_righe r\n  JOIN prodotti p ON r.prodotto_id = p.id\n  JOIN ordini o ON r.ordine_id = o.id\n  WHERE o.stato = 'completato'\n    AND MONTH(o.data_evasione) = mese_prec\n  GROUP BY p.id ORDER BY qty DESC LIMIT 20
+  db --> job : top_20_prodotti
 
-job -> db : SELECT DATE(data_evasione) as giorno,\n  COUNT(*) as ordini_giorno\n  FROM ordini\n  WHERE stato = 'completato'\n    AND MONTH(data_evasione) = mese_prec\n  GROUP BY giorno
-db --> job : distribuzione_giornaliera
+  job -> db : SELECT DATE(data_evasione) as giorno,\n  COUNT(*) as ordini_giorno\n  FROM ordini\n  WHERE stato = 'completato'\n    AND MONTH(data_evasione) = mese_prec\n  GROUP BY giorno
+  db --> job : distribuzione_giornaliera
 
-job -> pdf : Genera report\n(KPI, top prodotti,\nandamento giornaliero)
-pdf --> job : /storage/pdf/report_2026_02.pdf
+  job -> pdf : Genera report\n(KPI, top prodotti,\nandamento giornaliero)
+  pdf --> job : /storage/pdf/report_2026_02.pdf
 
-job -> mail : inviaReport(\n  to: ["direzione@logisticanord.it",\n       "logistica@logisticanord.it"],\n  subject: "Report vendite Febbraio 2026",\n  attachment: report_2026_02.pdf\n)
-mail --> job : ok
+  job -> mail : inviaReport(\n  to: ["direzione@logisticanord.it",\n       "logistica@logisticanord.it"],\n  subject: "Report vendite Febbraio 2026",\n  attachment: report_2026_02.pdf\n)
+  mail --> job : ok
 
-job -> db : INSERT INTO log_report\n  (data, tipo, path_file)
+  job -> db : INSERT INTO log_report\n  (data, tipo, path_file)
 
-@enduml
+  @enduml
 #+end_src
 
 *** Deployment
 
 #+begin_src plantuml :file gm-deployment.png :exports results
-@startuml
-!include <C4/C4_Deployment>
+  @startuml
+  !include <C4/C4_Deployment>
 
-title GestioneMagazzino — Deployment
+  title GestioneMagazzino — Deployment
 
-Deployment_Node(dc, "Datacenter Logistica Nord", "Rack dedicato") {
-    Deployment_Node(srv, "srv-magazzino", "Ubuntu 20.04 LTS\n8 CPU / 16 GB RAM / 500 GB SSD") {
-        Deployment_Node(apache, "Apache 2.4", "mod_php, porta 443") {
-            Container(app, "GestioneMagazzino", "PHP 7.4", "Applicazione web")
-        }
-        Deployment_Node(mysql, "MySQL 5.7", "porta 3306, bind 127.0.0.1") {
-            ContainerDb(db, "gm_production", "", "47 tabelle, ~2 GB")
-        }
-        Deployment_Node(cron, "Crontab", "root") {
-            Container(jobs, "Job schedulati", "PHP CLI", "2 job attivi")
-        }
-        Deployment_Node(fs, "Filesystem", "/var/www/gestionemagazzino/storage/") {
-            Container(storage, "File storage", "", "PDF, CSV, log")
-        }
-    }
-}
+  Deployment_Node(dc, "Datacenter Logistica Nord", "Rack dedicato") {
+  Deployment_Node(srv, "srv-magazzino", "Ubuntu 20.04 LTS\n8 CPU / 16 GB RAM / 500 GB SSD") {
+  Deployment_Node(apache, "Apache 2.4", "mod_php, porta 443") {
+  Container(app, "GestioneMagazzino", "PHP 7.4", "Applicazione web")
+  }
+  Deployment_Node(mysql, "MySQL 5.7", "porta 3306, bind 127.0.0.1") {
+  ContainerDb(db, "gm_production", "", "47 tabelle, ~2 GB")
+  }
+  Deployment_Node(cron, "Crontab", "root") {
+  Container(jobs, "Job schedulati", "PHP CLI", "2 job attivi")
+  }
+  Deployment_Node(fs, "Filesystem", "/var/www/gestionemagazzino/storage/") {
+  Container(storage, "File storage", "", "PDF, CSV, log")
+  }
+  }
+  }
 
-Deployment_Node(net, "Rete interna", "VLAN 10") {
-    Deployment_Node(nfs, "NAS", "Synology DS920+") {
-        Container(share, "Share SAP", "NFS", "CSV import/export")
-    }
-}
+  Deployment_Node(net, "Rete interna", "VLAN 10") {
+  Deployment_Node(nfs, "NAS", "Synology DS920+") {
+  Container(share, "Share SAP", "NFS", "CSV import/export")
+  }
+  }
 
-Rel(app, db, "mysqli", "TCP localhost:3306")
-Rel(jobs, db, "mysqli", "TCP localhost:3306")
-Rel(app, storage, "fopen/fwrite")
-Rel(jobs, storage, "fwrite")
-Rel(app, share, "NFS mount\n/mnt/sap-share")
+  Rel(app, db, "mysqli", "TCP localhost:3306")
+  Rel(jobs, db, "mysqli", "TCP localhost:3306")
+  Rel(app, storage, "fopen/fwrite")
+  Rel(jobs, storage, "fwrite")
+  Rel(app, share, "NFS mount\n/mnt/sap-share")
 
-@enduml
+  @enduml
 #+end_src
 
 *** Matrice di responsabilità
@@ -661,7 +659,6 @@ Rel(app, share, "NFS mount\n/mnt/sap-share")
 | Q2 | Il backup DB include anche lo storage PDF/CSV?               | Non chiaro dalla configurazione | Chiusa — solo DB, non file               |
 | Q3 | Esiste un ambiente di disaster recovery?                     | Non menzionato nelle interviste | Chiusa — no, non esiste                  |
 | Q4 | Le credenziali API BRT sono condivise o per ambiente?        | config.php ha un solo set       | Chiusa — stesse credenziali prod/staging |
-
 
 * Parte III — Specifiche funzionali
 
@@ -911,114 +908,114 @@ Disponibile per il profilo manager.
 *** Diagramma ER generale
 
 #+begin_src plantuml :file er-diagram.png :exports results
-@startuml
-title Diagramma ER — GestioneMagazzino
+  @startuml
+  title Diagramma ER — GestioneMagazzino
 
-entity "prodotti" as prod {
-    * id : INT <<PK>>
-    --
-    * sku : VARCHAR(10) <<UQ>>
-    * nome : VARCHAR(200)
-    descrizione : TEXT
-    * categoria_id : INT <<FK>>
-    * prezzo_unitario : DECIMAL(10,2)
-    peso_kg : DECIMAL(8,3)
-    scorta_minima : INT
-    * fornitore_id : INT <<FK>>
-    attivo : TINYINT(1)
-}
+  entity "prodotti" as prod {
+  ,* id : INT <<PK>>
+  --
+  ,* sku : VARCHAR(10) <<UQ>>
+  ,* nome : VARCHAR(200)
+  descrizione : TEXT
+  ,* categoria_id : INT <<FK>>
+  ,* prezzo_unitario : DECIMAL(10,2)
+  peso_kg : DECIMAL(8,3)
+  scorta_minima : INT
+  ,* fornitore_id : INT <<FK>>
+  attivo : TINYINT(1)
+  }
 
-entity "ordini" as ord {
-    * id : INT <<PK>>
-    --
-    * cliente_id : INT <<FK>>
-    * indirizzo_sped : TEXT
-    * stato : ENUM
-    totale : DECIMAL(12,2)
-    tracking_number : VARCHAR(50)
-    note : TEXT
-    * data_creazione : DATETIME
-    data_evasione : DATETIME
-}
+  entity "ordini" as ord {
+  ,* id : INT <<PK>>
+  --
+  ,* cliente_id : INT <<FK>>
+  ,* indirizzo_sped : TEXT
+  ,* stato : ENUM
+  totale : DECIMAL(12,2)
+  tracking_number : VARCHAR(50)
+  note : TEXT
+  ,* data_creazione : DATETIME
+  data_evasione : DATETIME
+  }
 
-entity "ordine_righe" as righe {
-    * id : INT <<PK>>
-    --
-    * ordine_id : INT <<FK>>
-    * prodotto_id : INT <<FK>>
-    * quantita : INT
-    * prezzo : DECIMAL(10,2)
-}
+  entity "ordine_righe" as righe {
+  ,* id : INT <<PK>>
+  --
+  ,* ordine_id : INT <<FK>>
+  ,* prodotto_id : INT <<FK>>
+  ,* quantita : INT
+  ,* prezzo : DECIMAL(10,2)
+  }
 
-entity "clienti" as cli {
-    * id : INT <<PK>>
-    --
-    * ragione_sociale : VARCHAR(200)
-    * email : VARCHAR(100)
-    telefono : VARCHAR(20)
-    indirizzo : TEXT
-}
+  entity "clienti" as cli {
+  ,* id : INT <<PK>>
+  --
+  ,* ragione_sociale : VARCHAR(200)
+  ,* email : VARCHAR(100)
+  telefono : VARCHAR(20)
+  indirizzo : TEXT
+  }
 
-entity "categorie" as cat {
-    * id : INT <<PK>>
-    --
-    * nome : VARCHAR(100) <<UQ>>
-}
+  entity "categorie" as cat {
+  ,* id : INT <<PK>>
+  --
+  ,* nome : VARCHAR(100) <<UQ>>
+  }
 
-entity "fornitori" as forn {
-    * id : INT <<PK>>
-    --
-    * ragione_sociale : VARCHAR(200)
-    * email : VARCHAR(100)
-    telefono : VARCHAR(20)
-}
+  entity "fornitori" as forn {
+  ,* id : INT <<PK>>
+  --
+  ,* ragione_sociale : VARCHAR(200)
+  ,* email : VARCHAR(100)
+  telefono : VARCHAR(20)
+  }
 
-entity "movimenti" as mov {
-    * id : INT <<PK>>
-    --
-    * prodotto_id : INT <<FK>>
-    * quantita : INT
-    * causale : ENUM
-    note : TEXT
-    * utente_id : INT <<FK>>
-    * created_at : DATETIME
-}
+  entity "movimenti" as mov {
+  ,* id : INT <<PK>>
+  --
+  ,* prodotto_id : INT <<FK>>
+  ,* quantita : INT
+  ,* causale : ENUM
+  note : TEXT
+  ,* utente_id : INT <<FK>>
+  ,* created_at : DATETIME
+  }
 
-entity "users" as usr {
-    * id : INT <<PK>>
-    --
-    * username : VARCHAR(50) <<UQ>>
-    * password_hash : VARCHAR(255)
-    * ruolo : ENUM
-    * attivo : TINYINT(1)
-}
+  entity "users" as usr {
+  ,* id : INT <<PK>>
+  --
+  ,* username : VARCHAR(50) <<UQ>>
+  ,* password_hash : VARCHAR(255)
+  ,* ruolo : ENUM
+  ,* attivo : TINYINT(1)
+  }
 
-entity "log_allarmi" as log_a {
-    * id : INT <<PK>>
-    --
-    * data : DATETIME
-    * tipo : VARCHAR(50)
-    dettaglio : TEXT
-    num_prodotti : INT
-}
+  entity "log_allarmi" as log_a {
+  ,* id : INT <<PK>>
+  --
+  ,* data : DATETIME
+  ,* tipo : VARCHAR(50)
+  dettaglio : TEXT
+  num_prodotti : INT
+  }
 
-entity "log_report" as log_r {
-    * id : INT <<PK>>
-    --
-    * data : DATETIME
-    * tipo : VARCHAR(50)
-    * path_file : VARCHAR(255)
-}
+  entity "log_report" as log_r {
+  ,* id : INT <<PK>>
+  --
+  ,* data : DATETIME
+  ,* tipo : VARCHAR(50)
+  ,* path_file : VARCHAR(255)
+  }
 
-prod }o--|| cat : categoria_id
-prod }o--|| forn : fornitore_id
-ord }o--|| cli : cliente_id
-righe }o--|| ord : ordine_id
-righe }o--|| prod : prodotto_id
-mov }o--|| prod : prodotto_id
-mov }o--|| usr : utente_id
+  prod }o--|| cat : categoria_id
+  prod }o--|| forn : fornitore_id
+  ord }o--|| cli : cliente_id
+  righe }o--|| ord : ordine_id
+  righe }o--|| prod : prodotto_id
+  mov }o--|| prod : prodotto_id
+  mov }o--|| usr : utente_id
 
-@enduml
+  @enduml
 #+end_src
 
 ** Punti di integrazione
@@ -1064,30 +1061,30 @@ L'import raggruppa automaticamente le righe per numero ordine.
 
 Richiesta:
 #+begin_src json
-{
+  {
   "sender": {
-    "name": "Logistica Nord Srl",
-    "address": "Via Industria 15, 20100 Milano"
+  "name": "Logistica Nord Srl",
+  "address": "Via Industria 15, 20100 Milano"
   },
   "recipient": {
-    "name": "Ferramenta Rossi Srl",
-    "address": "Via Roma 1, 20121 Milano"
+  "name": "Ferramenta Rossi Srl",
+  "address": "Via Roma 1, 20121 Milano"
   },
   "packages": [
-    { "weight_kg": 2.5, "dimensions": "30x20x15" }
+  { "weight_kg": 2.5, "dimensions": "30x20x15" }
   ],
   "reference": "ORD-1234"
-}
+  }
 #+end_src
 
 Risposta:
 #+begin_src json
-{
+  {
   "shipment_id": "BRT-2026-987654",
   "tracking_number": "BRT123456789",
   "label_url": "https://api.brt.it/labels/BRT-2026-987654.pdf",
   "estimated_delivery": "2026-03-21"
-}
+  }
 #+end_src
 
 *** Invio fattura a FatturaPA
@@ -1102,7 +1099,6 @@ Risposta:
 | Autenticazione  | Certificato client X.509 + credenziali SOAP        |
 | Timeout         | 60 secondi                                         |
 | Retry           | 1 retry automatico dopo 5 secondi                  |
-
 
 * Parte IV — Censimento infrastrutturale
 
@@ -1120,49 +1116,49 @@ Risposta:
 ** Vista di deployment
 
 #+begin_src plantuml :file infra-deployment.png :exports results
-@startuml
-title Deployment infrastrutturale — GestioneMagazzino
+  @startuml
+  title Deployment infrastrutturale — GestioneMagazzino
 
-node "srv-magazzino\nUbuntu 20.04" as srv {
-    component "Apache 2.4\n:443 (HTTPS)" as apache
-    component "PHP 7.4\n(mod_php)" as php
-    database "MySQL 5.7\n:3306 (localhost)" as mysql
-    component "crontab" as cron
-    folder "/var/www/.../storage/" as storage
-}
+  node "srv-magazzino\nUbuntu 20.04" as srv {
+  component "Apache 2.4\n:443 (HTTPS)" as apache
+  component "PHP 7.4\n(mod_php)" as php
+  database "MySQL 5.7\n:3306 (localhost)" as mysql
+  component "crontab" as cron
+  folder "/var/www/.../storage/" as storage
+  }
 
-node "srv-staging\nUbuntu 20.04" as stg {
-    component "Apache 2.4" as apache_s
-    component "PHP 7.4" as php_s
-    database "MySQL 5.7" as mysql_s
-}
+  node "srv-staging\nUbuntu 20.04" as stg {
+  component "Apache 2.4" as apache_s
+  component "PHP 7.4" as php_s
+  database "MySQL 5.7" as mysql_s
+  }
 
-node "nas-01\nSynology DS920+" as nas {
-    folder "/volume1/sap-share" as share
-}
+  node "nas-01\nSynology DS920+" as nas {
+  folder "/volume1/sap-share" as share
+  }
 
-cloud "Internet" as inet {
-    component "BRT API" as brt
-    component "FatturaPA" as fpa
-}
+  cloud "Internet" as inet {
+  component "BRT API" as brt
+  component "FatturaPA" as fpa
+  }
 
-node "Rete interna\nVLAN 10" as lan {
-    component "SMTP relay\n:25" as smtp
-}
+  node "Rete interna\nVLAN 10" as lan {
+  component "SMTP relay\n:25" as smtp
+  }
 
-apache --> php
-php --> mysql : TCP 3306
-cron --> php : PHP CLI
-php --> storage : fopen/fwrite
-php --> share : NFS mount
-php --> brt : HTTPS
-php --> fpa : HTTPS
-php --> smtp : SMTP/TLS
+  apache --> php
+  php --> mysql : TCP 3306
+  cron --> php : PHP CLI
+  php --> storage : fopen/fwrite
+  php --> share : NFS mount
+  php --> brt : HTTPS
+  php --> fpa : HTTPS
+  php --> smtp : SMTP/TLS
 
-apache_s --> php_s
-php_s --> mysql_s
+  apache_s --> php_s
+  php_s --> mysql_s
 
-@enduml
+  @enduml
 #+end_src
 
 ** Dipendenze infrastrutturali
@@ -1205,7 +1201,6 @@ php_s --> mysql_s
 | I1 | Firewall rules: quali porte in uscita sono aperte? | Chiusa — 25, 443, 2049                |
 | I2 | Backup retention: quanti giorni vengono mantenuti? | Chiusa — 7 giorni, rotazione          |
 | I3 | Monitoring: Munin copre anche MySQL?               | Chiusa — solo CPU/RAM/disco, no MySQL |
-
 
 * Parte V — Requisiti non funzionali e rischi
 

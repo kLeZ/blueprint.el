@@ -1,0 +1,17 @@
+* ADR {{NUMBER}}: {{TITLE}}
+:PROPERTIES:
+:STATUS:   proposed
+:DATE:     {{DATE}}
+:END:
+
+** Context
+
+The situation and the forces that led to this decision.
+
+** Decision
+
+The decision taken and the alternatives considered.
+
+** Consequences
+
+Positive, negative and neutral consequences of this decision.

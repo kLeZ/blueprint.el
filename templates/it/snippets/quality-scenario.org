@@ -1,0 +1,8 @@
+** {{NAME}}
+- *Attributo di qualità*: {{ATTRIBUTE}}
+- *Contesto*: [TO VALIDATE]
+- *Stimolo*: [TO VALIDATE]
+- *Risposta attesa*: [TO VALIDATE]
+- *Misura*: [TO VALIDATE]
+- *Priorità*: [Alta / Media / Bassa]
+- *Fonte*: [TO VALIDATE]

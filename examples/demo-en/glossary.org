@@ -1,0 +1,74 @@
+#+TITLE: Glossary
+#+VERSION: 0.1
+#+UPDATED: 2026-11-16
+#+NOTE: Standalone file.  Use blueprint-glossary-add (C-c b y) to add terms.
+
+* Filling-in guide — Glossary                                      :noexport:
+
+The glossary disambiguates the language of the domain.  Each term has an operational definition (how it is used in this project, not the encyclopedic definition) and states the source it comes from.
+
+** Domain terms (example)
+
+*** Reversal
+
+Operation that cancels, fully or in part, a payment already authorized.  In the current system it differs from a /refund/: the reversal acts before the settlement with the bank, the refund after it. /Source: interview with the operations manager (2024-03-12)/
+
+*** Reconciliation
+
+Nightly process that compares the transactions recorded in the system with the statement file sent by the payment provider.  It finds mismatches (e.g. payments authorized but not settled). /Source: code — module =reconciliation-service=/
+
+** Technical terms with a specific use (example)
+
+*** Idempotency key
+
+Unique identifier the client includes in every payment request.  In the system it guarantees that retransmissions caused by timeouts do not create double charges.  Unlike the generic REST use, here it is mandatory and stored for 24 h. /Source: architecture decision ADR 0003/
+
+** Acronyms and abbreviations (example)
+
+| Acronym | Expansion                           | Notes                                      |
+|---------+-------------------------------------+--------------------------------------------|
+| SLA     | Service Level Agreement             | Service level contract with the supplier   |
+| RTO     | Recovery Time Objective             | Maximum acceptable time to restore service |
+| RPO     | Recovery Point Objective            | Maximum acceptable data loss               |
+| PCI-DSS | Payment Card Industry Data Security | Security standard for card data            |
+|         | Standard                            |                                            |
+
+* Domain terms
+:PROPERTIES:
+:BLUEPRINT_SECTION: glossary-domain
+:END:
+<<glossary-domain>>
+
+** Delivery note
+Transport document: it goes with the goods from shipping to delivery and numbers the shipments of the year.
+/Source: code, orders module/
+
+** Picking
+Taking the items from the shelves to make up an order.
+/Source: interview with the warehouse manager/
+
+** Minimum stock
+Stock level below which an item has to be reordered; the threshold is per item.
+/Source: code, stock module/
+
+* Technical terms with a specific use
+:PROPERTIES:
+:BLUEPRINT_SECTION: glossary-technical
+:END:
+<<glossary-technical>>
+
+** Nightly job
+PHP script started by crontab outside working hours, with no user logged in.
+/Source: production crontab/
+
+* Acronyms and abbreviations
+:PROPERTIES:
+:BLUEPRINT_SECTION: glossary-acronyms
+:END:
+<<glossary-acronyms>>
+
+| Acronym | Expansion               | Notes                                                     |
+|---------+-------------------------+-----------------------------------------------------------|
+| BRT     | Bartolini               | Courier used for the shipments                            |
+| DDT     | Documento di trasporto  | Italian for delivery note                                 |
+| SdI     | Sistema di Interscambio | Italian Exchange System: receives the electronic invoices |

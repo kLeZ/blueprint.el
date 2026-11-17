@@ -1,0 +1,23 @@
+** Process: {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Description of the process: business objective, actors involved and relevant decision points.
+
+#+begin_src plantuml :file {{SVG_FILE}}
+  @startuml
+  |Actor 1|
+  start
+  :Activity 1;
+  |Actor 2|
+  :Activity 2;
+  if (Condition?) then (yes)
+  :Activity 3a;
+  else (no)
+  :Activity 3b;
+  endif
+  |Actor 1|
+  :Activity 4;
+  stop
+  @enduml
+#+end_src

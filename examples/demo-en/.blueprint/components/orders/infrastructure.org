@@ -1,0 +1,113 @@
+#+TITLE: orders -- Infrastructure census
+#+VERSION: 0.1
+#+STATUS: [APPROVED 2026-11-16]
+#+COMPONENT: orders
+#+UPDATED: 2026-11-16
+
+* Filling-in guide — Infrastructure                                :noexport:
+
+Census of the infrastructure this component runs on at the time of the assessment.  It does not describe the ideal architecture, but the state found.  Use =[FINDING]= for anomalies or discrepancies with the existing documentation.  The sections start empty: when you write their content, mark it =[TO VALIDATE]= until it is confirmed.
+
+** Example: inventory of hosts and services
+
+| ID   | Host / service name      | Role                         | OS / Runtime     | Version    | Environment | Owner    |
+|------+--------------------------+------------------------------+------------------+------------+-------------+----------|
+| H-01 | pay-app-01.prod.internal | Main application             | Ubuntu 22.04 LTS | JVM 17.0.9 | Production  | ops-team |
+| H-02 | pay-app-02.prod.internal | Application (hot standby)    | Ubuntu 22.04 LTS | JVM 17.0.9 | Production  | ops-team |
+| H-03 | pay-db-01.prod.internal  | Primary database             | PostgreSQL 15.4  | 15.4       | Production  | dba-team |
+| H-04 | pay-db-02.prod.internal  | Synchronous replica database | PostgreSQL 15.4  | 15.4       | Production  | dba-team |
+
+** Example: infrastructure dependencies
+
+| Dependency               | Type         | Port / Protocol | Direction | Mandatory?    |
+|--------------------------+--------------+-----------------+-----------+---------------|
+| pay-db-01.prod.internal  | PostgreSQL   | 5432/TCP        | OUT       | Yes           |
+| stripe.com               | HTTPS API    | 443/TCP         | OUT       | Yes           |
+| kafka-broker-01.internal | Kafka        | 9093/TCP (TLS)  | OUT       | Yes           |
+| consul.internal          | Service mesh | 8500/TCP        | OUT       | No (graceful) |
+
+** Example: relevant configuration
+
+| Parameter              | Value found    | Impact                               | Notes                   |
+|------------------------+----------------+--------------------------------------+-------------------------|
+| DB connection pool max | 20             | Limits the concurrent connections to | [FINDING] too low       |
+|                        |                | the database                         | under load              |
+| Stripe timeout         | 30000 ms       | Blocks the thread for 30 s when the  | [TO VALIDATE] adequate? |
+|                        |                | provider does not answer             |                         |
+| Circuit breaker        | not configured | No automatic degradation             | [FINDING] to be added   |
+
+** What to write in each section
+
+- /Inventory/: hosts and services (table as in the example above).
+- /Deployment view/: deployment diagram of the state found.
+- /Infrastructure dependencies/: table as in the example above.
+- /Relevant configuration/: parameters with an architectural impact (not operational ones), e.g. pool size, timeouts, buffer sizes, failover mode; table as in the example above.
+- /Environments/: one row per environment (production, staging, development, ...).
+
+** Models
+
+To copy into the target section.  In the PlantUML block remove =:eval never=, which here keeps Babel from generating the file at every export.
+
+Environments:
+
+| Environment | URL / Endpoint | Version | Differences from production |
+|-------------+----------------+---------+-----------------------------|
+| Production  |                |         | --                          |
+| Staging     |                |         |                             |
+| Development |                |         |                             |
+
+Deployment view:
+
+#+begin_src plantuml :file orders-infra.svg :eval never
+  node "Environment: [name]" {
+  node "Host: [name]" {
+  artifact "orders vX.Y"
+  }
+  database "DB: [name]" {
+  }
+  }
+  @enduml
+#+end_src
+
+* Inventory
+:PROPERTIES:
+:BLUEPRINT_SECTION: inventory
+:END:
+<<orders-inventory>>
+
+A single virtual host with Debian 10, 4 vCPUs and 8 GB of RAM, running Apache, PHP and MySQL. No test environment.
+
+* Deployment view
+:PROPERTIES:
+:BLUEPRINT_SECTION: deployment-view
+:END:
+<<orders-deployment-view>>
+
+The code is copied to the server with =rsync= from a development workstation. There is no pipeline and there are no release tags.
+
+* Infrastructure dependencies
+:PROPERTIES:
+:BLUEPRINT_SECTION: infra-dependencies
+:END:
+<<orders-infra-deps>>
+
+* Relevant configuration
+:PROPERTIES:
+:BLUEPRINT_SECTION: configuration
+:END:
+<<orders-config>>
+
+The configuration is in =config.php=: database credentials, BRT and FatturaPA endpoints, path of the share with the CSV files.
+
+* Environments
+:PROPERTIES:
+:BLUEPRINT_SECTION: environments
+:END:
+<<orders-environments>>
+
+Production only. Changes are tried on a local copy of the database, refreshed by hand when needed.
+
+* Open questions
+:PROPERTIES:
+:BLUEPRINT_SECTION: open-questions
+:END:

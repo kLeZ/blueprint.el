@@ -345,7 +345,7 @@ to the mode line."
                                    header-line-format
                                  (list header-line-format))
                                "")))
-                  (dolist (title '("Name" "QUESTION" "TBD" "FIXME" "DA VAL" "DA REV"
+                  (dolist (title '("Name" "QUESTION" "TBD" "FIXME" "TO VAL" "TO REV"
                                    "FINDING" "Penalty" "Health" "Status"))
                     (should (string-match-p (regexp-quote title) header))))
                 (should (stringp mode-line-process))
@@ -447,7 +447,7 @@ and says nothing when there is none."
     (blueprint-test--write-file "CRONOPROGRAMMA.org" "* TODO Consegna draft\n")
     (let ((line (blueprint--dashboard-summary-line)))
       (should (string-match-p "Milestone: Consegna draft" line))
-      (should (string-match-p "TODO aperti: 1" line)))))
+      (should (string-match-p "open TODOs: 1" line)))))
 
 ;; Regression (PLAN 9.33): a long milestone title pushed the version out
 ;; of sight in a narrow window.

@@ -23,11 +23,11 @@ monitoring → interviste → documentazione preesistente.
 ** Esempio: intestazione e dipendenze
 
 #+BEGIN_SRC org
-#+BLUEPRINT_DEPENDS:
-#+BLUEPRINT_OWNER: team-magazzino
-#+BLUEPRINT_TECH: PHP 7.4 / API REST BRT
-#+BLUEPRINT_STATUS: in-scope
-#+BLUEPRINT_LIFECYCLE: active
+  ,#+BLUEPRINT_DEPENDS:
+  ,#+BLUEPRINT_OWNER: team-magazzino
+  ,#+BLUEPRINT_TECH: PHP 7.4 / API REST BRT
+  ,#+BLUEPRINT_STATUS: in-scope
+  ,#+BLUEPRINT_LIFECYCLE: active
 #+END_SRC
 
 =#+BLUEPRINT_STATUS:= vale =in-scope= (default), =out-of-scope= o =tbd=.
@@ -121,83 +121,83 @@ blocchi dei sottoalberi =:noexport:=).
 Contesto (Context and Scope):
 
 #+begin_src plantuml :file spedizioni-context.svg :eval never
-!include <C4/C4_Context>
-System(spedizioni, "spedizioni", "")
-Person(user, "Utente")
-' Aggiungere sistemi esterni con System_Ext(id, "Nome", "Descrizione")
-Rel(user, spedizioni, "Usa")
-@enduml
+  !include <C4/C4_Context>
+  System(spedizioni, "spedizioni", "")
+  Person(user, "Utente")
+  ' Aggiungere sistemi esterni con System_Ext(id, "Nome", "Descrizione")
+  Rel(user, spedizioni, "Usa")
+  @enduml
 #+end_src
 
 Container (Building Blocks):
 
 #+begin_src plantuml :file spedizioni-containers.svg :eval never
-!include <C4/C4_Container>
-System_Boundary(spedizioni, "spedizioni") {
+  !include <C4/C4_Container>
+  System_Boundary(spedizioni, "spedizioni") {
   Container(app, "Applicazione", "Tecnologia", "Descrizione")
   ContainerDb(db, "Database", "Tecnologia", "Descrizione")
-}
-@enduml
+  }
+  @enduml
 #+end_src
 
 Casi d'uso di un flusso (Runtime Behavior), vista per stakeholder non tecnici:
 
 #+begin_src plantuml :file spedizioni-uc-main.svg :eval never
-@startuml
-left to right direction
-actor "Utente" as u
-rectangle "spedizioni" {
+  @startuml
+  left to right direction
+  actor "Utente" as u
+  rectangle "spedizioni" {
   usecase "Caso d'uso 1" as uc1
   usecase "Caso d'uso 2" as uc2
-}
-u --> uc1
-u --> uc2
-@enduml
+  }
+  u --> uc1
+  u --> uc2
+  @enduml
 #+end_src
 
 Sequenza di un flusso (Runtime Behavior), vista per i team tecnici e per la
 documentazione delle API:
 
 #+begin_src plantuml :file spedizioni-seq-main.svg :eval never
-@startuml
-participant "A" as a
-participant "B" as b
-a -> b : messaggio
-b --> a : risposta
-@enduml
+  @startuml
+  participant "A" as a
+  participant "B" as b
+  a -> b : messaggio
+  b --> a : risposta
+  @enduml
 #+end_src
 
 Processo di business con corsie (Processi di business):
 
 #+begin_src plantuml :file spedizioni-process-main.svg :eval never
-@startuml
-|Attore 1|
-start
-:Attività 1;
-|Attore 2|
-:Attività 2;
-if (Condizione?) then (si)
+  @startuml
+  |Attore 1|
+  start
+  :Attività 1;
+  |Attore 2|
+  :Attività 2;
+  if (Condizione?) then (si)
   :Attività 3a;
-else (no)
+  else (no)
   :Attività 3b;
-endif
-|Attore 1|
-:Attività 4;
-stop
-@enduml
+  endif
+  |Attore 1|
+  :Attività 4;
+  stop
+  @enduml
 #+end_src
 
 Deployment:
 
 #+begin_src plantuml :file spedizioni-deployment.svg :eval never
-node "Ambiente: [nome]" {
+  node "Ambiente: [nome]" {
   node "Host: [nome]" {
-    artifact "spedizioni"
+  artifact "spedizioni"
   }
   database "DB: [nome]" {
   }
-}
-@enduml
+  }
+  @enduml
 #+end_src
 
 * Introduction

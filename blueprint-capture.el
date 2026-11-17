@@ -1,7 +1,7 @@
 ;;; blueprint-capture.el --- Quick capture for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -42,11 +42,11 @@
          ;; Same format as `blueprint-glossary-add': a level-2 entry at
          ;; the end of the first section of the template (org-capture
          ;; files the "* " entry as a child of the headline), with the
-         ;; definition followed by the /Fonte: .../ line.
+         ;; definition followed by the source line of the document language.
          (file+headline ,(blueprint--ensure-glossary)
-                        ,(or (car (blueprint--glossary-sections))
-                             "Termini di dominio"))
-         "* %^{Term}\n%?\n/Fonte: %^{Source}/")))))
+                        ,(blueprint--glossary-default-section))
+         ,(concat "* %^{Term}\n%?\n"
+                  (format (blueprint--l10n 'glossary-source) "%^{Source}")))))))
 
 ;;;###autoload
 (defun blueprint-capture-setup ()

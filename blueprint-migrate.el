@@ -1,7 +1,7 @@
 ;;; blueprint-migrate.el --- Template migration for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -21,7 +21,7 @@
 
 ;;;###autoload
 (defun blueprint-template-diff ()
-  "Compare project templates against system defaults.
+  "Compare project templates against the system ones of its language.
 Displays the diff in a `diff-mode' buffer.
 Signals an error if the project templates directory does not exist."
   (interactive)
@@ -31,22 +31,23 @@ Signals an error if the project templates directory does not exist."
     (let ((default-directory (blueprint--root)))
       (compilation-start
        (format "diff -ru %s %s"
-               (shell-quote-argument blueprint-template-dir)
+               (shell-quote-argument (blueprint--system-template-dir))
                (shell-quote-argument proj-dir))
        'diff-mode))))
 
 ;;;###autoload
 (defun blueprint-template-migrate ()
-  "Copy missing template files from system defaults to the project.
+  "Copy missing system templates of the project language to the project.
 Only adds files that do not already exist in the project templates
 directory (non-destructive)."
   (interactive)
-  (let ((src blueprint-template-dir)
+  (let ((src (blueprint--system-template-dir))
         (dst (blueprint--project-template-dir)))
     (make-directory dst t)
-    (dolist (f (directory-files src t "^[^.]"))
-      (let ((target (expand-file-name (file-name-nondirectory f) dst)))
+    (dolist (f (blueprint--template-files src))
+      (let ((target (expand-file-name (blueprint--template-relative-name f) dst)))
         (unless (file-exists-p target)
+          (make-directory (file-name-directory target) t)
           (blueprint--copy-file-writable f target))))
     (message "Templates migrated (non-destructive)")))
 

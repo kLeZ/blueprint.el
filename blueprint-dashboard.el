@@ -1,7 +1,7 @@
 ;;; blueprint-dashboard.el --- Magit-style dashboard for Blueprint  -*- lexical-binding:t; -*-
 ;; SPDX-License-Identifier: MIT
 
-;; Author: kLeZ
+;; Author: kLeZ <julius8774@gmail.com>
 ;; URL: https://github.com/kLeZ/blueprint.el
 
 ;;; Commentary:
@@ -43,8 +43,8 @@ which components were excluded from the assessment perimeter and why.")
 
 (defun blueprint--component-status (questions tbds fixmes &optional methodology)
   "Return a status string based on QUESTIONS, TBDS, and FIXMES counts.
-METHODOLOGY is the number of open methodology markers ([DA VALIDARE],
-[DA REVISIONARE]); [FINDING] is not one.  A component with any open
+METHODOLOGY is the number of open methodology markers ([TO VALIDATE],
+[TO REVIEW]); [FINDING] is not one.  A component with any open
 marker is never \"OK\"."
   (cond
    ((> fixmes 0) "FIXME")
@@ -80,8 +80,8 @@ out-of-scope filter keeps out-of-scope/tbd components only."
          (questions (funcall count "\\<QUESTION\\>"))
          (tbds (funcall count "\\<TBD\\>"))
          (fixmes (funcall count "\\<FIXME\\>"))
-         (da-validare (funcall count "\\[DA VALIDARE\\]"))
-         (da-revisionare (funcall count "\\[DA REVISIONARE\\]"))
+         (to-validate (funcall count blueprint--to-validate-regexp))
+         (to-review (funcall count blueprint--to-review-regexp))
          (findings (funcall count "\\[FINDING\\]"))
          (penalty (plist-get summary :penalty))
          (included (plist-get unit :included))
@@ -91,7 +91,7 @@ out-of-scope filter keeps out-of-scope/tbd components only."
                       ""))
          (status (if included
                      (blueprint--component-status
-                      questions tbds fixmes (+ da-validare da-revisionare))
+                      questions tbds fixmes (+ to-validate to-review))
                    blueprint--dashboard-not-included)))
     (when (and (or (not blueprint-dashboard-focus)
                    (> penalty 0)
@@ -106,8 +106,8 @@ out-of-scope filter keeps out-of-scope/tbd components only."
                        (number-to-string questions)
                        (number-to-string tbds)
                        (number-to-string fixmes)
-                       (number-to-string da-validare)
-                       (number-to-string da-revisionare)
+                       (number-to-string to-validate)
+                       (number-to-string to-review)
                        (number-to-string findings)
                        (number-to-string penalty)
                        (if included (number-to-string (plist-get summary :score)) "-")
@@ -118,7 +118,7 @@ out-of-scope filter keeps out-of-scope/tbd components only."
 One row per row of `blueprint--document-units': components first, in
 alphabetical order, then the other files of the document in document
 order, identified by their path relative to the project root.  Marker
-columns count QUESTION, TBD, FIXME, [DA VALIDARE], [DA REVISIONARE]
+columns count QUESTION, TBD, FIXME, [TO VALIDATE], [TO REVIEW]
 and [FINDING] in the row's files, then come the weighted penalty
 points and the row's own score, computed as `blueprint-health-score'
 does for the whole document ([FINDING] weighs 0).  Every file of the
@@ -148,7 +148,7 @@ master.org shows the status `blueprint--dashboard-not-included'."
 
 (defconst blueprint--dashboard-columns
   '(("Name" 27) ("Owner" 8) ("Tech" 10) ("Scope" 12) ("Life" 11)
-    ("QUESTION" 8) ("TBD" 4) ("FIXME" 5) ("DA VAL" 6) ("DA REV" 6)
+    ("QUESTION" 8) ("TBD" 4) ("FIXME" 5) ("TO VAL" 6) ("TO REV" 6)
     ("FINDING" 7) ("Penalty" 7) ("Health" 6) ("Status" 12))
   "Titles and widths of the dashboard columns, in order.
 Every width is at least as large as its title, so no title is cut.")
@@ -156,7 +156,7 @@ Every width is at least as large as its title, so no title is cut.")
 (define-derived-mode blueprint-dashboard-mode tabulated-list-mode "Blueprint"
   "Major mode for the Blueprint project dashboard.
 One row per component, then one per other file of the document
-\(master.org, glossary, Parte I and V files, references).  Columns:
+\(master.org, glossary, enterprise and NFR files, references).  Columns:
 
   Name      component id, or path of the file relative to the root
   Owner, Tech, Scope, Life
@@ -164,8 +164,8 @@ One row per component, then one per other file of the document
             and #+BLUEPRINT_LIFECYCLE of a component's arc42.org
   QUESTION, TBD, FIXME
             technical markers
-  DA VAL    [DA VALIDARE] markers
-  DA REV    [DA REVISIONARE] markers
+  TO VAL    [TO VALIDATE] markers (and the Italian [DA VALIDARE])
+  TO REV    [TO REVIEW] markers (and the Italian [DA REVISIONARE])
   FINDING   [FINDING] markers (weight 0, information only)
   Penalty   weighted penalty points, as in `blueprint-health-score'
   Health    score of the row alone (\"-\" when not in the document)
@@ -274,9 +274,9 @@ See `blueprint-dashboard-show-version'."
         (concat
          (format " | Blueprint %s (%s)"
                  (plist-get u :version)
-                 (if (eq (plist-get u :source) 'declared) "dichiarata" "dedotta"))
+                 (if (eq (plist-get u :source) 'declared) "declared" "inferred"))
          (when (plist-get u :pending)
-           (format " | Migrazioni disponibili: %d [u]"
+           (format " | Migrations available: %d [u]"
                    (length (plist-get u :pending))))
          (when (or (> (plist-get u :templates) 0)
                    (> (plist-get u :customized) 0))
@@ -301,7 +301,7 @@ is cut to `blueprint-dashboard-milestone-width'."
                     (truncate-string-to-width
                      title blueprint-dashboard-milestone-width nil nil "...")
                   title)))
-    (format " | Milestone: %s%s | TODO aperti: %d"
+    (format " | Milestone: %s%s | open TODOs: %d"
             (propertize shown 'help-echo title)
             (if (plist-get milestone :date)
                 (format " (%s)" (plist-get milestone :date))

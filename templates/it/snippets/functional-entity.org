@@ -1,0 +1,27 @@
+** {{NAME}}
+<<{{ANCHOR}}>>
+[TO VALIDATE]
+
+Descrizione.  Attributi principali in termini di business.  La colonna /Relazione/ indica l'entità target per gli attributi che sono chiavi esterne (es.: ~→ AltroNome~).
+
+| Attributo | Tipo (business) | Vincoli | Relazione | Note |
+|-----------+-----------------+---------+-----------+------|
+|           |                 |         |           |      |
+
+*** Rappresentazione logica
+<<{{ER_ANCHOR}}>>
+
+Diagramma ER dell'entità.  Le frecce verso entità esterne puntano ai soli identificatori, senza mostrare la struttura interna delle entità correlate.
+
+#+begin_src plantuml :file {{ER_FILE}}
+  @startuml
+  entity "{{NAME}}" as e {
+  ,* id : tipo <<PK>>
+  --
+  attributo : tipo
+  }
+  ' Entità esterne: solo il bordo, nessun dettaglio interno
+  ' entity "[Entità correlata]" as ext #lightgrey {}
+  ' e }o--|| ext : "descrizione relazione"
+  @enduml
+#+end_src

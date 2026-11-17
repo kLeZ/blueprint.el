@@ -1,0 +1,69 @@
+#+TITLE: Contributing to Blueprint
+
+Bug reports, fixes, templates in new languages and documentation are welcome. This file says how to report a problem, how to run the checks the CI runs, and which rules a change has to follow to be merged.
+
+* Reporting a problem
+
+Open an issue with the bug report form. The things that make a report useful are the Emacs and Org versions, the Blueprint version (=M-x describe-package RET blueprint=, or the =Version:= header of =blueprint.el=), the project version shown in the dashboard, the steps that reproduce the problem, and what you expected instead.
+
+Blueprint is used on real assessments, which are often confidential. Never paste content from one in an issue, a pull request or a test: reduce the problem to an invented project (the demo in =examples/demo/= is a good starting point) and use invented names.
+
+Security problems go through the channel described in [[file:SECURITY.org][SECURITY.org]], not through a public issue.
+
+* Development setup
+
+You need Emacs 29.1 or later and =make=. Some tests and features use external programs and are skipped or degrade without them: Graphviz (=dot=), PlantUML, =unzip= (ODT style check), ripgrep, git.
+
+| Command                     | What it does                                                  |
+|-----------------------------+---------------------------------------------------------------|
+| =make test=                 | the whole ERT suite                                           |
+| =make test SELECTOR=health= | only the tests whose name matches the regexp                  |
+| =make compile=              | byte-compile every module, warnings are errors                |
+| =make checkdoc=             | docstring conventions                                         |
+| =make package-lint=         | package-lint on =blueprint.el= (needs package-lint installed) |
+| =make lint=                 | =compile= and =checkdoc=                                      |
+
+The CI runs the same targets on Emacs 29.1, 29.4 and the development snapshot. Every =test/blueprint-test-*.el= file is loaded by =make test=: a new suite needs no registration. =test/blueprint-test-helpers.el= provides =blueprint-test--with-project=, which creates a temporary project and removes it after the test.
+
+* Rules for a change
+
+** Code
+- Every file starts with =;;; -*- lexical-binding: t; -*-=.
+- Public symbols use the =blueprint-= prefix, private ones =blueprint--=. Interactive public commands carry =;;;###autoload=. User settings are =defcustom= in the =blueprint= group.
+- Org content is parsed with =org-element=, never with regular expressions on the raw text. Marker scans go through =blueprint--count-file-markers= / =blueprint--marker-positions=, which skip non-exported text.
+- Paths inside the data directory go through =blueprint--data-path=; never write =".blueprint"= by hand. The files that make up the document come from =blueprint--document-files=.
+- Optional integrations are loaded with =(require 'feature nil t)=.
+- Code, comments and documentation are in English. Text that ends up in a user's document is localized (see below).
+
+** Tests
+- A bug fix comes with a regression test that fails without the fix.
+- Test fixtures use invented names (=acme--portale=, =GestioneMagazzino=).
+
+** Formats on disk
+A project must never have to migrate before work can go on ([[file:docs/adr/ADR-002-project-version-and-migrations.org][ADR-002]]). A change to what Blueprint writes on disk (file location, keyword, heading layout, ID scheme) must:
+1. keep reading the previous format, with a test on a fixture written the way the old code wrote it;
+2. add a step to =blueprint-upgrade-steps= (=blueprint-upgrade.el=) with a read-only detector, an idempotent apply function and tests for both;
+3. never migrate on its own: =blueprint-project-upgrade= applies the step when the user asks, after a backup.
+
+** Templates and languages
+A language is a folder of files under =templates/= ([[file:docs/adr/ADR-003-localized-templates.org][ADR-003]]); the code holds no translated text, and the language logic is all in =blueprint-l10n.el=.  A language folder has:
+- the document templates (=component.org=, =functional.org=, =master.org=...).  The headings the code looks up carry a =:BLUEPRINT_SECTION:= property: keep it when you edit or translate a heading, the title is free;
+- =snippets/=, the skeletons the commands insert (a feature, an entity, a flow, a quality scenario, an ADR...), with placeholders such as ={{NAME}}= that must stay as they are;
+- =strings.org=, the short texts: one level-1 heading per key, the text (or the list items) under it.  Translate the text, not the keys; a =%s= stays.
+
+A change to one language has to be made in every language: =make test= checks that the folders have the same files, sections, keys and placeholders.  After changing anything under =templates/=, run =scripts/gen-template-history.sh=.
+
+To add a language, copy =templates/en/= to =templates/<code>/= and translate it; nothing else is needed.  A user can do the same under =~/.config/blueprint/templates/<code>/= without touching the package: what the folder lacks comes from English.
+
+** Documentation and changelog
+New documentation files are Org. A user-visible change gets a line in the "Unreleased" section of [[file:CHANGELOG.org][CHANGELOG.org]]; a change in behavior also updates [[file:USAGE.org][USAGE.org]] or [[file:README.org][README.org]].
+
+* Pull requests
+
+Before every commit run =scripts/fmt-docs.sh=, which formats the Org and Markdown files (it needs =prettier= for the Markdown), and, if it changed a file under =templates/=, =scripts/gen-template-history.sh=.  Keep a pull request to one topic, with =make test= and =make lint= passing. Describe what changes for the user and how you verified it. Architectural decisions are recorded as ADRs in =docs/adr/=; the plan of open work is [[file:PLAN.org][PLAN.org]].
+
+Releases are cut by the maintainer: bumping =Version:= in =blueprint.el= on =main= triggers the release workflow.
+
+* Code of conduct
+
+Participation in this project follows the [[file:CODE_OF_CONDUCT.org][code of conduct]].

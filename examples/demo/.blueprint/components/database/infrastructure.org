@@ -66,14 +66,14 @@ Ambienti:
 Deployment view:
 
 #+begin_src plantuml :file database-infra.svg :eval never
-node "Ambiente: [nome]" {
+  node "Ambiente: [nome]" {
   node "Host: [nome]" {
-    artifact "database vX.Y"
+  artifact "database vX.Y"
   }
   database "DB: [nome]" {
   }
-}
-@enduml
+  }
+  @enduml
 #+end_src
 
 * Inventario

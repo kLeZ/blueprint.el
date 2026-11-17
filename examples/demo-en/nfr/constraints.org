@@ -1,0 +1,67 @@
+#+TITLE: Architecture constraints
+#+VERSION: 0.1
+#+STATUS: [TO VALIDATE]
+#+UPDATED: 2026-11-16
+
+* Filling-in guide — Architecture constraints                      :noexport:
+
+Constraints limit the space of the architectural solutions.  Writing them down explicitly makes it possible to justify the choices and to notice when a constraint lapses or changes.  Use =blueprint-nfr-add-constraint= (=C-c b c=) to add constraints interactively.
+
+** Example: technical constraints
+
+| Constraint          | Description                           | Impact                             | Components involved       | Source       |
+|---------------------+---------------------------------------+------------------------------------+---------------------------+--------------|
+| Java 17 LTS minimum | The runtime of every JVM service must | Rules out Java 11-only libraries;  | payment-service,          | architecture |
+|                     | be Java 17 or later                   | enables records and sealed classes | order-service             | decision     |
+| No ORM              | Database access through explicit SQL  | More verbose, but traceable and    | every component with a DB | team choice  |
+|                     | (JOOQ or plain JDBC, no Hibernate)    | controllable in production         |                           |              |
+
+** Example: organizational constraints
+
+| Constraint           | Description                                 | Impact                                     | Source             |
+|----------------------+---------------------------------------------+--------------------------------------------+--------------------|
+| Team of 3 developers | The development team has 3 full-time people | Limit the number of distinct technologies; | company structure  |
+|                      |                                             | CI/CD automation comes first               |                    |
+| Fortnightly deploy   | Production releases at most every 2 weeks   | Rules out continuous delivery; needs       | agreement with ops |
+|                      | (agreed maintenance window)                 | feature flags for partial releases         |                    |
+
+** Example: regulatory and compliance constraints
+
+| Standard / Regulation | Requirement                               | Components involved            | Compliance status        |
+|-----------------------+-------------------------------------------+--------------------------------+--------------------------|
+| PCI-DSS v4.0          | Payment card data neither transit through | payment-service, api-gateway   | [FINDING] not compliant: |
+|                       | nor are stored on our servers             |                                | tokenization incomplete  |
+| GDPR Art. 25          | Privacy by design: collect only the data  | every component with a user DB | [TO VALIDATE]            |
+|                       | strictly needed for the stated purpose    |                                |                          |
+
+* Cross-cutting constraints
+:PROPERTIES:
+:BLUEPRINT_SECTION: constraints-cross
+:END:
+<<nfr-constraints>> [TO VALIDATE]
+
+Constraints that affect several components or the whole architecture.
+
+** Technical constraints
+:PROPERTIES:
+:BLUEPRINT_SECTION: constraints-technical
+:END:
+| Constraint              | Description                                          | Impact                             | Components involved     | Source                   |
+|-------------------------+------------------------------------------------------+------------------------------------+-------------------------+--------------------------|
+| Runtimes out of support | PHP 7.4 and MySQL 5.7 no longer get security patches | Every new vulnerability stays open | orders, stock, database | code and production host |
+
+** Organizational constraints
+:PROPERTIES:
+:BLUEPRINT_SECTION: constraints-organizational
+:END:
+| Constraint              | Description                                                      | Impact                                    | Source         |
+|-------------------------+------------------------------------------------------------------+-------------------------------------------+----------------|
+| Knowledge in one person | A single developer knows the code, and there is no documentation | Holidays and sick leave stop every change | interview I-02 |
+
+** Regulatory and compliance constraints
+:PROPERTIES:
+:BLUEPRINT_SECTION: constraints-regulatory
+:END:
+| Standard / Regulation | Requirement                                                                   | Components involved | Compliance status       |
+|-----------------------+-------------------------------------------------------------------------------+---------------------+-------------------------|
+| Electronic invoicing  | Invoices go through the Italian Exchange System (SdI) in the FatturaPA format | invoicing           | Compliant [TO VALIDATE] |
