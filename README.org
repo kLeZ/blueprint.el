@@ -182,6 +182,8 @@ Clone the repository and add it to your load path:
 #+end_src
 
 ** Doom Emacs
+Not tested by the maintainer, who does not use Doom: this recipe is derived from the Doom and straight.el documentation. Reports are welcome.
+
 In =packages.el=:
 
 #+begin_src elisp

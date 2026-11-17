@@ -50,7 +50,7 @@ Release 0.5.0 (2026-11-17): the work of the =oss-l10n= branch (open-source readi
 | AGENTS.md, README.org, blueprint.el                        | modified |              |
 
 * Next Steps
-1. Push main (the release workflow creates tag v0.5.0 and the GitHub release on the pushed tip; do not push the tag, or the workflow skips the release); then check the release asset and answer issue #1
+1. Released 2026-11-17: main 652453f pushed, workflow created tag v0.5.0 on the same commit and the release with blueprint-0.5.0.tar (installed with package-install-file: ok); Tests (29.1, 29.4, snapshot) and Lint green. Issue #1 answered with the 0.5.0 recipe, stated as untested (the user does not use Doom); README Doom section marked the same way. Waiting for the reporter
 2. Before every commit: scripts/fmt-docs.sh, then gen-template-history.sh if templates changed (rule in AGENTS.md)
 3. README screenshots from the English demo (needs a graphical Emacs)
 4. User: enable GitHub private vulnerability reporting (12.5)
